@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test",
-    "dev": "python3 -m http.server 4173 --directory dist",
-    "check": "node --check dist/app.js && node --check dist/views.js && node --check dist/model.js",
+    "build": "tsc",
+    "test": "node --test tests/model.test.ts",
+    "dev": "npm run build && python3 -m http.server 4173 --directory dist",
+    "check": "tsc --noEmit && node --check dist/app.js && node --check dist/views.js && node --check dist/model.js",
     "qa": "node scripts/browser-qa.mjs && node scripts/regression-qa.mjs && node scripts/storage-regression.mjs && node scripts/contrast-qa.mjs && node scripts/reference-layout-qa.mjs && node scripts/weekly-chart-qa.mjs"
   },
   "devDependencies": {
-    "playwright": "^1.64.1"
+    "@types/node": "^26.6.6",
+    "playwright": "^1.64.1",
+    "typescript": "^7.0.2"
   }
 }
