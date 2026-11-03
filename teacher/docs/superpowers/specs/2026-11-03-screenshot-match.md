@@ -1,0 +1,5 @@
+# Screenshot composition correction
+
+User supplied exact screenshot and rejected previous loose adaptation. Match frame and proportions, not merely palette. Desktop uses centered rounded application frame on medium-gray canvas (aspect ratio about 1.55), sidebar about 15.5% width, narrow search/action header, no added greeting row, 44% / 15% / remaining chart/banner/lower-card rows, and right side about one quarter of content width. Remove extra support table from overview; keep student support under Progress. Use grouped navigation to keep all 17 modules accessible while matching compact sidebar. Reproduce gray seven-column chart with one striped current-day highlight; use actual weekly teaching sessions and pending work, labeled accordingly. Add teacher card carousel peek and local demo portrait avatars. Preserve forms, IDs, storage and accessible contrast. Desktop content should fit frame without whole-page scrolling; other screens scroll inside main content. Mobile remains a natural stacked layout.
+
+User already directed the correction; implement directly. No live integrations or changes to Site audience.

@@ -27,7 +27,10 @@ wheels/
 
 # TypeScript / frontend build
 dist/
+!teacher/dist/
+!teacher/dist/**
 .cache/
+artifacts/
 
 # Environment files
 .env
