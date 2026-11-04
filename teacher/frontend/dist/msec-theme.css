@@ -1,0 +1,415 @@
+/* MSEC brand. Loaded last; legacy stylesheets remain intact. */
+:root {
+  --msec-primary: #6A2AA3;
+  --msec-hover: #561F87;
+  --msec-deep: #5C017D;
+  --msec-pink: #DC566E;
+  --msec-magenta: #E43B95;
+  --msec-red: #F5012E;
+  --msec-ink: #313131;
+  --msec-muted: #54595F;
+  --msec-subtle: #707070;
+  --msec-line: #E7E3E3;
+  --msec-canvas: #F4F4F4;
+  --msec-paper: #FFFFFF;
+  --msec-black: #000000;
+  --msec-tint: #F3EDF8;
+  --msec-rose: #FCEEF2;
+  /* Dark companions keep small accent text above 4.5:1 on pale surfaces. */
+  --msec-pink-ink: #A32C48;
+  --msec-red-ink: #C40026;
+  --msec-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+  --msec-body-font: 'Open Sans', system-ui, -apple-system, sans-serif;
+  --msec-heading-font: 'Nunito', system-ui, -apple-system, sans-serif;
+  --msec-label-font: 'Ropa Sans', 'Open Sans', sans-serif;
+  --bg: var(--msec-canvas);
+  --surface: var(--msec-paper);
+  --ink: var(--msec-ink);
+  --muted: var(--msec-muted);
+  --line: var(--msec-line);
+  --teal: var(--msec-primary);
+  --deep: var(--msec-hover);
+  --mint: var(--msec-tint);
+  --orange: var(--msec-pink-ink);
+  --purple: var(--msec-primary);
+  --blue: var(--msec-deep);
+  --radius: 6px;
+  --desk-canvas: var(--msec-canvas);
+  --desk-paper: var(--msec-paper);
+  --desk-ink: var(--msec-ink);
+  --desk-muted: var(--msec-muted);
+  --desk-line: var(--msec-line);
+  --desk-forest: var(--msec-primary);
+  --desk-shadow: var(--msec-shadow);
+}
+html, body, #app, #app .main-shell { background: var(--msec-canvas); color: var(--msec-ink); }
+body { font-family: var(--msec-body-font); font-size: .875rem; line-height: 1.6; }
+button, input, select, textarea { font-family: var(--msec-body-font); }
+#app :is(h1, h2, h3, h4, .brand strong, .stat-number, .metrics strong, .headline-number, .mini-value),
+#dialog :is(h2, h3, h4) { font-family: var(--msec-heading-font); font-weight: 800; color: var(--msec-deep); }
+#app :is(.eyebrow, .desk-eyebrow, .nav-label, .schedule-labels, .pass-top, .ai-tag, th) {
+  font-family: var(--msec-label-font); text-transform: uppercase; letter-spacing: .8px;
+}
+#app :is(.eyebrow, .desk-eyebrow, .ai-tag) { color: var(--msec-pink-ink); }
+#app :is(.eyebrow, .desk-eyebrow) .icon { color: var(--msec-pink); }
+#app :is(a, button, summary, input, select, textarea, [tabindex]):focus-visible,
+#dialog :is(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--msec-primary); outline-offset: 3px;
+}
+#app :is(input, select, textarea):focus, #dialog :is(input, select, textarea):focus {
+  outline: 2px solid var(--msec-primary); outline-offset: 1px;
+}
+#app input, #app .overview-tasks .task-row input, #app .switch input, #dialog input { accent-color: var(--msec-primary); }
+#app ::placeholder, #dialog ::placeholder { color: var(--msec-subtle); opacity: 1; }
+
+/* The college site's black navigation bar becomes the persistent drawer. */
+#app .sidebar { background: var(--msec-black); color: white; border-color: #303030; }
+#app .brand { min-height: 44px; gap: 10px; }
+#app .brand strong { color: white; font-weight: 800; letter-spacing: -.5px; }
+/* The old theme marks this exact dot !important; the override must match it. */
+#app .brand strong > span { color: var(--msec-red) !important; }
+#app .brand-mark, #app.sidebar-collapsed .brand-mark {
+  display: grid; flex-shrink: 0; background: var(--msec-paper) url('favicon.svg') center / 30px 30px no-repeat;
+  width: 36px; height: 40px; border-radius: 6px; box-shadow: none;
+}
+#app .brand-mark svg { display: none; }
+#app .brand small { color: #D8D8D8; }
+#app :is(.nav-link, .nav-group summary) {
+  color: white; font-family: var(--msec-label-font); text-transform: uppercase;
+  letter-spacing: .7px; font-size: .875rem; min-height: 44px; border-radius: 4px;
+}
+#app .subnav { border-color: #545454; }
+#app .subnav .nav-link { font-size: .8125rem; min-height: 44px; }
+#app :is(.nav-link, .nav-group summary):hover { background: #242424; color: white; }
+#app .nav-link.active, #app .subnav .nav-link.active {
+  background: var(--msec-primary); color: white; box-shadow: none; font-weight: 700;
+}
+#app .subnav .nav-link::before { background: #707070; }
+#app .subnav .nav-link.active::before { background: var(--msec-pink); }
+#app .nav-divider { background: #303030; }
+#app .nav-count, #app .nav-link .badge { background: var(--msec-rose); color: var(--msec-pink-ink); }
+#app .sidebar-promo { background: #191919; border-color: #404040; border-radius: 6px; box-shadow: none; }
+#app .sidebar-promo h2, #app .sidebar-foot strong { color: white; }
+#app .sidebar-promo p, #app .sidebar-foot small { color: #D8D8D8; }
+#app .sidebar-promo > .icon { color: white; background: var(--msec-primary); }
+#app .collapse-sidebar { color: white; min-height: 44px; }
+#app .sidebar :focus-visible { outline-color: #E5C7FF; }
+#app.sidebar-collapsed .brand > span:last-child { display: none; }
+#app.sidebar-collapsed .brand { margin-inline: 0; justify-content: center; }
+#app.sidebar-collapsed .sidebar nav { overflow-y: auto; overflow-x: hidden; }
+#app .menu-overlay.show { background: rgba(0, 0, 0, .55); }
+
+#app .topbar { background: white; border-bottom: 1px solid var(--msec-line); }
+#app :is(.global-search, .top-profile, .top-actions > .icon-button, .mobile-menu) {
+  background: white; border-color: var(--msec-line); color: var(--msec-ink); border-radius: 6px; box-shadow: none;
+}
+#app .global-search input { font-family: var(--msec-body-font); color: var(--msec-ink); }
+#app .global-search .icon { color: var(--msec-muted); }
+#app :is(.breadcrumbs, .top-profile small) { color: var(--msec-muted); }
+#app .breadcrumbs b { color: var(--msec-deep); }
+#app .notification-dot { background: var(--msec-red); }
+#app .btn, #dialog .btn {
+  background: white; color: var(--msec-primary); border: 1px solid var(--msec-line);
+  border-radius: 6px; box-shadow: none; font: 600 .875rem/1.5 var(--msec-body-font); min-height: 44px;
+}
+#app .btn:hover, #dialog .btn:hover { background: var(--msec-tint); border-color: var(--msec-primary); color: var(--msec-hover); }
+#app .btn.primary, #app .btn.header-create, #dialog .btn.primary {
+  background: var(--msec-primary); border-color: var(--msec-primary); color: white; box-shadow: none;
+}
+#app .btn.primary:hover, #app .btn.primary:active, #app .btn.header-create:hover,
+#dialog .btn.primary:hover, #dialog .btn.primary:active {
+  background: var(--msec-hover); border-color: var(--msec-hover); color: white;
+}
+#app .btn.soft, #dialog .btn.soft { background: var(--msec-tint); color: var(--msec-primary); }
+#app .btn.danger, #dialog .btn.danger { color: var(--msec-red-ink); }
+#app .text-link, #dialog .text-link, #app .class-footer { color: var(--msec-primary); }
+#app .text-link:hover, #dialog .text-link:hover { color: var(--msec-hover); }
+#app :is(.icon-button, .mini-icon):hover { background: var(--msec-tint); color: var(--msec-primary); }
+#app .content[data-page="overview"] :is(.mini-icon, .icon-button) { border-color: var(--msec-line); }
+#app :is(.panel, .stat, .item-card, .class-tile, .performance-board) {
+  background: white; border: 1px solid var(--msec-line); border-radius: 6px; box-shadow: var(--msec-shadow);
+}
+#app .overview-group-today .performance-board { border-radius: 6px; }
+#app .performance-graph { background: white; box-shadow: none; }
+#app .class-tile:has(.tile-link:hover) { border-color: var(--msec-primary); }
+#app :is(.panel-header p, .subtitle, .stat-top, .stat-bottom, .class-meta, .class-tile p,
+  .person small, .chart-summary, .chart-legend small, .section-note, .field-note,
+  .item-card p, .item-bottom small, .profile-head p, .task-sub, .notice-list p,
+  .result small, .file-link small, .health-sub, .student-faces small, .student-shortcut,
+  .time-head, .time-label, .time-cell p, .progress-line, .schedule-labels, .schedule-row small,
+  .schedule-hour, .goal-caption, .goal-caption strong span, .mini-value > span,
+  .performance-title p, .week-legend, .metric-stack > div > span, .metric-stack small) { color: var(--msec-muted); }
+#app :is(.person strong, .subject-list button > b, .progress-line b, .time-head strong,
+  .schedule-row > div > button:first-child, .task-row label, .empty h3, .output-placeholder h3,
+  .goal-caption strong, .metric-stack strong, .health-gauge > strong) { color: var(--msec-deep); }
+#app .overview-tasks .task-row.done label, #app .subject-list button > span,
+#app .health-gauge > small { color: var(--msec-muted); }
+#app :is(.task-row, .schedule-row, td, .chart-summary, .risk-list .person, .class-footer) { border-color: var(--msec-line); }
+#app .item-bottom { border-top-style: none; box-shadow: inset 0 1px var(--msec-line); }
+#app .stat-bottom b, #app .count { color: var(--msec-primary); background: var(--msec-tint); }
+#app :is(.avatar, .subject-icon, .stat-icon), #app .sidebar-foot .avatar {
+  background: var(--msec-tint); color: var(--msec-primary);
+}
+#app :is(.avatar, .subject-icon, .stat-icon):is(.orange, .blue) { background: var(--msec-rose); color: var(--msec-pink-ink); }
+#app .top-profile .avatar { background: url('assets/portrait-32.jpg') center/cover; }
+#app .portrait { background: var(--msec-tint); box-shadow: none; }
+#app .badge, #dialog .badge { background: var(--msec-rose); color: var(--msec-pink-ink); border-radius: 4px; font-weight: 600; }
+#app .badge.purple, #dialog .badge.purple { background: var(--msec-tint); color: var(--msec-primary); }
+#app .badge.gray, #dialog .badge.gray { background: var(--msec-canvas); color: var(--msec-muted); }
+#app .badge:is(.red, .orange), #dialog .badge:is(.red, .orange) { background: var(--msec-rose); color: var(--msec-red-ink); }
+#app :is(.legend, .metrics small, .datebox, .agenda-time, .agenda-card p, .ai-card p, .term-label) { color: var(--msec-muted); }
+#app :is(.chart-summary strong, .datebox b) { color: var(--msec-deep); }
+#app .agenda-card { background: var(--msec-tint); border-color: var(--msec-primary); }
+#app .agenda-card.orange { background: var(--msec-rose); border-color: var(--msec-pink); }
+#app .ai-card::after { color: var(--msec-line); }
+#app .trend-down { color: var(--msec-red-ink); }
+#app .trend-up { color: var(--msec-primary); }
+#app :is(.info, .ai-card, .reply) { background: var(--msec-tint); color: var(--msec-deep); border-color: var(--msec-line); }
+#app .info.orange, #app .storage-alert { background: var(--msec-rose); color: var(--msec-pink-ink); border-color: var(--msec-pink); }
+#app :is(.field, select, input, textarea, .search-field), #dialog :is(input, select, textarea) { border-color: var(--msec-line); color: var(--msec-ink); }
+#app .form-group label, #dialog .form-group label, #app .switch { color: var(--msec-muted); }
+#app :is(.tabs, .workspace-tabs) { background: var(--msec-paper); border-color: var(--msec-line); border-radius: 6px; }
+#app .workspace-tabs button { font-family: var(--msec-body-font); color: var(--msec-muted); border-radius: 4px; }
+#app .tab { color: var(--msec-muted); }
+#app .tab.active { color: var(--msec-primary); border-color: var(--msec-primary); }
+#app .workspace-tabs button[aria-selected="true"] { background: var(--msec-primary); color: white; box-shadow: none; }
+#app .ai-option { color: var(--msec-muted); border-color: var(--msec-line); }
+#app .ai-option.active { background: var(--msec-tint); color: var(--msec-primary); border-color: var(--msec-primary); }
+#app .attendance-status button { color: var(--msec-muted); background: white; }
+#app .attendance-status button.selected { background: var(--msec-primary); color: white; border-color: var(--msec-primary); }
+#app .attendance-status button.selected[data-status="Absent"] { background: var(--msec-rose); color: var(--msec-red-ink); border-color: var(--msec-red); }
+#app .attendance-status button.selected[data-status="Late"] { background: var(--msec-rose); color: var(--msec-pink-ink); border-color: var(--msec-pink); }
+#app .time-cell { background: var(--msec-canvas); border-radius: 6px; }
+#app .time-cell.filled { background: var(--msec-tint); border-color: var(--msec-primary); }
+#app .time-cell.filled:is(.orange, .blue) { background: var(--msec-rose); border-color: var(--msec-pink); }
+#app :is(.ai-output pre, .resource-body, .output-placeholder, .empty) { font-family: var(--msec-body-font); color: var(--msec-muted); }
+#app :is(.output-placeholder .icon, .empty .icon, .ai-tag .icon) { color: var(--msec-primary); }
+#app :is(.file-link, .result:hover) { background: var(--msec-tint); }
+
+/* Compact welcome strip and faculty card use purple with white, readable copy. */
+#app .desk-hero {
+  background: var(--msec-primary); border-color: var(--msec-primary); border-radius: 6px; box-shadow: var(--msec-shadow);
+}
+#app .desk-hero h1 { color: white; font-weight: 800; }
+#app :is(.desk-greeting, .desk-intro, .desk-eyebrow) { color: white; }
+#app .desk-hero .btn { background: white; color: var(--msec-primary); border-color: white; }
+#app .desk-hero .btn:hover { background: var(--msec-tint); color: var(--msec-hover); }
+#app .desk-hero .desk-secondary { background: var(--msec-hover); color: white; border-color: white; }
+#app .desk-hero-scene { display: none; }
+#app .desk-hero { grid-template-columns: minmax(0, 1fr); }
+#app .metric-stack, #app .teaching-tip { background: var(--msec-tint); border-color: var(--msec-line); }
+#app .metric-stack small b { color: var(--msec-primary); }
+#app .metric-stack small.orange-text b { color: var(--msec-pink-ink); }
+#app .teaching-tip h2 { color: var(--msec-deep); }
+#app .teaching-tip p { color: var(--msec-muted); }
+#app .teaching-tip .text-link { color: var(--msec-primary); }
+#app .pass-carousel::before { background: var(--msec-tint); border-color: var(--msec-line); }
+#app .pass-carousel .teacher-pass { background: var(--msec-primary); color: white; border-color: var(--msec-primary); border-radius: 6px; box-shadow: none; }
+#app .teacher-pass::before { background: none; }
+#app :is(.pass-top, .pass-id, .pass-bottom strong, .pass-bottom small) { color: white; opacity: 1; }
+#app .pass-chip { background: var(--msec-hover); color: white; }
+#app .quick-actions span { background: var(--msec-tint); color: var(--msec-primary); border-color: var(--msec-line); border-radius: 6px; box-shadow: none; }
+#app .schedule-logo { box-shadow: none; color: white; }
+#app .schedule-logo.neutral { background: var(--msec-tint); color: var(--msec-primary); }
+#app .schedule-row .schedule-attendance { color: var(--msec-primary); }
+
+/* Recolor presentation attributes in generated SVGs without touching templates. */
+#app :is(.bar, .hatched-progress, .task-progress) { background: var(--msec-line); border-color: var(--msec-line); box-shadow: none; }
+#app :is(.bar > i, .hatched-progress > i, .task-progress > .complete) { background: var(--msec-primary); box-shadow: none; }
+#app :is(.bar.low > i, .task-progress > .pending) { background: var(--msec-pink); }
+#app :is(.dot, .key-green, .segment-0, .segment-3, .block-pattern > i) { background: var(--msec-primary); box-shadow: none; }
+#app :is(.dot.light, .key-yellow, .segment-1, .block-pattern > .block-1) { background: var(--msec-magenta); }
+#app :is(.dot.orange, .dot.yellow, .key-orange, .segment-2, .block-pattern > .block-2) { background: var(--msec-pink); }
+#app .block-pattern > .block-3 { background: var(--msec-line); }
+#app .week-legend i { box-shadow: none; }
+#app :is(.chart, .week-chart) text { font-family: var(--msec-body-font); fill: var(--msec-muted); }
+#app :is(.chart-grid, .week-chart line) { stroke: var(--msec-line); }
+#app :is(#week-green, #bar-hatch, #gauge-hatch) rect { fill: var(--msec-primary); }
+#app :is(#week-green, #bar-hatch, #gauge-hatch) rect + rect { fill: #9B67C2; }
+#app #week-yellow rect { fill: var(--msec-magenta); }
+#app #week-yellow rect + rect { fill: #F3ADD3; }
+#app #week-orange rect { fill: var(--msec-pink); }
+#app #week-orange rect + rect { fill: #F0AAB7; }
+#app .week-column > rect[fill="#f1f2f0"] { fill: var(--msec-line); }
+#app .chart > rect[fill="#ededeb"] { fill: var(--msec-magenta); }
+#app .health-gauge { filter: none; }
+#app .health-gauge path[stroke="#f0f1ee"] { stroke: var(--msec-line); }
+#app .health-gauge path[stroke="#e5e94f"] { stroke: var(--msec-pink); }
+#app .health-gauge path[stroke="#bddd6c"] { stroke: var(--msec-magenta); }
+#app .sparkline path { stroke: var(--msec-primary); }
+#app .week-tooltip { background: white; color: var(--msec-ink); border-color: var(--msec-line); box-shadow: var(--msec-shadow); }
+#app .week-tooltip :is(strong, span, b) { color: var(--msec-muted); }
+#app :is(.workspace-content, .panel, .card-grid, .table-wrap, .overview-section) {
+  scrollbar-color: #B6A3C5 var(--msec-canvas);
+}
+#app .table-wrap { max-width: 100%; overflow: auto; overscroll-behavior-inline: contain; }
+#app th { color: var(--msec-muted); }
+#app td { color: var(--msec-ink); }
+#app .table-wrap th { background: white; }
+
+#dialog { color: var(--msec-ink); background: white; border-color: var(--msec-line); border-radius: 6px; font: .875rem/1.6 var(--msec-body-font); box-shadow: var(--msec-shadow); }
+#dialog::backdrop { background: rgba(0, 0, 0, .55); }
+#dialog .dialog-header { background: white; border-bottom: 3px solid var(--msec-primary); }
+#dialog .dialog-header h2 { color: var(--msec-deep); font-weight: 800; }
+#dialog .icon-button { color: var(--msec-primary); min-width: 44px; min-height: 44px; }
+#dialog :is(.description, .field-note, .resource-body, .person small, .notice-list p, .result small) { color: var(--msec-muted); }
+#dialog .reply { background: var(--msec-tint); color: var(--msec-deep); border-color: var(--msec-primary); }
+#dialog .dialog-error { color: var(--msec-red-ink); }
+#dialog :is(.person strong, .metrics strong) { color: var(--msec-deep); }
+#dialog :is(td, .score) { color: var(--msec-ink); }
+#dialog th { color: var(--msec-muted); }
+#dialog :is(.avatar, .subject-icon, .stat-icon) { background: var(--msec-tint); color: var(--msec-primary); }
+#dialog .bar { background: var(--msec-line); }
+#dialog .bar > i { background: var(--msec-primary); }
+#dialog .bar.low > i { background: var(--msec-pink); }
+#dialog .file-link { background: var(--msec-tint); color: var(--msec-primary); }
+#dialog .section-note { color: var(--msec-muted); }
+#dialog .file-link small { color: var(--msec-muted); }
+#dialog .result:hover { background: var(--msec-tint); }
+/* Muted dates are inline in the templates; specificity cannot override inline color. */
+#app .item-top small[style*="color:"] { color: var(--msec-muted) !important; }
+#toast { background: var(--msec-deep); color: white; border-radius: 6px; box-shadow: var(--msec-shadow); font-family: var(--msec-body-font); }
+
+/* Keep document and main bounds fixed. Collections own scrolling on every route. */
+html, body { width: 100%; height: 100%; overflow: hidden; }
+#app { width: 100%; height: 100dvh; min-height: 0; overflow: hidden; }
+#app .main-shell { min-width: 0; min-height: 0; }
+#app .content, #app .content[data-page="overview"] { min-width: 0; min-height: 0; overflow: hidden; }
+#app .workspace-content, #app .overview-workspace { min-width: 0; min-height: 0; }
+#app .workspace-content > *, #app .overview-section > * { min-width: 0; }
+
+@media (max-width: 740px) {
+  #app .sidebar { width: min(286px, calc(100vw - 48px)); height: 100dvh; padding: 20px 16px; }
+  #app .sidebar nav { min-height: 0; }
+  #app .sidebar :is(.nav-link, .nav-group summary), #app .sidebar .subnav .nav-link { min-height: 44px; font-size: .875rem; }
+  #app .main-shell { height: 100%; min-height: 0; margin-left: 0; }
+  #app .topbar { padding-inline: 12px; gap: 8px; height: 68px; flex-basis: 68px; }
+  #app .top-actions { gap: 8px; flex: 1; width: auto; min-width: 0; }
+  #app .global-search { display: flex; width: auto; max-width: none; min-width: 0; min-height: 44px; padding: 8px; }
+  #app .global-search input { font-size: .875rem; min-width: 0; }
+  #app .topbar :is(.mobile-menu, .btn.header-create, .top-profile, .icon-button) { width: 44px; min-width: 44px; height: 44px; min-height: 44px; flex-shrink: 0; padding: 0; }
+  #app .topbar .btn.header-create { font-size: 0; }
+  #app .top-profile { display: flex; justify-content: center; }
+  #app .top-profile .avatar { width: 34px; height: 34px; }
+  #app .content, #app .content[data-page="overview"] { padding: 14px 12px; gap: 12px; }
+  #app .page-heading { padding-top: 0; gap: 10px; }
+  #app .heading-actions { width: 100%; flex-wrap: wrap; justify-content: flex-start; }
+  #app .heading-actions .btn { min-height: 44px; font-size: .875rem; }
+  /* Explicit sizes defeat compact 5–11px rules across all legacy breakpoints. */
+  #app .main-shell .content :is(p, label, input, select, textarea, td, .btn, .tab, .ai-option,
+    .person strong, .subject-list button, .schedule-row > div > button:first-child,
+    .task-row label, .progress-line, .resource-body, .file-link, .reply, .ai-output pre) {
+    font-size: .875rem; line-height: 1.6;
+  }
+  /* Inline copy sizes are fixed in legacy templates; keep the logic files untouched. */
+  #app .content [style*="font-size:"] { font-size: .875rem !important; }
+  #app .main-shell .content :is(small, .badge, .count, .text-link, .stat-top, .stat-bottom,
+    .stat-bottom b, .class-meta, .class-footer, .task-sub, .section-note, .field-note,
+    .legend, .chart-summary, .chart-summary strong, .chart-legend small, .week-legend,
+    .metric-stack > div > span, .metric-stack small, .mini-value > span, .goal-caption,
+    .goal-caption strong span, .health-gauge > small, .pass-top, .pass-id > span,
+    .pass-bottom small, .schedule-labels, .schedule-hour, .schedule-hour small,
+    .schedule-attendance, .quick-actions > a, .quick-actions > button, .subject-list button > b,
+    .student-shortcut, .student-faces small, .time-head, .time-label, .time-cell p, .time-cell h4, th) {
+    font-size: .75rem; line-height: 1.6;
+  }
+  #app .main-shell .content :is(h2, h3, .panel-header h2) { font-size: 1.125rem; line-height: 1.4; white-space: normal; }
+  #app .main-shell .content h1 { font-size: 1.5rem; line-height: 1.25; letter-spacing: -.5px; }
+  #app .main-shell .content .stat-number { font-size: 1.75rem; }
+  #app .main-shell .content .headline-number { font-size: 2rem; }
+  #app .main-shell .content .pass-bottom strong { font-size: 1rem; }
+  #app .main-shell .content .pass-id { font-size: 1.75rem; }
+  #app .main-shell .content :is(.chart, .week-chart) text { font-size: .75rem; }
+  #app span.nav-count,
+  #app .main-shell .content :is(.info > span, .score, .score > span, .progress-line b),
+  #dialog .score { font-size: .75rem; line-height: 1.6; }
+  #app .avatar, #app .main-shell .content .avatar, #dialog .avatar {
+    font-size: .75rem; min-width: 34px; min-height: 34px;
+  }
+  #app :is(.toolbar, .filters, .search-field, .form-group) { min-width: 0; max-width: 100%; }
+  #app .toolbar select, #app .toolbar input, #app .form-group input, #app .form-group select { min-height: 44px; }
+  #app .filters { width: 100%; }
+  #app .filters > * { max-width: 100%; min-width: 0; }
+  #app :is(.stats, .card-grid, .class-grid, .form-grid, .overview-minis, .overview-banners) { grid-template-columns: minmax(0, 1fr); }
+  /* Stats may grow vertically while the route's bounded workspace remains scrollable. */
+  #app .stats { max-height: 24dvh; overflow-y: auto; flex-shrink: 1; min-height: 88px; padding: 3px; }
+  #app .stat { min-height: 92px; padding: 12px 14px; }
+  #app .workspace-content { flex: 1 1 0; overflow: auto; }
+  #app .workspace-content > :is(.card-grid, .two-col, .ai-workspace) { flex: 0 0 auto; overflow: visible; }
+  #app .workspace-content > .panel { flex: 0 0 auto; max-height: 100%; overflow: auto; }
+  #app .workspace-content > .panel:has(> .table-wrap:only-child) { flex: 1 0 200px; }
+  #app .workspace-content > .panel:has(.timetable) { flex: 0 0 auto; }
+  #app :is(.two-col, .ai-workspace, .side-column) { display: flex; flex-direction: column; gap: 14px; }
+  #app .panel, #app .item-card, #app .card-grid .class-tile { padding: 16px; border-radius: 6px; }
+  #app .table-wrap { width: 100%; max-width: 100%; overflow: auto; }
+  #app table { min-width: 620px; }
+  #app .timetable { min-width: 780px; }
+  #app :is(.tabs, .workspace-tabs) { display: flex; max-width: 100%; overflow-x: auto; flex-shrink: 0; }
+  #app .workspace-tabs button { font: 600 .875rem/1.5 var(--msec-body-font); min-height: 44px; padding: 10px; }
+  #app .tab { min-height: 44px; padding: 10px 12px; flex-shrink: 0; }
+  #app :is(button, .btn, .text-link, .ai-option, .file-link, .subject-list button) { min-height: 44px; }
+  #app .attendance-status button { min-height: 44px; min-width: 64px; font-size: .875rem; padding: 8px 12px; }
+  /* The person cell already contains the roll number; hide its duplicate column. */
+  #app .content[data-page="attendance"] table { display: block; width: 100%; min-width: 0; }
+  #app .content[data-page="attendance"] thead { display: none; }
+  #app .content[data-page="attendance"] tbody { display: grid; gap: 12px; }
+  #app .content[data-page="attendance"] tbody tr {
+    display: grid; min-width: 0; gap: 12px; padding: 12px;
+    border: 1px solid var(--msec-line); border-radius: 6px; background: var(--msec-paper);
+  }
+  #app .content[data-page="attendance"] td { display: block; min-width: 0; padding: 0; border: 0; white-space: normal; }
+  #app .content[data-page="attendance"] td:nth-child(2) { display: none; }
+  #app .content[data-page="attendance"] .person > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+  #app .content[data-page="attendance"] .attendance-status {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px;
+  }
+  #app .content[data-page="attendance"] .attendance-status button {
+    width: 100%; min-width: 0; min-height: 44px; padding: 8px 2px; font-size: .75rem;
+  }
+  #app .content[data-page="overview"] :is(.mini-icon, .icon-button) { width: 44px; height: 44px; }
+  #app .student-faces { flex-wrap: wrap; gap: 14px; }
+  #app .student-faces > button { width: 44px; min-width: 44px; }
+  #app .portrait { width: 44px; height: 44px; }
+  #app .desk-hero { height: auto; min-height: 0; padding: 18px; }
+  #app .desk-hero-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+  #app .desk-hero-actions .btn { flex: 1 1 135px; white-space: normal; padding: 10px; min-height: 44px; }
+  #app .overview-workspace { flex: 1 1 0; overflow: hidden; }
+  #app .overview-section { display: flex; flex-direction: column; overflow: auto; height: 100%; padding: 3px; }
+  #app .overview-section[hidden] { display: none; }
+  #app .overview-section.overview-group-workspace .teacher-panel { height: auto; max-width: 100%; }
+  #app .overview-section > * { flex: 0 0 auto; overflow: visible; }
+  #app .overview-group-today .performance-board { grid-template-columns: minmax(0, 1fr); }
+  #app .performance-title { flex-wrap: wrap; }
+  #app .performance-graph { padding: 16px; }
+  #app .week-legend { justify-content: flex-start; flex-wrap: wrap; gap: 12px; }
+  #app .week-chart-wrap { min-height: 200px; }
+  #app .week-chart { min-height: 200px; height: 200px; }
+  #app .metric-stack { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 16px; }
+  #app .metric-stack > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  #app .metric-stack strong { font-size: 1.5rem; margin: 0; }
+  #app .schedule-row { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
+  #app .schedule-row > div { min-width: 0; }
+  #app .schedule-hour { grid-column: 2; margin: 0; text-align: left; }
+  #app .schedule-logo { width: 34px; height: 34px; }
+  #app .task-row { min-width: 0; }
+  #app .task-row label { overflow-wrap: anywhere; }
+  #app .task-row input { align-self: center; }
+  #app .overview-tasks .task-row > button { display: grid; width: 44px; height: 44px; flex-shrink: 0; }
+  #app .panel-header { flex-wrap: wrap; gap: 10px; }
+  #app .item-bottom { flex-wrap: wrap; }
+  #app .progress-line { flex-wrap: wrap; }
+  #app .progress-line span:first-child { width: 100%; }
+  #app .form-actions { flex-wrap: wrap; }
+  #dialog { width: 100%; max-width: 100%; max-height: 100dvh; margin: auto 0; border-radius: 6px; overflow: auto; }
+  #dialog .dialog-header { position: sticky; top: 0; z-index: 5; padding: 14px 16px; }
+  #dialog .dialog-header h2 { font-size: 1.25rem; overflow-wrap: anywhere; }
+  #dialog .dialog-body { padding: 16px; font-size: .875rem; }
+  #dialog .form-grid { grid-template-columns: minmax(0, 1fr); }
+  #dialog :is(p, label, input, select, textarea, .btn, .resource-body, .reply, .file-link) { font-size: .875rem; }
+  #dialog :is(small, .badge, .field-note, .dialog-error, .text-link, th, td) { font-size: .75rem; }
+  #dialog :is(input:not([type="checkbox"]), select, button, .btn, .text-link, .file-link) { min-height: 44px; }
+  #dialog .form-actions { position: sticky; bottom: -16px; z-index: 4; flex-wrap: wrap; background: white; border-top: 1px solid var(--msec-line); padding: 12px 0 max(12px, env(safe-area-inset-bottom)); }
+  #dialog .form-actions .btn { flex: 1 1 120px; white-space: normal; }
+  #dialog .table-wrap { max-width: 100%; overflow: auto; }
+  #toast { left: 50%; font-size: .875rem; max-width: calc(100vw - 24px); bottom: max(16px, env(safe-area-inset-bottom)); }
+}
