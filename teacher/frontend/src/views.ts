@@ -106,55 +106,29 @@ function weeklyChart(s: AppState): string {
       review: i === day ? reviews : 0
     };
   });
-  const ceiling = Math.max(4, ...columns.map((c) => c.sessions + c.exams));
-  const scale = 180 / (ceiling + Math.max(1, reviews)),
-    baseline = 30 + ceiling * scale;
-  return `<div class="week-legend"><span><i class="key-yellow"></i>Assessments</span><span><i class="key-green"></i>Classes</span><span><i class="key-orange"></i>To review</span></div><div class="week-chart-wrap"><svg class="week-chart" preserveAspectRatio="none" viewBox="0 0 560 270" role="img" aria-label="Weekly timetable: ${columns
+  // Text stays in CSS pixels; only the nested bar graphics use a scaled viewBox.
+  // A shared baseline and a scale that includes every series keep all stacks above zero.
+  const ceiling = Math.max(4, ...columns.map((c) => c.sessions + c.exams + c.review));
+  const scale = 172 / ceiling, baseline = 190;
+  return `<div class="week-legend"><span><i class="key-yellow"></i>Assessments</span><span><i class="key-green"></i>Classes</span><span><i class="key-orange"></i>To review</span></div><div class="week-chart-wrap"><svg class="week-chart" role="img" aria-label="Weekly timetable: ${columns
     .map((c) => `${c.day} ${c.sessions} classes`)
-    .join(', ')}. ${reviews} submissions waiting for review."><defs>${[
-    ['green', '#a9d76b', '#c2e695'],
-    ['yellow', '#f2ef62', '#fffbac'],
-    ['orange', '#ffbb69', '#ffdda5']
-  ]
-    .map(
-      ([name, a, b]) =>
-        `<pattern id="week-${name}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="5" height="5" fill="${a}"/><rect width="2" height="5" fill="${b}"/></pattern>`
-    )
-    .join('')}</defs>${Array.from({ length: 5 }, (_, i) => Math.round((i * ceiling) / 4))
-    .map(
-      (v) =>
-        `<line x1="31" x2="550" y1="${baseline - v * scale}" y2="${baseline - v * scale}" stroke="#e8e9e5"/><text x="8" y="${
-          baseline - v * scale + 4
-        }">${v}</text>`
-    )
-    .join('')}<line x1="31" x2="550" y1="245" y2="245" stroke="#e8e9e5"/>${columns
-    .map((c, i) => {
-      const x = 42 + i * 73,
-        w = 57,
-        active = i === day;
-      const h = c.sessions * scale;
-      const eh = c.exams * scale;
-      return `<g class="week-column" data-day="${i}" tabindex="0" aria-label="${c.day}: ${c.sessions} classes, ${c.exams} assessments, ${c.review} to review"><title>${
-        c.day
-      }: ${c.sessions} classes · ${c.exams} assessments${
-        active ? ' · ' + c.review + ' submissions to review' : ''
-      }</title><rect x="${x}" y="${baseline - h - 4}" width="${w}" height="${h}" rx="5" fill="${
-        active ? 'url(#week-green)' : '#f1f2f0'
-      }"/>${
-        eh
-          ? `<rect x="${x}" y="${baseline - h - eh - 8}" width="${w}" height="${eh}" rx="4" fill="${
-              active ? 'url(#week-yellow)' : '#f1f2f0'
-            }"/>`
-          : ''
-      }<rect x="${x}" y="${baseline + 4}" width="${w}" height="${
-        c.review * scale
-      }" rx="5" fill="url(#week-orange)"/><text x="${x + w / 2}" y="263" text-anchor="middle">${c.day}</text></g>`;
-    })
-    .join('')}</svg><div class="week-tooltip"><strong>${columns[day].day}, ${fmt(
-    today()
-  )}</strong><span><i class="dot"></i>Classes <b>${columns[day].sessions}</b></span><span><i class="dot yellow"></i>Assessments <b>${
-    columns[day].exams
-  }</b></span><span><i class="dot orange"></i>To review <b>${reviews}</b></span></div></div>`;
+    .join(', ')}. ${reviews} submissions waiting for review."><defs>${[['green', '#64975b'], ['yellow', '#d59b36'], ['orange', '#d77957']].map(([name, color]) => `<pattern id="week-${name}" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="${color}"/></pattern>`).join('')}</defs>${Array.from({ length: 5 }, (_, i) => Math.ceil((i * ceiling) / 4))
+    .map((v) => `<line x1="${31 / 560 * 100}%" x2="${550 / 560 * 100}%" y1="${(baseline - v * scale) / 224 * 100}%" y2="${(baseline - v * scale) / 224 * 100}%" stroke="#e8e9e5"/><text x="8" y="${(baseline - v * scale) / 224 * 100}%" dy="4">${v}</text>`)
+    .join('')}${columns.map((c, i) => {
+      const x = 42 + i * 73, w = 48, active = i === day;
+      let top = baseline;
+      const bars = [
+        { count: c.sessions, series: 'classes', color: '#64975b' },
+        { count: c.exams, series: 'assessments', color: '#d59b36' },
+        { count: c.review, series: 'review', color: '#d77957' }
+      ].map(({ count, series, color }) => {
+        if (!count) return '';
+        const height = count * scale;
+        top -= height;
+        return `<rect class="week-bar week-bar-${series}" x="${x}" y="${top}" width="${w}" height="${height}" rx="3" fill="${color}"/>`;
+      }).join('');
+      return `<g class="week-column${active ? ' is-today' : ''}" data-day="${i}" tabindex="0" aria-label="${c.day}: ${c.sessions} classes, ${c.exams} assessments, ${c.review} to review"><title>${c.day}: ${c.sessions} classes · ${c.exams} assessments${active ? ' · ' + c.review + ' submissions to review' : ''}</title><svg width="100%" height="100%" viewBox="0 0 560 224" preserveAspectRatio="none" aria-hidden="true">${active ? `<path class="week-today-highlight" d="M${x - 6} 12h${w + 12}v208h-${w + 12}z" fill="#edf2e3"/>` : ''}${bars}</svg><text x="${(x + w / 2) / 560 * 100}%" y="${212 / 224 * 100}%" text-anchor="middle">${c.day}</text></g>`;
+    }).join('')}</svg><div class="week-tooltip"><strong>${columns[day].day}, ${fmt(today())}</strong><span><i class="dot"></i>Classes <b>${columns[day].sessions}</b></span><span><i class="dot yellow"></i>Assessments <b>${columns[day].exams}</b></span><span><i class="dot orange"></i>To review <b>${reviews}</b></span></div></div>`;
 }
 
 function stat(label: string, value: string | number, ico: string, color: string, note: string, tag: string): string {
@@ -233,11 +207,11 @@ export function overview(s: AppState): string {
       0
     )}</div><p>Weekly teaching overview</p></div><a class="btn" href="#analytics">This semester ${icon(
     'down'
-  )}</a></div>${weeklyChart(s)}</div><div class="metric-stack"><div><span>Total students</span><strong>${
+  )}</a></div>${weeklyChart(s)}</div><div class="metric-stack"><div class="metric-students"><i class="metric-icon" aria-hidden="true">${icon('users')}</i><span>Total students</span><strong>${
     s.students.length
-  }</strong><small><b>${s.classes.length} classes</b> this semester</small></div><div><span>Class performance</span><strong>${avg}%</strong><small><b>${
+  }</strong><small><b>${s.classes.length} classes</b> this semester</small></div><div class="metric-performance"><i class="metric-icon" aria-hidden="true">${icon('trend')}</i><span>Class performance</span><strong>${avg}%</strong><small><b>${
     s.classes.length
-  } subjects</b> this semester</small></div><div><span>Pending tasks</span><strong>${pending
+  } subjects</b> this semester</small></div><div class="metric-pending"><i class="metric-icon" aria-hidden="true">${icon('clipboard')}</i><span>Pending tasks</span><strong>${pending
     .toString()
     .padStart(2, '0')}</strong><small class="orange-text"><b>${
     s.submissions.filter((x) => x.marks === null).length
@@ -283,7 +257,7 @@ export function overview(s: AppState): string {
   )}</p></section>
     <section class="panel overview-tasks"><div class="panel-header"><div><h2>Goal tracker</h2><p>Teaching tasks</p></div><button class="mini-icon" data-action="new-task" aria-label="Add task">${icon(
       'plus'
-    )}</button></div>${s.tasks
+    )}</button></div><div class="task-list">${s.tasks
     .map(
       (t) =>
         `<div class="task-row ${t.done ? 'done' : ''}"><input id="task-${t.id}" type="checkbox" data-task="${t.id}" ${
@@ -296,7 +270,7 @@ export function overview(s: AppState): string {
           'chevron'
         )}</button></div>`
     )
-    .join('')}<div class="task-foot">${badge(due + ' active assignments', 'gray')}${link(
+    .join('')}</div><div class="task-foot">${badge(due + ' active assignments', 'gray')}${link(
     'View all',
     'assignments'
   )}</div></section></div>
