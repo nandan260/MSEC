@@ -148,7 +148,7 @@ function stat(label: string, value: string | number, ico: string, color: string,
 export function chart(s: AppState): string {
   const vals = s.classes.map((c) => mean(s.students.filter((x) => x.classId === c.id).map((x) => x.score)));
   const ats = s.classes.map((c) => mean(s.students.filter((x) => x.classId === c.id).map((x) => x.attendance)));
-  return `<div class="chart-legend"><small>Current class averages</small><div class="legend"><span><i class="dot"></i>Academic score</span><span><i class="dot light"></i>Attendance</span></div></div><svg class="chart" viewBox="0 0 560 200" role="img" aria-label="Class academic score and attendance comparison"><defs><pattern id="bar-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="5" height="5" fill="#a7d664"/><rect width="2" height="5" fill="#bce58a"/></pattern></defs>${[
+  return `<div class="chart-legend"><small>Current class averages</small><div class="legend"><span><i class="dot"></i>Academic score</span><span><i class="dot light"></i>Attendance</span></div></div><div class="analytics-chart"><svg class="chart" viewBox="0 0 560 200" role="img" aria-label="Class academic score and attendance comparison"><defs><pattern id="bar-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="5" height="5" fill="#a7d664"/><rect width="2" height="5" fill="#bce58a"/></pattern></defs>${[
     0, 25, 50, 75, 100
   ]
     .map(
@@ -166,7 +166,11 @@ export function chart(s: AppState): string {
         ats[i] * 1.45
       }" rx="4" fill="#ededeb"/><text text-anchor="middle" x="${x + 28}" y="193">${c.code}</text>`;
     })
-    .join('')}</svg><div class="chart-summary"><span>Class average<strong>${mean(
+    .join('')}</svg><div class="phone-chart-labels" hidden aria-hidden="true">${[0, 25, 50, 75, 100]
+    .map((v) => `<span class="phone-chart-y" style="top:${(170 - v * 1.45) / 200 * 100}%">${v}%</span>`)
+    .join('')}${s.classes
+    .map((c, i) => `<span class="phone-chart-x" style="left:${(104 + i * 128) / 560 * 100}%;top:94.5%">${esc(c.code)}</span>`)
+    .join('')}</div></div><div class="chart-summary"><span>Class average<strong>${mean(
     s.students.map((x) => x.score)
   )}%</strong></span><span>Avg. attendance<strong>${mean(s.students.map((x) => x.attendance))}%</strong></span></div>`;
 }
