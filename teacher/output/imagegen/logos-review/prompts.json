@@ -1,0 +1,51 @@
+{
+  "mode": "built-in imagegen",
+  "status": "Needs cleanup; originals not replaced",
+  "assets": [
+    {
+      "name": "Red Book Emblem with ESTD_ 2002.png",
+      "source": "/home/vinay/.codex/generated_images/01a1a4e3-bb46-7d20-a264-a6f8a36d2472/exec-2d0a4834-853e-49a6-a9d9-42d60405073f.png",
+      "prompt": "Use case: background-extraction. Edit target: attached logo. Remove white background completely, including enclosed spaces inside letters, numbers and emblem. Output actual transparent alpha. Preserve exact logo geometry, lettering, colors, composition and all foreground details. Do not redraw, redesign, add shadows or change any text. Keep original canvas dimensions and placement.  "
+    },
+    {
+      "name": "Red Book Emblem with ESTD_ 2002 (1).png",
+      "source": "/home/vinay/.codex/generated_images/01a1a4e3-bb46-7d20-a264-a6f8a36d2472/exec-8a54087f-8035-4ca4-9ded-2ff3a6c86dfe.png",
+      "prompt": "Use case: background-extraction. Edit target: attached logo. Remove white background completely, including enclosed spaces inside letters, numbers and emblem. Output actual transparent alpha. Preserve exact logo geometry, lettering, colors, composition and all foreground details. Do not redraw, redesign, add shadows or change any text. Keep original canvas dimensions and placement.  "
+    },
+    {
+      "name": "White Chevron Emblem with ESTD_ 2002.png",
+      "source": "/home/vinay/.codex/generated_images/01a1a4e3-bb46-7d20-a264-a6f8a36d2472/exec-95087231-cc11-4461-a9f9-653547f678be.png",
+      "prompt": "Use case: background-extraction. Edit target: attached logo. Remove black background completely, including enclosed spaces inside letters, numbers and emblem. Output actual transparent alpha. Preserve exact logo geometry, lettering, colors, composition and all foreground details. Do not redraw, redesign, add shadows or change any text. Keep original canvas dimensions and placement.  "
+    },
+    {
+      "name": "MS Engineering College Logo (1).png",
+      "source": "/home/vinay/.codex/generated_images/01a1a4e3-bb46-7d20-a264-a6f8a36d2472/exec-71d77608-4074-460a-85e4-7ebf0b1e1c34.png",
+      "prompt": "Use case: background-extraction. Edit target: attached logo. Remove black background completely, including enclosed spaces inside letters, numbers and emblem. Output actual transparent alpha. Preserve exact logo geometry, lettering, colors, composition and all foreground details. Do not redraw, redesign, add shadows or change any text. Keep original canvas dimensions and placement.  "
+    },
+    {
+      "name": "MS Engineering College Logo.png",
+      "source": "/home/vinay/.codex/generated_images/01a1a4e3-bb46-7d20-a264-a6f8a36d2472/exec-9a37ea89-0dcb-471e-ab1e-ac379873b940.png",
+      "prompt": "Use case: background-extraction. Edit target: attached logo. Remove white background completely, including enclosed spaces inside letters, numbers and emblem. Output actual transparent alpha. Preserve exact logo geometry, lettering, colors, composition and all foreground details. Do not redraw, redesign, add shadows or change any text. Keep original canvas dimensions and placement. Remove residual background speckles and edge artifacts, retaining logo. "
+    },
+    {
+      "name": "MS Engineering College Monochrome Logo.png",
+      "source": "/home/vinay/.codex/generated_images/01a1a4e3-bb46-7d20-a264-a6f8a36d2472/exec-9524dcca-d5fd-4a04-90bc-c8fed296f208.png",
+      "prompt": "Use case: background-extraction. Edit target: attached logo. Remove black background completely, including enclosed spaces inside letters, numbers and emblem. Output actual transparent alpha. Preserve exact logo geometry, lettering, colors, composition and all foreground details. Do not redraw, redesign, add shadows or change any text. Keep original canvas dimensions and placement.  "
+    },
+    {
+      "name": "MS Engineering College Logo (2).png",
+      "source": "/home/vinay/.codex/generated_images/01a1a4e3-bb46-7d20-a264-a6f8a36d2472/exec-197fcb89-8aac-489e-997b-b6600ca16fc8.png",
+      "prompt": "Use case: background-extraction. Edit target: attached logo. Remove white background completely, including enclosed spaces inside letters, numbers and emblem. Output actual transparent alpha. Preserve exact logo geometry, lettering, colors, composition and all foreground details. Do not redraw, redesign, add shadows or change any text. Keep original canvas dimensions and placement.  "
+    },
+    {
+      "name": "Bold Stacked M-Book Emblem.png",
+      "source": "/home/vinay/.codex/generated_images/01a1a4e3-bb46-7d20-a264-a6f8a36d2472/exec-6854a799-010f-4646-ae36-c397be079405.png",
+      "prompt": "Use case: background-extraction. Edit target: attached logo. Remove white background completely, including enclosed spaces inside letters, numbers and emblem. Output actual transparent alpha. Preserve exact logo geometry, lettering, colors, composition and all foreground details. Do not redraw, redesign, add shadows or change any text. Keep original canvas dimensions and placement.  "
+    },
+    {
+      "name": "Modern Purple Engineering College Logo.png",
+      "source": "/home/vinay/.codex/generated_images/01a1a4e3-bb46-7d20-a264-a6f8a36d2472/exec-41bc167a-58f9-4b3d-aff1-98e47f488494.png",
+      "prompt": "Use case: background-extraction. Edit target: attached logo. Remove white background completely, including enclosed spaces inside letters, numbers and emblem. Output actual transparent alpha. Preserve exact logo geometry, lettering, colors, composition and all foreground details. Do not redraw, redesign, add shadows or change any text. Keep original canvas dimensions and placement.  Remove top purple and bottom black horizontal background border strips too; retain only central college logo and lettering."
+    }
+  ]
+}

@@ -1,0 +1,8808 @@
+import React, { useState, useEffect } from 'react';
+import { apiRequest } from '../../api';
+
+// ==========================================================
+// 1. ACADEMIC PERFORMANCE MODULE
+// ==========================================================
+export function AcademicPerformanceView({ userRole }) {
+  const [data, setData] = useState(null);
+  const [selectedSemester, setSelectedSemester] = useState(6);
+  const [loading, setLoading] = useState(true);
+  const [editingMark, setEditingMark] = useState(null);
+  const [formInternal, setFormInternal] = useState(0);
+  const [formLab, setFormLab] = useState(0);
+  const [formExternal, setFormExternal] = useState(0);
+  const [editError, setEditError] = useState('');
+  const [editSuccess, setEditSuccess] = useState('');
+
+  const loadPerformance = (sem) => {
+    setLoading(true);
+    apiRequest(`/academics/performance?semester=${sem}`)
+      .then(res => {
+        setData(res);
+        setSelectedSemester(res.selected_semester);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadPerformance(selectedSemester);
+  }, [selectedSemester]);
+
+  const openEditModal = (mark) => {
+    setEditingMark(mark);
+    setFormInternal(mark.internal_marks);
+    setFormLab(mark.lab_marks);
+    setFormExternal(mark.external_marks);
+    setEditError('');
+    setEditSuccess('');
+  };
+
+  const handleUpdateMarks = async (e) => {
+    e.preventDefault();
+    setEditError('');
+    setEditSuccess('');
+
+    try {
+      const res = await apiRequest(`/academics/marks/${editingMark.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          internal_marks: parseInt(formInternal, 10),
+          lab_marks: parseInt(formLab, 10),
+          external_marks: parseInt(formExternal, 10)
+        })
+      });
+      setEditSuccess(res.message);
+      setTimeout(() => {
+        setEditingMark(null);
+        loadPerformance(selectedSemester);
+      }, 800);
+    } catch (err) {
+      setEditError(err.message);
+    }
+  };
+
+  const calcPreviewTotal = parseInt(formInternal || 0, 10) + parseInt(formLab || 0, 10) + parseInt(formExternal || 0, 10);
+  let previewGrade = 'F';
+  if (calcPreviewTotal >= 90) previewGrade = 'O';
+  else if (calcPreviewTotal >= 80) previewGrade = 'A+';
+  else if (calcPreviewTotal >= 70) previewGrade = 'A';
+  else if (calcPreviewTotal >= 60) previewGrade = 'B+';
+  else if (calcPreviewTotal >= 55) previewGrade = 'B';
+  else if (calcPreviewTotal >= 50) previewGrade = 'C';
+  else if (calcPreviewTotal >= 40) previewGrade = 'P';
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Academic Marks & Semester Transcript</div>
+          <div className="banner-sub">
+            Continuous Internal Evaluation (CIE) and Semester End Examination (SEE) scores.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <label style={{ fontSize: '13px', fontWeight: '600' }}>Select Semester:</label>
+          <select
+            className="form-select"
+            style={{ width: '150px' }}
+            value={selectedSemester}
+            onChange={(e) => setSelectedSemester(parseInt(e.target.value, 10))}
+          >
+            {data?.available_semesters?.map((s) => (
+              <option key={s} value={s}>Semester {s}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-label">Semester SGPA</div>
+          <div className="stat-value">{data?.sgpa ?? '--'}</div>
+          <div className="stat-footer">Computed for Semester {selectedSemester}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Cumulative CGPA</div>
+          <div className="stat-value">{data?.cgpa ?? '--'}</div>
+          <div className="stat-footer">Across All Recorded Semesters</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Total Credits</div>
+          <div className="stat-value">{data?.total_credits ?? 0}</div>
+          <div className="stat-footer">Course Credits Earned</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Semester Result</div>
+          <div className="stat-value">
+            <span className={`status-pill ${data?.result_status === 'PASS' ? 'status-success' : 'status-danger'}`}>
+              {data?.result_status || 'PASS'}
+            </span>
+          </div>
+          <div className="stat-footer">{data?.passed_subjects} Passed, {data?.failed_subjects} Backlogs</div>
+        </div>
+      </div>
+
+      <div className="panel-card">
+        <div className="panel-card-header">
+          <h3 className="panel-card-title">Subject-Wise Marks Breakdown (Semester {selectedSemester})</h3>
+          {(userRole === 'faculty' || userRole === 'admin') && (
+            <span style={{ fontSize: '12px', color: '#1e3a8a', fontWeight: '600' }}>
+              Faculty/Admin Mode: Edit Marks Enabled
+            </span>
+          )}
+        </div>
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Course Code</th>
+                <th>Course Title</th>
+                <th>Credits</th>
+                <th>Internal (IA /30)</th>
+                <th>Lab / Practical (/20)</th>
+                <th>External Exam (/50)</th>
+                <th>Total Marks (/100)</th>
+                <th>Grade</th>
+                <th>Status</th>
+                {(userRole === 'faculty' || userRole === 'admin') && <th>Action</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="10" style={{ textAlign: 'center' }}>Loading marks...</td></tr>
+              ) : (
+                data?.marks?.map((m) => (
+                  <tr key={m.id}>
+                    <td><strong>{m.course_code}</strong></td>
+                    <td>{m.course_title}</td>
+                    <td>{m.credits}</td>
+                    <td>{m.internal_marks} / 30</td>
+                    <td>{m.lab_marks} / 20</td>
+                    <td>{m.external_marks} / 50</td>
+                    <td><strong>{m.total_marks} / 100</strong></td>
+                    <td><span className="status-pill status-neutral">{m.grade}</span></td>
+                    <td>
+                      <span className={`status-pill ${m.status === 'Pass' ? 'status-success' : 'status-danger'}`}>
+                        {m.status}
+                      </span>
+                    </td>
+                    {(userRole === 'faculty' || userRole === 'admin') && (
+                      <td>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => openEditModal(m)}
+                        >
+                          Edit Marks
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {editingMark && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '480px', margin: '20px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Update Marks: {editingMark.course_code}</h3>
+              <button type="button" className="btn-secondary" onClick={() => setEditingMark(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <p style={{ fontSize: '13px', color: '#475569', marginBottom: '14px' }}>
+                Course: <strong>{editingMark.course_title}</strong> (Credits: {editingMark.credits})
+              </p>
+
+              {editError && <div className="alert-box alert-danger">{editError}</div>}
+              {editSuccess && <div className="alert-box alert-success">{editSuccess}</div>}
+
+              <form onSubmit={handleUpdateMarks}>
+                <div className="form-group">
+                  <label>Continuous Internal Evaluation (IA1 + IA2) [Max: 30]</label>
+                  <input
+                    type="number" min="0" max="30" required className="form-input"
+                    value={formInternal} onChange={(e) => setFormInternal(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Lab / Practical Marks [Max: 20]</label>
+                  <input
+                    type="number" min="0" max="20" required className="form-input"
+                    value={formLab} onChange={(e) => setFormLab(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Semester End Exam (SEE) Score [Max: 50]</label>
+                  <input
+                    type="number" min="0" max="50" required className="form-input"
+                    value={formExternal} onChange={(e) => setFormExternal(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ padding: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', marginBottom: '16px', fontSize: '13px' }}>
+                  <div>Calculated Total: <strong>{calcPreviewTotal} / 100</strong></div>
+                  <div style={{ marginTop: '4px' }}>Projected Grade: <strong>{previewGrade}</strong> ({calcPreviewTotal >= 40 && formExternal >= 18 ? 'Pass' : 'Fail'})</div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="submit" className="btn-primary">Save Updated Marks</button>
+                  <button type="button" className="btn-secondary" onClick={() => setEditingMark(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 2. SMART ATTENDANCE MODULE
+// ==========================================================
+export function AttendanceView({ userRole }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [markCourse, setMarkCourse] = useState('CS601');
+  const [markAction, setMarkAction] = useState('present');
+  const [markDate, setMarkDate] = useState('Today');
+  const [markMessage, setMarkMessage] = useState('');
+  const [markLoading, setMarkLoading] = useState(false);
+
+  const loadAttendance = () => {
+    setLoading(true);
+    apiRequest('/attendance')
+      .then(res => {
+        setData(res);
+        if (res.attendance && res.attendance.length > 0 && !markCourse) {
+          setMarkCourse(res.attendance[0].course_code);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadAttendance(); }, []);
+
+  const handleMarkAttendance = async (e) => {
+    e.preventDefault();
+    setMarkMessage('');
+    setMarkLoading(true);
+
+    try {
+      const res = await apiRequest('/attendance/mark', {
+        method: 'POST',
+        body: JSON.stringify({ course_code: markCourse, action: markAction, date: markDate })
+      });
+      setMarkMessage(res.message);
+      loadAttendance();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setMarkLoading(false);
+    }
+  };
+
+  const summary = data?.overall_summary;
+  const list = data?.attendance || [];
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Smart Attendance Register</div>
+          <div className="banner-sub">
+            Track conducted hours, present hours, absences, and official On-Duty (OD) credits.
+          </div>
+        </div>
+        <div>
+          <span className={`status-pill ${summary?.overall_percentage >= 75 ? 'status-success' : 'status-danger'}`}>
+            Overall: {summary?.overall_percentage || 0}% ({summary?.overall_status})
+          </span>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-label">Total Conducted</div>
+          <div className="stat-value">{summary?.total_conducted || 0} hrs</div>
+          <div className="stat-footer">All Courses Combined</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Attended Classes</div>
+          <div className="stat-value" style={{ color: '#15803d' }}>{summary?.total_attended || 0} hrs</div>
+          <div className="stat-footer">Regular Classes Attended</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Absent Classes</div>
+          <div className="stat-value" style={{ color: '#b91c1c' }}>{summary?.total_absent || 0} hrs</div>
+          <div className="stat-footer">Missed Sessions</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">On-Duty (OD) Approved</div>
+          <div className="stat-value" style={{ color: '#b45309' }}>{summary?.total_od || 0} hrs</div>
+          <div className="stat-footer">Credited Sports/Symposiums</div>
+        </div>
+      </div>
+
+      <div className="dashboard-sections-grid">
+        <div className="panel-card" style={{ gridColumn: 'span 2' }}>
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Subject-Wise Attendance Details</h3>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>Minimum 75% required for exam eligibility</span>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Course Code</th>
+                  <th>Course Title</th>
+                  <th>Faculty</th>
+                  <th>Conducted</th>
+                  <th>Attended</th>
+                  <th>Absent</th>
+                  <th>On-Duty (OD)</th>
+                  <th>Percentage</th>
+                  <th>Safe Bunks Left</th>
+                  <th>Eligibility Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan="10" style={{ textAlign: 'center' }}>Loading attendance records...</td></tr>
+                ) : (
+                  list.map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.course_code}</strong></td>
+                      <td>{item.course_title}</td>
+                      <td>{item.faculty_name}</td>
+                      <td>{item.total_hours}</td>
+                      <td style={{ color: '#15803d', fontWeight: '600' }}>{item.attended_hours}</td>
+                      <td style={{ color: '#b91c1c', fontWeight: '600' }}>{item.absent_hours}</td>
+                      <td style={{ color: '#b45309', fontWeight: '600' }}>{item.od_hours}</td>
+                      <td><strong>{item.percentage}%</strong></td>
+                      <td>
+                        {item.percentage >= 75 ? (
+                          <span style={{ color: '#1e3a8a', fontWeight: '600' }}>{item.safe_bunks} classes</span>
+                        ) : (
+                          <span style={{ color: '#b91c1c', fontWeight: '600' }}>Need {item.needed_to_reach_75} consecutive</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`status-pill ${item.percentage >= 75 ? 'status-success' : 'status-danger'}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {(userRole === 'faculty' || userRole === 'admin') && (
+          <div className="panel-card" style={{ gridColumn: 'span 2' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Faculty Portal: Mark Class Session Attendance</h3>
+            </div>
+            <div className="panel-card-body">
+              {markMessage && <div className="alert-box alert-success">{markMessage}</div>}
+              <form onSubmit={handleMarkAttendance} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'flex-end' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Course</label>
+                  <select className="form-select" value={markCourse} onChange={(e) => setMarkCourse(e.target.value)}>
+                    {list.map((c) => (
+                      <option key={c.course_code} value={c.course_code}>
+                        {c.course_code}: {c.course_title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Date</label>
+                  <input type="text" className="form-input" value={markDate} onChange={(e) => setMarkDate(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Status</label>
+                  <select className="form-select" value={markAction} onChange={(e) => setMarkAction(e.target.value)}>
+                    <option value="present">Present (+1 Attended)</option>
+                    <option value="absent">Absent (+1 Absent)</option>
+                    <option value="od">On-Duty (+1 OD)</option>
+                  </select>
+                </div>
+                <button type="submit" className="btn-primary" disabled={markLoading}>
+                  {markLoading ? 'Logging...' : 'Log Session Attendance'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================================
+// 3. ATTENDANCE CALCULATOR MODULE
+// ==========================================================
+export function AttendanceCalculatorView() {
+  const [courses, setCourses] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [totalHours, setTotalHours] = useState(48);
+  const [attendedHours, setAttendedHours] = useState(42);
+  const [odHours, setOdHours] = useState(2);
+  const [targetPercentage, setTargetPercentage] = useState(75);
+  const [simulation, setSimulation] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    apiRequest('/attendance')
+      .then(res => {
+        const att = res.attendance || [];
+        setCourses(att);
+        if (att.length > 0) {
+          const first = att[0];
+          setSelectedCourse(first.course_code);
+          setTotalHours(first.total_hours);
+          setAttendedHours(first.attended_hours);
+          setOdHours(first.od_hours || 0);
+          runCalculation(first.total_hours, first.attended_hours, first.od_hours || 0, 75, first.course_title);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const handleCourseChange = (e) => {
+    const code = e.target.value;
+    setSelectedCourse(code);
+    const found = courses.find(c => c.course_code === code);
+    if (found) {
+      setTotalHours(found.total_hours);
+      setAttendedHours(found.attended_hours);
+      setOdHours(found.od_hours || 0);
+      runCalculation(found.total_hours, found.attended_hours, found.od_hours || 0, targetPercentage, found.course_title);
+    }
+  };
+
+  const runCalculation = async (total, attended, od, target, courseName) => {
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await apiRequest('/attendance/calculate', {
+        method: 'POST',
+        body: JSON.stringify({
+          total_hours: parseInt(total, 10),
+          attended_hours: parseInt(attended, 10),
+          od_hours: parseInt(od, 10),
+          target_percentage: parseFloat(target),
+          course_name: courseName || 'Selected Subject'
+        })
+      });
+      setSimulation(res);
+    } catch (err) {
+      setError(err.message);
+      setSimulation(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    const found = courses.find(c => c.course_code === selectedCourse);
+    runCalculation(totalHours, attendedHours, odHours, targetPercentage, found?.course_title || 'Subject');
+  };
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Smart Attendance & Safe Bunk Calculator</div>
+          <div className="banner-sub">
+            Simulate future leaves or compute exact recovery sessions needed to meet institutional thresholds.
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-sections-grid">
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Simulation Parameters</h3>
+          </div>
+          <div className="panel-card-body">
+            {error && <div className="alert-box alert-danger">{error}</div>}
+
+            <form onSubmit={handleFormSubmit}>
+              <div className="form-group">
+                <label>Load from Registered Subject (Optional)</label>
+                <select className="form-select" value={selectedCourse} onChange={handleCourseChange}>
+                  <option value="">-- Manual Custom Entry --</option>
+                  {courses.map((c) => (
+                    <option key={c.course_code} value={c.course_code}>
+                      {c.course_code}: {c.course_title} (Current: {c.percentage}%)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Total Classes Conducted</label>
+                <input
+                  type="number" min="0" required className="form-input"
+                  value={totalHours} onChange={(e) => setTotalHours(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Classes Attended</label>
+                <input
+                  type="number" min="0" required className="form-input"
+                  value={attendedHours} onChange={(e) => setAttendedHours(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>On-Duty (OD) Approved Classes</label>
+                <input
+                  type="number" min="0" className="form-input"
+                  value={odHours} onChange={(e) => setOdHours(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Required Compliance Percentage (%)</label>
+                <input
+                  type="number" min="1" max="100" step="0.5" required className="form-input"
+                  value={targetPercentage} onChange={(e) => setTargetPercentage(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className="btn-primary" disabled={loading}>
+                {loading ? 'Calculating...' : 'Run Attendance Simulation'}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Calculation Outcome & Projections</h3>
+            {simulation && (
+              <span className={`status-pill ${simulation.status === 'Eligible' ? 'status-success' : 'status-danger'}`}>
+                {simulation.current_percentage}% Current
+              </span>
+            )}
+          </div>
+          <div className="panel-card-body">
+            {simulation ? (
+              <div>
+                <div style={{
+                  padding: '16px', borderRadius: '4px',
+                  backgroundColor: simulation.status === 'Eligible' ? '#f0fdf4' : '#fef2f2',
+                  border: `1px solid ${simulation.status === 'Eligible' ? '#bbf7d0' : '#fecaca'}`,
+                  marginBottom: '16px'
+                }}>
+                  <div style={{
+                    fontSize: '22px', fontWeight: '700',
+                    color: simulation.status === 'Eligible' ? '#15803d' : '#b91c1c'
+                  }}>
+                    {simulation.status === 'Eligible' ? (
+                      `${simulation.max_bunks} Safe Bunks Remaining`
+                    ) : (
+                      `Must Attend Next ${simulation.needed_classes} Consecutive Classes`
+                    )}
+                  </div>
+                  <p style={{ marginTop: '8px', fontSize: '13px', color: '#334155', lineHeight: '1.5' }}>
+                    {simulation.message}
+                  </p>
+                </div>
+
+                <table className="data-table">
+                  <tbody>
+                    <tr>
+                      <td>Effective Attended (Regular + OD):</td>
+                      <td><strong>{simulation.classes_attended} / {simulation.total_conducted} hrs</strong></td>
+                    </tr>
+                    <tr>
+                      <td>Current Attendance Rate:</td>
+                      <td><strong>{simulation.current_percentage}%</strong></td>
+                    </tr>
+                    <tr>
+                      <td>Required Target Threshold:</td>
+                      <td><strong>{simulation.target_percentage}%</strong></td>
+                    </tr>
+                    <tr>
+                      <td>Projected if you attend next class:</td>
+                      <td style={{ color: '#15803d' }}>
+                        <strong>{simulation.projected_if_attend_one}%</strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Projected if you miss next class:</td>
+                      <td style={{ color: '#b91c1c' }}>
+                        <strong>{simulation.projected_if_miss_one}%</strong>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ color: '#64748b', textAlign: 'center', padding: '30px 0' }}>
+                Enter class numbers on the left to simulate projections.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================================
+// 4. TIMETABLE MANAGEMENT MODULE (DAILY & WEEKLY, ADMIN CRUD)
+// ==========================================================
+export function TimetableView({ userRole }) {
+  const [viewType, setViewType] = useState('daily');
+  const [day, setDay] = useState(2);
+  const [slots, setSlots] = useState([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingSlot, setEditingSlot] = useState(null);
+
+  // Form State
+  const [formDay, setFormDay] = useState(1);
+  const [formStart, setFormStart] = useState('09:00 AM');
+  const [formEnd, setFormEnd] = useState('10:00 AM');
+  const [formCode, setFormCode] = useState('CS601');
+  const [formTitle, setFormTitle] = useState('Distributed Systems');
+  const [formRoom, setFormRoom] = useState('LH-302');
+  const [formFaculty, setFormFaculty] = useState('Dr. Ramesh Rao');
+
+  const loadTimetable = () => {
+    const url = viewType === 'weekly' ? '/timetable?view=weekly' : `/timetable?view=daily&day=${day}`;
+    apiRequest(url).then(res => setSlots(res.schedule || [])).catch(console.error);
+  };
+
+  useEffect(() => { loadTimetable(); }, [viewType, day]);
+
+  const handleSaveSlot = async (e) => {
+    e.preventDefault();
+    const payload = {
+      day_of_week: parseInt(formDay, 10),
+      start_time: formStart,
+      end_time: formEnd,
+      course_code: formCode,
+      course_title: formTitle,
+      room: formRoom,
+      faculty_name: formFaculty
+    };
+
+    if (editingSlot) {
+      await apiRequest(`/timetable/${editingSlot.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    } else {
+      await apiRequest('/timetable', { method: 'POST', body: JSON.stringify(payload) });
+    }
+    setShowAddModal(false);
+    setEditingSlot(null);
+    loadTimetable();
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm(`Delete timetable entry #${id}?`)) {
+      await apiRequest(`/timetable/${id}`, { method: 'DELETE' });
+      loadTimetable();
+    }
+  };
+
+  const openEdit = (slot) => {
+    setEditingSlot(slot);
+    setFormDay(slot.day_of_week);
+    setFormStart(slot.start_time);
+    setFormEnd(slot.end_time);
+    setFormCode(slot.course_code);
+    setFormTitle(slot.course_title);
+    setFormRoom(slot.room);
+    setFormFaculty(slot.faculty_name);
+    setShowAddModal(true);
+  };
+
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  return (
+    <div>
+      <div className="panel-card">
+        <div className="panel-card-header">
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <h3 className="panel-card-title">Timetable Management</h3>
+            <div style={{ display: 'flex', border: '1px solid #d1d5db', borderRadius: '4px', overflow: 'hidden' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{
+                  border: 'none',
+                  borderRadius: 0,
+                  backgroundColor: viewType === 'daily' ? '#1e3a8a' : '#ffffff',
+                  color: viewType === 'daily' ? '#ffffff' : '#1e293b'
+                }}
+                onClick={() => setViewType('daily')}
+              >
+                Daily Timetable
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{
+                  border: 'none',
+                  borderRadius: 0,
+                  backgroundColor: viewType === 'weekly' ? '#1e3a8a' : '#ffffff',
+                  color: viewType === 'weekly' ? '#ffffff' : '#1e293b'
+                }}
+                onClick={() => setViewType('weekly')}
+              >
+                Weekly Timetable
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {viewType === 'daily' && (
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {[1, 2, 3, 4, 5].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className="btn-secondary"
+                    style={{
+                      backgroundColor: day === d ? '#1e3a8a' : '#ffffff',
+                      color: day === d ? '#ffffff' : '#1e293b'
+                    }}
+                    onClick={() => setDay(d)}
+                  >
+                    {DAYS[d - 1].slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {userRole === 'admin' && (
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ width: 'auto', padding: '6px 12px' }}
+                onClick={() => { setEditingSlot(null); setShowAddModal(true); }}
+              >
+                + Add Entry
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                {viewType === 'weekly' && <th>Day</th>}
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Course Code</th>
+                <th>Course Title</th>
+                <th>Classroom</th>
+                <th>Faculty Instructor</th>
+                {userRole === 'admin' && <th>Admin Action</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {slots.length > 0 ? (
+                slots.map((s) => (
+                  <tr key={s.id}>
+                    {viewType === 'weekly' && <td><strong>{DAYS[s.day_of_week - 1]}</strong></td>}
+                    <td>{s.start_time}</td>
+                    <td>{s.end_time}</td>
+                    <td><strong>{s.course_code}</strong></td>
+                    <td>{s.course_title}</td>
+                    <td><code>{s.room}</code></td>
+                    <td>{s.faculty_name}</td>
+                    {userRole === 'admin' && (
+                      <td>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button type="button" className="btn-secondary" onClick={() => openEdit(s)}>Edit</button>
+                          <button type="button" className="btn-secondary" style={{ color: '#b91c1c' }} onClick={() => handleDelete(s.id)}>Delete</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan={userRole === 'admin' ? 8 : 7} style={{ textAlign: 'center' }}>No classes scheduled.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showAddModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '500px', margin: '20px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">{editingSlot ? 'Edit Timetable Entry' : 'Add New Timetable Entry'}</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleSaveSlot}>
+                <div className="form-group">
+                  <label>Day of Week</label>
+                  <select className="form-select" value={formDay} onChange={(e) => setFormDay(e.target.value)}>
+                    {DAYS.map((name, i) => (
+                      <option key={i + 1} value={i + 1}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Start Time</label>
+                    <input type="text" className="form-input" required value={formStart} onChange={(e) => setFormStart(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>End Time</label>
+                    <input type="text" className="form-input" required value={formEnd} onChange={(e) => setFormEnd(e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Course Code</label>
+                    <input type="text" className="form-input" required value={formCode} onChange={(e) => setFormCode(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Course Title</label>
+                    <input type="text" className="form-input" required value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Classroom Number</label>
+                    <input type="text" className="form-input" required value={formRoom} onChange={(e) => setFormRoom(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Faculty Instructor</label>
+                    <input type="text" className="form-input" required value={formFaculty} onChange={(e) => setFormFaculty(e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                  <button type="submit" className="btn-primary">Save Timetable Entry</button>
+                  <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 5. ASSIGNMENT TRACKER (SUBJECT-WISE, UPLOAD, EVALUATION, FEEDBACK)
+// ==========================================================
+export function AssignmentsView({ userRole }) {
+  const [assignments, setAssignments] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState('ALL');
+  const [loading, setLoading] = useState(true);
+
+  // Modals
+  const [uploadModalAssignment, setUploadModalAssignment] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadMsg, setUploadMsg] = useState('');
+
+  const [evaluateModalSubmission, setEvaluateModalSubmission] = useState(null);
+  const [evalMarks, setEvalMarks] = useState(24);
+  const [evalFeedback, setEvalFeedback] = useState('Clean implementation with complete tests.');
+
+  const [createModal, setCreateModal] = useState(false);
+  const [newCourse, setNewCourse] = useState('CS601');
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newDeadline, setNewDeadline] = useState('2026-11-20 23:59');
+  const [newMarks, setNewMarks] = useState(25);
+
+  const loadAssignments = () => {
+    setLoading(true);
+    const url = selectedSubject === 'ALL' ? '/assignments' : `/assignments?subject=${selectedSubject}`;
+    apiRequest(url)
+      .then(res => setAssignments(res.assignments || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadAssignments(); }, [selectedSubject]);
+
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    setUploadMsg('');
+    const formData = new FormData();
+    if (selectedFile) formData.append('file', selectedFile);
+    formData.append('student_name', 'Alex Kumar');
+
+    try {
+      const res = await fetch(`/api/assignments/${uploadModalAssignment.id}/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      setUploadMsg(data.message);
+      setTimeout(() => {
+        setUploadModalAssignment(null);
+        setSelectedFile(null);
+        loadAssignments();
+      }, 900);
+    } catch (err) {
+      alert(`Upload error: ${err.message}`);
+    }
+  };
+
+  const handleCreateAssignment = async (e) => {
+    e.preventDefault();
+    await apiRequest('/assignments', {
+      method: 'POST',
+      body: JSON.stringify({
+        course_code: newCourse,
+        course_title: 'Course Term Work',
+        title: newTitle,
+        description: newDesc,
+        deadline_date: newDeadline,
+        max_marks: parseInt(newMarks, 10),
+        created_by: 'Faculty Member'
+      })
+    });
+    setCreateModal(false);
+    setNewTitle('');
+    setNewDesc('');
+    loadAssignments();
+  };
+
+  const handleSaveEvaluation = async (e) => {
+    e.preventDefault();
+    await apiRequest(`/assignments/${evaluateModalSubmission.id}/evaluate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        scored_marks: parseInt(evalMarks, 10),
+        feedback: evalFeedback,
+        evaluated_by: 'Course Faculty'
+      })
+    });
+    setEvaluateModalSubmission(null);
+    loadAssignments();
+  };
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Course Assignment & Project Submission Tracker</div>
+          <div className="banner-sub">
+            Track deadlines, upload academic deliverables, and review grading rubrics and faculty feedback.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <label style={{ fontSize: '13px', fontWeight: '600' }}>Filter Subject:</label>
+          <select
+            className="form-select"
+            style={{ width: '130px' }}
+            value={selectedSubject}
+            onChange={(e) => setSelectedSubject(e.target.value)}
+          >
+            <option value="ALL">All Subjects</option>
+            <option value="CS601">CS601</option>
+            <option value="CS602">CS602</option>
+            <option value="CS603">CS603</option>
+            <option value="CS604">CS604</option>
+          </select>
+
+          {(userRole === 'faculty' || userRole === 'admin') && (
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ width: 'auto', padding: '6px 12px' }}
+              onClick={() => setCreateModal(true)}
+            >
+              + Create Assignment
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="panel-card">
+        <div className="panel-card-header">
+          <h3 className="panel-card-title">Continuous Internal Evaluation Assignments</h3>
+        </div>
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Assignment Title & Description</th>
+                <th>Deadline Date</th>
+                <th>Max Marks</th>
+                <th>Submission Status</th>
+                <th>Awarded Score & Feedback</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="7" style={{ textAlign: 'center' }}>Loading assignments...</td></tr>
+              ) : (
+                assignments.map((a) => (
+                  <tr key={a.id}>
+                    <td><strong>{a.course_code}</strong></td>
+                    <td>
+                      <strong>{a.title}</strong>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{a.description}</div>
+                    </td>
+                    <td>{a.deadline_date}</td>
+                    <td>{a.max_marks} pts</td>
+                    <td>
+                      <span className={`status-pill ${
+                        a.submission_status === 'Submitted' ? 'status-success' :
+                        a.submission_status === 'Late' ? 'status-danger' : 'status-warning'
+                      }`}>
+                        {a.submission_status}
+                      </span>
+                    </td>
+                    <td>
+                      {a.scored_marks !== null ? (
+                        <div>
+                          <strong>{a.scored_marks} / {a.max_marks}</strong>
+                          <div style={{ fontSize: '11px', color: '#15803d' }}>"{a.feedback}"</div>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Pending Evaluation</span>
+                      )}
+                    </td>
+                    <td>
+                      {userRole === 'student' ? (
+                        a.submission_status === 'Pending' || a.submission_status === 'Late' ? (
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            style={{ padding: '4px 8px', fontSize: '11px', width: 'auto' }}
+                            onClick={() => { setUploadModalAssignment(a); setUploadMsg(''); }}
+                          >
+                            Upload File
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#15803d', fontWeight: '600' }}>✓ Submitted</span>
+                        )
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => {
+                            setEvaluateModalSubmission(a);
+                            setEvalMarks(a.scored_marks || a.max_marks);
+                            setEvalFeedback(a.feedback || 'Well prepared submission.');
+                          }}
+                        >
+                          Grade & Feedback
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Student Upload Modal */}
+      {uploadModalAssignment && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '440px', margin: '20px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Upload Submission File</h3>
+              <button type="button" className="btn-secondary" onClick={() => setUploadModalAssignment(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <p style={{ fontSize: '13px', color: '#475569', marginBottom: '12px' }}>
+                Assignment: <strong>{uploadModalAssignment.title}</strong> ({uploadModalAssignment.course_code})
+              </p>
+              {uploadMsg && <div className="alert-box alert-success">{uploadMsg}</div>}
+
+              <form onSubmit={handleFileUpload}>
+                <div className="form-group">
+                  <label>Select Document / Code Archive (PDF, ZIP, DOCX)</label>
+                  <input
+                    type="file"
+                    className="form-input"
+                    onChange={(e) => setSelectedFile(e.target.files[0])}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="submit" className="btn-primary">Submit Deliverable</button>
+                  <button type="button" className="btn-secondary" onClick={() => setUploadModalAssignment(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Faculty Create Assignment Modal */}
+      {createModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '480px', margin: '20px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Create Course Assignment</h3>
+              <button type="button" className="btn-secondary" onClick={() => setCreateModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleCreateAssignment}>
+                <div className="form-group">
+                  <label>Course Code</label>
+                  <select className="form-select" value={newCourse} onChange={(e) => setNewCourse(e.target.value)}>
+                    <option value="CS601">CS601: Distributed Systems</option>
+                    <option value="CS602">CS602: Machine Learning</option>
+                    <option value="CS603">CS603: Compiler Design</option>
+                    <option value="CS604">CS604: Cloud Architecture</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Assignment Title</label>
+                  <input type="text" required className="form-input" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>Description & Instructions</label>
+                  <textarea rows="3" className="form-textarea" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Submission Deadline</label>
+                    <input type="text" className="form-input" value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Max Marks</label>
+                    <input type="number" min="5" max="100" className="form-input" value={newMarks} onChange={(e) => setNewMarks(e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="submit" className="btn-primary">Publish Assignment</button>
+                  <button type="button" className="btn-secondary" onClick={() => setCreateModal(false)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Faculty Evaluation Modal */}
+      {evaluateModalSubmission && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '440px', margin: '20px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Grade Submission: {evaluateModalSubmission.course_code}</h3>
+              <button type="button" className="btn-secondary" onClick={() => setEvaluateModalSubmission(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <p style={{ fontSize: '13px', color: '#475569', marginBottom: '12px' }}>
+                Assignment: <strong>{evaluateModalSubmission.title}</strong>
+              </p>
+              <form onSubmit={handleSaveEvaluation}>
+                <div className="form-group">
+                  <label>Awarded Marks (Max: {evaluateModalSubmission.max_marks})</label>
+                  <input
+                    type="number" min="0" max={evaluateModalSubmission.max_marks} required className="form-input"
+                    value={evalMarks} onChange={(e) => setEvalMarks(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Faculty Feedback & Comments</label>
+                  <textarea
+                    rows="3" className="form-textarea" required
+                    value={evalFeedback} onChange={(e) => setEvalFeedback(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="submit" className="btn-primary">Save Evaluation</button>
+                  <button type="button" className="btn-secondary" onClick={() => setEvaluateModalSubmission(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 6. NOTES AND STUDY MATERIALS (SEARCH, SUBJECT/CATEGORY FILTERS, UPLOAD & DOWNLOAD)
+// ==========================================================
+export function NotesView({ userRole }) {
+  const [materials, setMaterials] = useState([]);
+  const [subjectFilter, setSubjectFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  // Faculty Upload Modal
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadSubject, setUploadSubject] = useState('CS601');
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadCategory, setUploadCategory] = useState('Lecture Notes');
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+
+  const loadMaterials = () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (subjectFilter !== 'ALL') params.append('subject', subjectFilter);
+    if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
+    if (searchTerm) params.append('search', searchTerm);
+
+    apiRequest(`/notes?${params.toString()}`)
+      .then(res => setMaterials(res.materials || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadMaterials(); }, [subjectFilter, categoryFilter]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    loadMaterials();
+  };
+
+  const handleDownload = (id) => {
+    window.location.href = `/api/notes/${id}/download`;
+  };
+
+  const handleUploadSubmit = async (e) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      alert('Please choose a file to upload.');
+      return;
+    }
+    setUploadLoading(true);
+    const formData = new FormData();
+    formData.append('course_code', uploadSubject);
+    formData.append('course_title', uploadSubject === 'CS601' ? 'Distributed Systems' : 'Computer Science');
+    formData.append('title', uploadTitle);
+    formData.append('category', uploadCategory);
+    formData.append('uploaded_by', 'Faculty Instructor');
+    formData.append('file', uploadFile);
+
+    try {
+      const res = await fetch('/api/notes/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      alert(data.message);
+      setShowUploadModal(false);
+      setUploadTitle('');
+      setUploadFile(null);
+      loadMaterials();
+    } catch (err) {
+      alert(`Upload error: ${err.message}`);
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Notes & Academic Study Materials Vault</div>
+          <div className="banner-sub">
+            Subject-wise lecture slide decks, official laboratory manuals, reference guides, and previous question papers.
+          </div>
+        </div>
+
+        {(userRole === 'faculty' || userRole === 'admin') && (
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ width: 'auto', padding: '6px 12px' }}
+            onClick={() => setShowUploadModal(true)}
+          >
+            + Upload Study Material
+          </button>
+        )}
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ padding: '12px 16px' }}>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ flex: 1, minWidth: '200px' }}>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Search by topic, keyword, or author..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div>
+              <select className="form-select" value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}>
+                <option value="ALL">All Subjects</option>
+                <option value="CS601">CS601: Distributed Systems</option>
+                <option value="CS602">CS602: Machine Learning</option>
+                <option value="CS603">CS603: Compiler Design</option>
+                <option value="CS604">CS604: Cloud Architecture</option>
+              </select>
+            </div>
+            <div>
+              <select className="form-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <option value="ALL">All Document Types</option>
+                <option value="Lecture Notes">Lecture Notes</option>
+                <option value="Lab Manual">Lab Manual</option>
+                <option value="Previous Question Paper">Previous Question Paper</option>
+                <option value="Reference Slide">Reference Slide</option>
+              </select>
+            </div>
+            <button type="submit" className="btn-secondary">Search</button>
+          </form>
+        </div>
+      </div>
+
+      {/* Materials Table */}
+      <div className="panel-card">
+        <div className="panel-card-header">
+          <h3 className="panel-card-title">Curated Academic Repositories</h3>
+          <span style={{ fontSize: '12px', color: '#64748b' }}>{materials.length} Documents Available</span>
+        </div>
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Document Title</th>
+                <th>Category</th>
+                <th>Format</th>
+                <th>File Size</th>
+                <th>Uploaded By</th>
+                <th>Date</th>
+                <th>Downloads</th>
+                <th>Download Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="9" style={{ textAlign: 'center' }}>Searching repository...</td></tr>
+              ) : materials.length > 0 ? (
+                materials.map((m) => (
+                  <tr key={m.id}>
+                    <td><strong>{m.course_code}</strong></td>
+                    <td>{m.title}</td>
+                    <td><span className="status-pill status-neutral">{m.category}</span></td>
+                    <td><strong>{m.file_format}</strong></td>
+                    <td>{m.file_size}</td>
+                    <td>{m.uploaded_by}</td>
+                    <td>{m.upload_date}</td>
+                    <td>{m.downloads_count}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => handleDownload(m.id)}
+                      >
+                        Download {m.file_format}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan="9" style={{ textAlign: 'center' }}>No study materials matched your filters.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Faculty Upload Modal */}
+      {showUploadModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '480px', margin: '20px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Upload Course Material</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowUploadModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleUploadSubmit}>
+                <div className="form-group">
+                  <label>Subject Course</label>
+                  <select className="form-select" value={uploadSubject} onChange={(e) => setUploadSubject(e.target.value)}>
+                    <option value="CS601">CS601: Distributed Systems</option>
+                    <option value="CS602">CS602: Machine Learning</option>
+                    <option value="CS603">CS603: Compiler Design</option>
+                    <option value="CS604">CS604: Cloud Architecture</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Document Title</label>
+                  <input type="text" required className="form-input" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>Category</label>
+                  <select className="form-select" value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)}>
+                    <option value="Lecture Notes">Lecture Notes</option>
+                    <option value="Lab Manual">Lab Manual</option>
+                    <option value="Previous Question Paper">Previous Question Paper</option>
+                    <option value="Reference Slide">Reference Slide</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>File (PDF, PPT, DOC, DOCX)</label>
+                  <input type="file" required className="form-input" onChange={(e) => setUploadFile(e.target.files[0])} />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="submit" className="btn-primary" disabled={uploadLoading}>
+                    {uploadLoading ? 'Uploading...' : 'Upload Document'}
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setShowUploadModal(false)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 7. EXAMINATION MANAGEMENT (TIMETABLE, HALL TICKET PUBLISH & PRINT, REVALUATION)
+// ==========================================================
+export function ExaminationsView({ userRole }) {
+  const [data, setData] = useState(null);
+  const [revaluations, setRevaluations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Revaluation application form
+  const [revalCourse, setRevalCourse] = useState('CS601');
+  const [revalType, setRevalType] = useState('Re-evaluation');
+  const [revalMsg, setRevalMsg] = useState('');
+
+  const loadExams = () => {
+    setLoading(true);
+    Promise.all([
+      apiRequest('/examinations'),
+      apiRequest('/examinations/revaluation')
+    ]).then(([examRes, revalRes]) => {
+      setData(examRes);
+      setRevaluations(revalRes.revaluations || []);
+    }).catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadExams(); }, []);
+
+  const handleTogglePublish = async () => {
+    const current = data?.hall_ticket?.is_published;
+    const nextStatus = current === 1 ? 0 : 1;
+    const res = await apiRequest('/examinations/hall-ticket/publish', {
+      method: 'POST',
+      body: JSON.stringify({ is_published: nextStatus })
+    });
+    alert(res.message);
+    loadExams();
+  };
+
+  const handleApplyReval = async (e) => {
+    e.preventDefault();
+    setRevalMsg('');
+    try {
+      const res = await apiRequest('/examinations/revaluation', {
+        method: 'POST',
+        body: JSON.stringify({
+          course_code: revalCourse,
+          application_type: revalType
+        })
+      });
+      setRevalMsg(res.message);
+      loadExams();
+    } catch (err) {
+      alert(`Error submitting revaluation: ${err.message}`);
+    }
+  };
+
+  const exams = data?.examinations || [];
+  const hallTicket = data?.hall_ticket;
+  const reg = data?.registration;
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Examination Management & Admit Portal</div>
+          <div className="banner-sub">
+            End-semester theory schedule, seat allotments, official admit cards, and revaluation registry.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {userRole === 'admin' && (
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ width: 'auto', padding: '6px 12px' }}
+              onClick={handleTogglePublish}
+            >
+              {hallTicket?.is_published === 1 ? 'Admin: Unpublish Hall Tickets' : 'Admin: Publish Hall Tickets'}
+            </button>
+          )}
+
+          {hallTicket?.is_published === 1 && (
+            <button type="button" className="btn-secondary" onClick={() => window.print()}>
+              Print Hall Ticket
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Hall Ticket & Candidate Registration Card */}
+      <div className="dashboard-sections-grid">
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Examination Hall Ticket Permit</h3>
+            <span className={`status-pill ${hallTicket?.is_published === 1 ? 'status-success' : 'status-danger'}`}>
+              {hallTicket?.is_published === 1 ? 'Official Admit Card Released' : 'Not Yet Published'}
+            </span>
+          </div>
+          <div className="panel-card-body">
+            {hallTicket?.is_published === 1 ? (
+              <div style={{ border: '1px solid #cbd5e1', padding: '16px', background: '#f8fafc', borderRadius: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #d1d5db', paddingBottom: '8px', marginBottom: '12px' }}>
+                  <div>
+                    <strong>COLLEGE EXAMINATIONS BOARD</strong>
+                    <div style={{ fontSize: '11px', color: '#64748b' }}>{hallTicket.exam_cycle}</div>
+                  </div>
+                  <span className="status-pill status-success">SEALED PERMIT</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px' }}>
+                  <div><strong>Candidate Name:</strong> {reg?.candidate_name}</div>
+                  <div><strong>University Seat No:</strong> {reg?.usn}</div>
+                  <div><strong>Department:</strong> {reg?.department}</div>
+                  <div><strong>Semester:</strong> Semester {reg?.semester}</div>
+                  <div><strong>Examination Center:</strong> {reg?.exam_center}</div>
+                  <div><strong>Allotment Status:</strong> {reg?.seat_status}</div>
+                </div>
+
+                <div style={{ marginTop: '16px', borderTop: '1px solid #d1d5db', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <code style={{ fontSize: '11px', color: '#64748b' }}>BARCODE: ||| | |||| || |||||| | |||||</code>
+                  <button type="button" className="btn-secondary" onClick={() => window.print()}>
+                    Download Admit Card PDF
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="alert-box alert-danger">
+                Hall tickets are currently not published by the Administration Office. Contact Examination Cell if you have eligible attendance.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Apply for Revaluation */}
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Revaluation & Script Photocopy Request</h3>
+          </div>
+          <div className="panel-card-body">
+            {revalMsg && <div className="alert-box alert-success">{revalMsg}</div>}
+            <form onSubmit={handleApplyReval}>
+              <div className="form-group">
+                <label>Select Course for Review</label>
+                <select className="form-select" value={revalCourse} onChange={(e) => setRevalCourse(e.target.value)}>
+                  {exams.map((ex) => (
+                    <option key={ex.course_code} value={ex.course_code}>
+                      {ex.course_code}: {ex.course_title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Application Type</label>
+                <select className="form-select" value={revalType} onChange={(e) => setRevalType(e.target.value)}>
+                  <option value="Re-evaluation">Full Board Re-evaluation (₹750)</option>
+                  <option value="Photocopy">Answer Script Photocopy (₹350)</option>
+                  <option value="Both">Combo: Photocopy + Re-evaluation (₹1,000)</option>
+                </select>
+              </div>
+
+              <button type="submit" className="btn-primary">Submit Revaluation Application</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {/* Examination Timetable */}
+      <div className="panel-card">
+        <div className="panel-card-header">
+          <h3 className="panel-card-title">Theory Examination Time Table</h3>
+        </div>
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Course Code</th>
+                <th>Course Title</th>
+                <th>Date</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Exam Hall</th>
+                <th>Seat Allotment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="7" style={{ textAlign: 'center' }}>Loading examination schedule...</td></tr>
+              ) : (
+                exams.map((ex) => (
+                  <tr key={ex.id}>
+                    <td><strong>{ex.course_code}</strong></td>
+                    <td>{ex.course_title}</td>
+                    <td>{ex.exam_date}</td>
+                    <td>{ex.start_time}</td>
+                    <td>{ex.end_time}</td>
+                    <td><code>{ex.exam_hall}</code></td>
+                    <td>{ex.seat_number}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Submitted Revaluation Applications */}
+      <div className="panel-card">
+        <div className="panel-card-header">
+          <h3 className="panel-card-title">Revaluation Application Status Tracker</h3>
+        </div>
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Candidate USN</th>
+                <th>Course</th>
+                <th>Request Type</th>
+                <th>Fee Status</th>
+                <th>Processing Status</th>
+                <th>Official Board Remarks</th>
+                <th>Filing Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revaluations.map((r) => (
+                <tr key={r.id}>
+                  <td><strong>{r.usn}</strong></td>
+                  <td>{r.course_code}</td>
+                  <td>{r.application_type}</td>
+                  <td><span className="status-pill status-success">{r.fee_status}</span></td>
+                  <td>
+                    <span className={`status-pill ${r.status === 'Verified' ? 'status-success' : 'status-warning'}`}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td>{r.remarks || 'Verification in progress.'}</td>
+                  <td>{r.applied_date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================================
+// 8. SGPA & CGPA CALCULATOR MODULE
+// ==========================================================
+export function GpaCalculatorView() {
+  const [activeTab, setActiveTab] = useState('sgpa'); // 'sgpa' | 'cgpa' | 'history'
+  const [selectedSemester, setSelectedSemester] = useState(6);
+  const [courses, setCourses] = useState([
+    { name: 'Distributed Systems', credits: 4, grade: 'O', grade_point: 10 },
+    { name: 'Machine Learning', credits: 4, grade: 'O', grade_point: 10 },
+    { name: 'Compiler Design', credits: 4, grade: 'A+', grade_point: 9 },
+    { name: 'Cloud Architecture & DevOps', credits: 3, grade: 'A+', grade_point: 9 },
+    { name: 'Information & Cyber Security', credits: 3, grade: 'O', grade_point: 10 },
+    { name: 'Capstone Project Phase-I', credits: 4, grade: 'O', grade_point: 10 }
+  ]);
+  const [sgpaResult, setSgpaResult] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [overallCgpa, setOverallCgpa] = useState(0.0);
+  const [totalCreditsEarned, setTotalCreditsEarned] = useState(0.0);
+  const [historyModal, setHistoryModal] = useState(null);
+
+  // CGPA Tab State
+  const [cgpaRows, setCgpaRows] = useState([
+    { semester: 1, credits: 20, sgpa: 9.50 },
+    { semester: 2, credits: 20, sgpa: 9.15 },
+    { semester: 3, credits: 22, sgpa: 9.00 },
+    { semester: 4, credits: 22, sgpa: 9.32 },
+    { semester: 5, credits: 22, sgpa: 9.50 },
+    { semester: 6, credits: 22, sgpa: 9.68 }
+  ]);
+  const [cgpaResult, setCgpaResult] = useState(null);
+  const [targetGoal, setTargetGoal] = useState(9.40);
+  const [remainingCredits, setRemainingCredits] = useState(40);
+
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const GRADE_SCALE = [
+    { grade: 'O', points: 10.0, label: 'O - Outstanding (10)' },
+    { grade: 'A+', points: 9.0, label: 'A+ - Excellent (9)' },
+    { grade: 'A', points: 8.0, label: 'A - Very Good (8)' },
+    { grade: 'B+', points: 7.0, label: 'B+ - Good (7)' },
+    { grade: 'B', points: 6.0, label: 'B - Above Average (6)' },
+    { grade: 'C', points: 5.0, label: 'C - Average (5)' },
+    { grade: 'P', points: 4.0, label: 'P - Pass (4)' },
+    { grade: 'F', points: 0.0, label: 'F - Fail (0)' }
+  ];
+
+  const fetchHistory = async () => {
+    try {
+      const res = await apiRequest('/gpa/history');
+      setHistory(res.history || []);
+      setOverallCgpa(res.overall_cgpa || 0.0);
+      setTotalCreditsEarned(res.total_credits_earned || 0.0);
+      if (res.history && res.history.length > 0) {
+        setCgpaRows(res.history.map(h => ({
+          semester: h.semester,
+          credits: h.total_credits,
+          sgpa: h.sgpa
+        })));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const addCourseRow = () => {
+    setCourses([...courses, { name: '', credits: 3, grade: 'A', grade_point: 8 }]);
+  };
+
+  const updateCourse = (index, field, value) => {
+    const updated = [...courses];
+    if (field === 'grade') {
+      const found = GRADE_SCALE.find(g => g.grade === value);
+      updated[index].grade = value;
+      if (found) updated[index].grade_point = found.points;
+    } else if (field === 'grade_point') {
+      const num = parseFloat(value);
+      updated[index].grade_point = isNaN(num) ? 0 : num;
+    } else if (field === 'credits') {
+      const num = parseFloat(value);
+      updated[index].credits = isNaN(num) ? '' : num;
+    } else {
+      updated[index][field] = value;
+    }
+    setCourses(updated);
+  };
+
+  const removeCourseRow = (index) => {
+    if (courses.length <= 1) {
+      setError('At least one course must remain in the semester calculation.');
+      return;
+    }
+    setCourses(courses.filter((_, i) => i !== index));
+  };
+
+  const handleComputeSgpa = async (e) => {
+    if (e) e.preventDefault();
+    setError('');
+    setMessage('');
+
+    for (let i = 0; i < courses.length; i++) {
+      const c = courses[i];
+      if (!c.credits || c.credits <= 0) {
+        setError(`Please enter valid positive credits for course #${i + 1}.`);
+        return;
+      }
+      if (c.grade_point === undefined || c.grade_point < 0 || c.grade_point > 10) {
+        setError(`Grade point for course #${i + 1} must be between 0 and 10.`);
+        return;
+      }
+    }
+
+    try {
+      setLoading(true);
+      const res = await apiRequest('/gpa/calculate-sgpa', {
+        method: 'POST',
+        body: JSON.stringify({ courses })
+      });
+      setSgpaResult(res);
+    } catch (err) {
+      setError(err.message || 'Failed to calculate SGPA.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveToHistory = async () => {
+    setError('');
+    setMessage('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/gpa/save-semester', {
+        method: 'POST',
+        body: JSON.stringify({
+          semester: parseInt(selectedSemester, 10),
+          courses
+        })
+      });
+      setMessage(res.message);
+      await fetchHistory();
+    } catch (err) {
+      setError(err.message || 'Failed to save semester record.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSavedSemesterIntoForm = (sem) => {
+    const record = history.find(h => h.semester === sem);
+    if (record && record.subjects && record.subjects.length > 0) {
+      setCourses(record.subjects.map(s => ({
+        name: s.subject_name,
+        credits: s.credits,
+        grade: s.letter_grade || 'A',
+        grade_point: s.grade_point
+      })));
+      setSelectedSemester(sem);
+      setActiveTab('sgpa');
+      setMessage(`Loaded saved Semester ${sem} records into form.`);
+    } else {
+      setError(`No saved subjects found for Semester ${sem}.`);
+    }
+  };
+
+  const handleDeleteHistory = async (id) => {
+    if (!window.confirm('Delete this semester record from academic history?')) return;
+    try {
+      await apiRequest(`/gpa/history/${id}`, { method: 'DELETE' });
+      await fetchHistory();
+      setMessage('Semester record removed from academic history.');
+    } catch (err) {
+      setError(err.message || 'Failed to delete record.');
+    }
+  };
+
+  // CGPA Tab Methods
+  const addCgpaRow = () => {
+    const nextSem = cgpaRows.length + 1;
+    setCgpaRows([...cgpaRows, { semester: nextSem, credits: 20, sgpa: 9.0 }]);
+  };
+
+  const updateCgpaRow = (index, field, value) => {
+    const updated = [...cgpaRows];
+    updated[index][field] = parseFloat(value) || 0;
+    setCgpaRows(updated);
+  };
+
+  const removeCgpaRow = (index) => {
+    if (cgpaRows.length <= 1) return;
+    setCgpaRows(cgpaRows.filter((_, i) => i !== index));
+  };
+
+  const handleComputeCgpa = async () => {
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/gpa/calculate-cgpa', {
+        method: 'POST',
+        body: JSON.stringify({ semesters: cgpaRows })
+      });
+      setCgpaResult(res);
+    } catch (err) {
+      setError(err.message || 'Failed to calculate CGPA.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalFormCredits = courses.reduce((acc, c) => acc + (parseFloat(c.credits) || 0), 0);
+  const totalFormCreditPoints = courses.reduce((acc, c) => acc + ((parseFloat(c.credits) || 0) * (parseFloat(c.grade_point) || 0)), 0);
+  const liveSgpa = totalFormCredits > 0 ? (totalFormCreditPoints / totalFormCredits).toFixed(2) : '0.00';
+
+  const currentTotalCredits = cgpaRows.reduce((acc, r) => acc + (r.credits || 0), 0);
+  const currentTotalPoints = cgpaRows.reduce((acc, r) => acc + ((r.credits || 0) * (r.sgpa || 0)), 0);
+  const targetTotalCredits = currentTotalCredits + parseFloat(remainingCredits || 0);
+  const neededTotalPoints = (parseFloat(targetGoal || 0) * targetTotalCredits) - currentTotalPoints;
+  const neededSgpa = remainingCredits > 0 ? (neededTotalPoints / remainingCredits).toFixed(2) : 'N/A';
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">SGPA & CGPA Academic Forecaster</div>
+          <div className="banner-sub">
+            Credit-weighted grade point calculations, academic history tracking, and cumulative graduation forecasts.
+          </div>
+        </div>
+      </div>
+
+      {message && <div className="alert-box alert-success" style={{ marginBottom: '16px' }}>{message}</div>}
+      {error && <div className="alert-box alert-danger" style={{ marginBottom: '16px' }}>{error}</div>}
+
+      {/* Top Metrics Row */}
+      <div className="stats-grid" style={{ marginBottom: '16px' }}>
+        <div className="stat-card">
+          <div className="stat-label">Cumulative CGPA</div>
+          <div className="stat-value">{overallCgpa}</div>
+          <div className="stat-sub">Across All Completed Semesters</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Total Credits Earned</div>
+          <div className="stat-value">{totalCreditsEarned}</div>
+          <div className="stat-sub">Degree Requirement: 160 Credits</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Semesters Recorded</div>
+          <div className="stat-value">{history.length}</div>
+          <div className="stat-sub">In Official Database Ledger</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Academic Status</div>
+          <div className="stat-value" style={{ fontSize: '16px', color: '#15803d' }}>Distinction</div>
+          <div className="stat-sub">CGPA &gt;= 8.5 Threshold Met</div>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ padding: '8px 12px', display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{
+              backgroundColor: activeTab === 'sgpa' ? '#1e3a8a' : '#ffffff',
+              color: activeTab === 'sgpa' ? '#ffffff' : '#1e293b'
+            }}
+            onClick={() => setActiveTab('sgpa')}
+          >
+            Semester SGPA Calculator
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{
+              backgroundColor: activeTab === 'cgpa' ? '#1e3a8a' : '#ffffff',
+              color: activeTab === 'cgpa' ? '#ffffff' : '#1e293b'
+            }}
+            onClick={() => setActiveTab('cgpa')}
+          >
+            Cumulative CGPA Calculator & Forecaster
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{
+              backgroundColor: activeTab === 'history' ? '#1e3a8a' : '#ffffff',
+              color: activeTab === 'history' ? '#ffffff' : '#1e293b'
+            }}
+            onClick={() => setActiveTab('history')}
+          >
+            Academic History & Past Semesters ({history.length})
+          </button>
+        </div>
+      </div>
+
+      {/* TAB 1: SGPA CALCULATOR */}
+      {activeTab === 'sgpa' && (
+        <div className="dashboard-sections-grid">
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Subject-Wise Credit & Grade Inputs</h3>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>Semester:</span>
+                <select
+                  className="form-select"
+                  style={{ width: 'auto', padding: '4px 8px' }}
+                  value={selectedSemester}
+                  onChange={(e) => setSelectedSemester(parseInt(e.target.value, 10))}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                    <option key={s} value={s}>Semester {s}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ fontSize: '11px', padding: '4px 8px' }}
+                  onClick={() => loadSavedSemesterIntoForm(selectedSemester)}
+                >
+                  Load Saved Data
+                </button>
+              </div>
+            </div>
+            <div className="panel-card-body">
+              <div className="table-responsive">
+                <table className="data-table" style={{ marginBottom: '14px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40%' }}>Subject Name</th>
+                      <th style={{ width: '15%' }}>Credits</th>
+                      <th style={{ width: '25%' }}>Grade / Grade Point</th>
+                      <th style={{ width: '10%' }}>Points</th>
+                      <th style={{ width: '10%' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {courses.map((c, i) => (
+                      <tr key={i}>
+                        <td>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder={`e.g. Subject ${i + 1}`}
+                            value={c.name}
+                            onChange={(e) => updateCourse(i, 'name', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="1"
+                            max="8"
+                            step="0.5"
+                            className="form-input"
+                            value={c.credits}
+                            onChange={(e) => updateCourse(i, 'credits', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <select
+                            className="form-select"
+                            value={c.grade}
+                            onChange={(e) => updateCourse(i, 'grade', e.target.value)}
+                          >
+                            {GRADE_SCALE.map(g => (
+                              <option key={g.grade} value={g.grade}>{g.label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <strong>{((parseFloat(c.credits) || 0) * (parseFloat(c.grade_point) || 0)).toFixed(1)}</strong>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            onClick={() => removeCourseRow(i)}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button type="button" className="btn-secondary" onClick={addCourseRow}>
+                  + Add Subject
+                </button>
+                <button type="button" className="btn-primary" onClick={handleComputeSgpa} disabled={loading}>
+                  {loading ? 'Computing...' : 'Calculate SGPA'}
+                </button>
+                <button type="button" className="btn-secondary" onClick={handleSaveToHistory} disabled={loading}>
+                  Save to Academic History
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* SGPA Result Summary */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Calculation Breakdown & Formula</h3>
+            </div>
+            <div className="panel-card-body">
+              <div style={{ background: '#f8fafc', border: '1px solid #d1d5db', padding: '16px', borderRadius: '4px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Semester {selectedSemester} Calculated SGPA
+                </div>
+                <div style={{ fontSize: '32px', fontWeight: 700, color: '#1e3a8a', margin: '6px 0' }}>
+                  {sgpaResult ? sgpaResult.sgpa : liveSgpa} <span style={{ fontSize: '14px', color: '#64748b' }}>/ 10.00</span>
+                </div>
+                <div style={{ fontSize: '12px', color: '#334155' }}>
+                  Total Credits: <strong>{sgpaResult ? sgpaResult.total_credits : totalFormCredits}</strong> | Total Credit Points: <strong>{sgpaResult ? sgpaResult.total_credit_points : totalFormCreditPoints.toFixed(1)}</strong>
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid #e2e8f0', padding: '14px', borderRadius: '4px', marginBottom: '14px' }}>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '6px' }}>Mathematical Formula:</div>
+                <div style={{ fontFamily: 'monospace', background: '#ffffff', padding: '8px', border: '1px solid #cbd5e1', fontSize: '12px', color: '#0f172a' }}>
+                  SGPA = Sum of (Credit x Grade Point) / Total Credits
+                </div>
+                <div style={{ fontSize: '12px', color: '#475569', marginTop: '8px' }}>
+                  {sgpaResult ? sgpaResult.formula : `SGPA = ${totalFormCreditPoints.toFixed(1)} / ${totalFormCredits} = ${liveSgpa}`}
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid #e2e8f0', padding: '14px', borderRadius: '4px' }}>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '6px' }}>Institutional Grading Scale:</div>
+                <table className="data-table" style={{ fontSize: '11px' }}>
+                  <thead>
+                    <tr>
+                      <th>Grade</th>
+                      <th>Points</th>
+                      <th>Marks Band</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><strong>O</strong></td><td>10.0</td><td>90 - 100</td><td>Outstanding</td></tr>
+                    <tr><td><strong>A+</strong></td><td>9.0</td><td>80 - 89</td><td>Excellent</td></tr>
+                    <tr><td><strong>A</strong></td><td>8.0</td><td>70 - 79</td><td>Very Good</td></tr>
+                    <tr><td><strong>B+</strong></td><td>7.0</td><td>60 - 69</td><td>Good</td></tr>
+                    <tr><td><strong>B</strong></td><td>6.0</td><td>55 - 59</td><td>Above Average</td></tr>
+                    <tr><td><strong>C</strong></td><td>5.0</td><td>50 - 54</td><td>Average</td></tr>
+                    <tr><td><strong>P</strong></td><td>4.0</td><td>40 - 49</td><td>Pass</td></tr>
+                    <tr><td><strong>F</strong></td><td>0.0</td><td>&lt; 40</td><td>Fail</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: CUMULATIVE CGPA CALCULATOR */}
+      {activeTab === 'cgpa' && (
+        <div className="dashboard-sections-grid">
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Semester-Wise Credits & SGPA Inputs</h3>
+              <button type="button" className="btn-secondary" onClick={addCgpaRow}>+ Add Semester</button>
+            </div>
+            <div className="panel-card-body">
+              <div className="table-responsive">
+                <table className="data-table" style={{ marginBottom: '16px' }}>
+                  <thead>
+                    <tr>
+                      <th>Semester</th>
+                      <th>Total Credits</th>
+                      <th>Semester SGPA</th>
+                      <th>Credit Points (Credits x SGPA)</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cgpaRows.map((r, i) => (
+                      <tr key={i}>
+                        <td>
+                          <strong>Semester {r.semester}</strong>
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="1"
+                            max="35"
+                            className="form-input"
+                            style={{ width: '80px' }}
+                            value={r.credits}
+                            onChange={(e) => updateCgpaRow(i, 'credits', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            step="0.01"
+                            className="form-input"
+                            style={{ width: '80px' }}
+                            value={r.sgpa}
+                            onChange={(e) => updateCgpaRow(i, 'sgpa', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <strong>{((r.credits || 0) * (r.sgpa || 0)).toFixed(2)}</strong>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            onClick={() => removeCgpaRow(i)}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <button type="button" className="btn-primary" onClick={handleComputeCgpa} disabled={loading}>
+                {loading ? 'Computing CGPA...' : 'Compute Cumulative CGPA'}
+              </button>
+            </div>
+          </div>
+
+          {/* CGPA Projection & Goal Estimator */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">CGPA Results & Goal Forecaster</h3>
+            </div>
+            <div className="panel-card-body">
+              <div style={{ background: '#f8fafc', border: '1px solid #d1d5db', padding: '16px', borderRadius: '4px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Cumulative Grade Point Average (CGPA)
+                </div>
+                <div style={{ fontSize: '32px', fontWeight: 700, color: '#1e3a8a', margin: '6px 0' }}>
+                  {cgpaResult ? cgpaResult.cgpa : (currentTotalCredits > 0 ? (currentTotalPoints / currentTotalCredits).toFixed(2) : '0.00')} <span style={{ fontSize: '14px', color: '#64748b' }}>/ 10.00</span>
+                </div>
+                <div style={{ fontSize: '12px', color: '#334155' }}>
+                  Total Credits Across Semesters: <strong>{currentTotalCredits}</strong> | Sum of Grade Points: <strong>{currentTotalPoints.toFixed(2)}</strong>
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid #e2e8f0', padding: '14px', borderRadius: '4px', marginBottom: '16px' }}>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '6px' }}>Cumulative Calculation Formula:</div>
+                <div style={{ fontFamily: 'monospace', background: '#ffffff', padding: '8px', border: '1px solid #cbd5e1', fontSize: '12px', color: '#0f172a' }}>
+                  CGPA = Sum of (Semester Credit x Semester Grade Points) / Total Credits Across Semesters
+                </div>
+                <div style={{ fontSize: '12px', color: '#475569', marginTop: '8px' }}>
+                  {cgpaResult ? cgpaResult.formula : `CGPA = ${currentTotalPoints.toFixed(2)} / ${currentTotalCredits} = ${(currentTotalPoints / currentTotalCredits).toFixed(2)}`}
+                </div>
+              </div>
+
+              {/* Target CGPA Estimator */}
+              <div style={{ border: '1px solid #e2e8f0', padding: '14px', borderRadius: '4px' }}>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>Target Graduation CGPA Estimator</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <div>
+                    <label className="stat-label">Desired Graduation CGPA</label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="6"
+                      max="10"
+                      className="form-input"
+                      value={targetGoal}
+                      onChange={(e) => setTargetGoal(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="stat-label">Remaining Future Credits</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      className="form-input"
+                      value={remainingCredits}
+                      onChange={(e) => setRemainingCredits(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div style={{ background: '#f1f5f9', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
+                  Required SGPA in remaining semesters to graduate with <strong>{targetGoal}</strong> CGPA:
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#1e3a8a', marginTop: '4px' }}>
+                    {neededSgpa} / 10.00
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: ACADEMIC HISTORY */}
+      {activeTab === 'history' && (
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Official Academic History Ledger</h3>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>Persistent Student Registry Records</span>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Semester</th>
+                  <th>Total Credits</th>
+                  <th>Credit Points</th>
+                  <th>Semester SGPA</th>
+                  <th>Cumulative CGPA</th>
+                  <th>Courses Recorded</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.length > 0 ? (
+                  history.map((h) => (
+                    <tr key={h.id}>
+                      <td><strong>Semester {h.semester}</strong></td>
+                      <td>{h.total_credits}</td>
+                      <td>{h.total_credit_points}</td>
+                      <td>
+                        <span className="status-pill status-success" style={{ fontSize: '12px' }}>
+                          {h.sgpa}
+                        </span>
+                      </td>
+                      <td>
+                        <strong>{h.cumulative_cgpa}</strong>
+                      </td>
+                      <td>{h.subjects ? h.subjects.length : 0} Subjects</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            onClick={() => setHistoryModal(h)}
+                          >
+                            View Breakdown
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            onClick={() => loadSavedSemesterIntoForm(h.semester)}
+                          >
+                            Load into Calculator
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ fontSize: '11px', padding: '4px 8px', color: '#b91c1c' }}
+                            onClick={() => handleDeleteHistory(h.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                      No academic history records found. Compute and save a semester above.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: View Previous Semester Breakdown */}
+      {historyModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '650px', margin: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">
+                Semester {historyModal.semester} Academic Breakdown
+              </h3>
+              <button type="button" className="btn-secondary" onClick={() => setHistoryModal(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '14px', background: '#f8fafc', padding: '10px', borderRadius: '4px' }}>
+                <div><label className="stat-label">Semester SGPA</label><div><strong>{historyModal.sgpa}</strong></div></div>
+                <div><label className="stat-label">Total Credits</label><div><strong>{historyModal.total_credits}</strong></div></div>
+                <div><label className="stat-label">Credit Points</label><div><strong>{historyModal.total_credit_points}</strong></div></div>
+              </div>
+
+              <table className="data-table" style={{ marginBottom: '14px' }}>
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Credits</th>
+                    <th>Grade</th>
+                    <th>Grade Point</th>
+                    <th>Credit Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(historyModal.subjects || []).map((s, idx) => (
+                    <tr key={idx}>
+                      <td><strong>{s.subject_name}</strong></td>
+                      <td>{s.credits}</td>
+                      <td><span className="status-pill status-neutral">{s.letter_grade || s.grade || 'A'}</span></td>
+                      <td>{s.grade_point}</td>
+                      <td>{((s.credits || 0) * (s.grade_point || 0)).toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => {
+                    loadSavedSemesterIntoForm(historyModal.semester);
+                    setHistoryModal(null);
+                  }}
+                >
+                  Load into Calculator
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => setHistoryModal(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 9. STUDENT PROFILE AND DIGITAL ID MODULE
+// ==========================================================
+export function StudentProfileView({ userRole }) {
+  const [profile, setProfile] = useState(null);
+  const [digitalId, setDigitalId] = useState(null);
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'digital_id'
+  const [editForm, setEditForm] = useState({
+    phone: '',
+    email: '',
+    emergency_contact: '',
+    blood_group: 'O+',
+    address: '',
+    department: '',
+    semester: 6,
+    section: 'A'
+  });
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+  const [showQrInspector, setShowQrInspector] = useState(false);
+  const [verifyResult, setVerifyResult] = useState(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+
+  const loadData = async () => {
+    try {
+      const pRes = await apiRequest('/profile');
+      setProfile(pRes.profile);
+      setEditForm({
+        phone: pRes.profile.phone || '',
+        email: pRes.profile.email || '',
+        emergency_contact: pRes.profile.emergency_contact || '',
+        blood_group: pRes.profile.blood_group || 'O+',
+        address: pRes.profile.address || '',
+        department: pRes.profile.department || '',
+        semester: pRes.profile.semester || 6,
+        section: pRes.profile.section || 'A'
+      });
+
+      const idRes = await apiRequest('/profile/digital-id');
+      setDigitalId(idRes);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/profile', {
+        method: 'PUT',
+        body: JSON.stringify(editForm)
+      });
+      setProfile(res.profile);
+      setMsg('Profile and permitted contact records successfully updated in the official database.');
+      const idRes = await apiRequest('/profile/digital-id');
+      setDigitalId(idRes);
+    } catch (err) {
+      setError(err.message || 'Failed to update profile.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/profile/photo', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Photo upload failed');
+
+      setMsg('Profile photograph successfully updated.');
+      await loadData();
+    } catch (err) {
+      setError(err.message || 'Photo upload failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCredential = async () => {
+    if (!profile?.usn) return;
+    setVerifyLoading(true);
+    try {
+      const res = await apiRequest(`/profile/verify/${profile.usn}`);
+      setVerifyResult(res);
+    } catch (err) {
+      setError(err.message || 'Verification failed.');
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handlePrintIdCard = () => {
+    window.print();
+  };
+
+  if (!profile) return <div style={{ padding: '20px' }}>Loading student profile...</div>;
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Student Profile & Digital Identification</div>
+          <div className="banner-sub">
+            Verified institutional registry, contact preferences, and official digital ID card with secure QR code.
+          </div>
+        </div>
+      </div>
+
+      {msg && <div className="alert-box alert-success" style={{ marginBottom: '16px' }}>{msg}</div>}
+      {error && <div className="alert-box alert-danger" style={{ marginBottom: '16px' }}>{error}</div>}
+
+      {/* Summary Profile Header Card */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="id-photo-box" style={{ width: '90px', height: '100px' }}>
+            <img src={profile.photo_url || '/uploads/profiles/default_student.png'} alt={profile.name} />
+          </div>
+
+          <div style={{ flex: 1, minWidth: '240px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>{profile.name}</h2>
+              <span className="status-pill status-neutral">USN: {profile.usn}</span>
+              <span className="status-pill status-success">{profile.academic_status || 'Good Standing'}</span>
+            </div>
+            <div style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>
+              {profile.department} | {profile.college_name || 'Apex Institute of Engineering & Technology'}
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+              {profile.degree || 'Bachelor of Engineering (B.E.)'} - Semester {profile.semester} (Section {profile.section}) | Batch: {profile.admission_year || 2021} - {(profile.admission_year || 2021) + 4}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px', borderLeft: '1px solid #e2e8f0', paddingLeft: '16px' }}>
+            <div>
+              <div className="stat-label">Current CGPA</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#1e3a8a' }}>{profile.cgpa}</div>
+            </div>
+            <div>
+              <div className="stat-label">Attendance</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#15803d' }}>{profile.overall_attendance}%</div>
+            </div>
+            <div>
+              <div className="stat-label">Earned Credits</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>{profile.credits_earned || 128}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Switcher */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ padding: '8px 12px', display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{
+              backgroundColor: activeTab === 'profile' ? '#1e3a8a' : '#ffffff',
+              color: activeTab === 'profile' ? '#ffffff' : '#1e293b'
+            }}
+            onClick={() => setActiveTab('profile')}
+          >
+            Profile Information & Contact Settings
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{
+              backgroundColor: activeTab === 'digital_id' ? '#1e3a8a' : '#ffffff',
+              color: activeTab === 'digital_id' ? '#ffffff' : '#1e293b'
+            }}
+            onClick={() => setActiveTab('digital_id')}
+          >
+            Digital Student ID & Verified QR Badge
+          </button>
+        </div>
+      </div>
+
+      {/* TAB 1: PROFILE INFORMATION */}
+      {activeTab === 'profile' && (
+        <div className="dashboard-sections-grid">
+          {/* Institutional Official Records (Locked) */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Official Institutional Records</h3>
+              <span className="status-pill status-neutral">Registrar Master Copy</span>
+            </div>
+            <div className="panel-card-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                <div>
+                  <label className="stat-label">University Seat Number (USN)</label>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{profile.usn}</div>
+                </div>
+                <div>
+                  <label className="stat-label">Student Full Name</label>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{profile.name}</div>
+                </div>
+                <div>
+                  <label className="stat-label">College / Institution</label>
+                  <div style={{ color: '#334155' }}>{profile.college_name || 'Apex Institute of Engineering & Technology'}</div>
+                </div>
+                <div>
+                  <label className="stat-label">Department / Branch</label>
+                  <div style={{ color: '#334155' }}>{profile.department}</div>
+                </div>
+                <div>
+                  <label className="stat-label">Academic Program</label>
+                  <div style={{ color: '#334155' }}>{profile.degree || 'B.E. Computer Science'}</div>
+                </div>
+                <div>
+                  <label className="stat-label">Current Semester & Section</label>
+                  <div style={{ color: '#334155' }}>Semester {profile.semester} - Section {profile.section}</div>
+                </div>
+                <div>
+                  <label className="stat-label">Admission Year</label>
+                  <div style={{ color: '#334155' }}>{profile.admission_year || 2021}</div>
+                </div>
+                <div>
+                  <label className="stat-label">ID Expiry / Valid Thru</label>
+                  <div style={{ color: '#334155' }}>{profile.valid_thru || 'June 2027'}</div>
+                </div>
+                <div>
+                  <label className="stat-label">Active Backlogs</label>
+                  <div style={{ color: '#15803d', fontWeight: 600 }}>{profile.backlogs || 0} Backlogs</div>
+                </div>
+                <div>
+                  <label className="stat-label">Standing Status</label>
+                  <div style={{ color: '#15803d', fontWeight: 600 }}>{profile.academic_status || 'Good Standing'}</div>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                <label className="stat-label" style={{ marginBottom: '6px' }}>Update Profile Photograph</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="form-input"
+                    style={{ padding: '6px' }}
+                    disabled={loading}
+                  />
+                </div>
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                  Supported formats: PNG, JPG, JPEG, WEBP. Photo is automatically updated on your Digital ID.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Permitted Editable Details Form */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Permitted Personal & Contact Details</h3>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>Editable by Student</span>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleSaveProfile}>
+                <div className="form-group">
+                  <label>Primary Phone Number</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-input"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Official Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    className="form-input"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Emergency Contact Phone</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-input"
+                    value={editForm.emergency_contact}
+                    onChange={(e) => setEditForm({ ...editForm, emergency_contact: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Blood Group</label>
+                  <select
+                    className="form-select"
+                    value={editForm.blood_group}
+                    onChange={(e) => setEditForm({ ...editForm, blood_group: e.target.value })}
+                  >
+                    {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Residential / Hostel Address</label>
+                  <textarea
+                    rows="3"
+                    className="form-input"
+                    value={editForm.address}
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  />
+                </div>
+
+                {userRole === 'admin' && (
+                  <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '4px', marginBottom: '14px', border: '1px solid #bfdbfe' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#1e3a8a', marginBottom: '6px' }}>
+                      ADMINISTRATOR MASTER RECORD OVERRIDE:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div>
+                        <label style={{ fontSize: '11px' }}>Department</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={editForm.department}
+                          onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '11px' }}>Semester</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          value={editForm.semester}
+                          onChange={(e) => setEditForm({ ...editForm, semester: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Saving...' : 'Save Permitted Contact Details'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: DIGITAL STUDENT ID CARD & QR CODE */}
+      {activeTab === 'digital_id' && digitalId && (
+        <div>
+          <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '12px 16px', borderRadius: '4px', marginBottom: '16px' }}>
+            <div style={{ fontWeight: 600, fontSize: '13px', color: '#1e3a8a' }}>
+              Security & Credential Verification Notice
+            </div>
+            <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px' }}>
+              Each student is issued a unique dynamic QR code for campus identification, laboratory attendance, and institutional verification. Passwords, hashes, and sensitive authentication keys are never exposed in the QR credential.
+            </div>
+          </div>
+
+          <div className="id-card-wrapper">
+            {/* Front Card */}
+            <div className="id-card-badge">
+              <div className="id-card-header">
+                <div className="id-card-header-college">{digitalId.digital_id.college_name}</div>
+                <div className="id-card-header-sub">STUDENT IDENTITY CARD</div>
+              </div>
+
+              <div className="id-card-body">
+                <div style={{ display: 'flex', gap: '14px', alignItems: 'center', marginBottom: '12px' }}>
+                  <div className="id-photo-box">
+                    <img src={digitalId.digital_id.photo_url || '/uploads/profiles/default_student.png'} alt={digitalId.digital_id.name} />
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <div className="id-field-label">Student Name</div>
+                    <div className="id-field-value" style={{ fontSize: '14px', color: '#1e3a8a' }}>{digitalId.digital_id.name}</div>
+
+                    <div className="id-field-label" style={{ marginTop: '6px' }}>University Seat No (USN)</div>
+                    <div className="id-field-value">{digitalId.digital_id.usn}</div>
+
+                    <div className="id-field-label" style={{ marginTop: '6px' }}>Blood Group</div>
+                    <div className="id-field-value">{digitalId.digital_id.blood_group}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
+                  <div>
+                    <div className="id-field-label">Branch</div>
+                    <div className="id-field-value" style={{ fontSize: '11px' }}>{digitalId.digital_id.department}</div>
+                  </div>
+                  <div>
+                    <div className="id-field-label">Semester & Sec</div>
+                    <div className="id-field-value">Sem {digitalId.digital_id.semester} - Sec {digitalId.digital_id.section}</div>
+                  </div>
+                  <div>
+                    <div className="id-field-label">Valid Thru</div>
+                    <div className="id-field-value" style={{ color: '#15803d' }}>{digitalId.digital_id.valid_thru}</div>
+                  </div>
+                  <div>
+                    <div className="id-field-label">Emergency Tel</div>
+                    <div className="id-field-value" style={{ fontSize: '11px' }}>{digitalId.digital_id.emergency_contact}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="id-card-footer">
+                <span>Registrar Seal Verified</span>
+                <span style={{ fontWeight: 600 }}>Active Student</span>
+              </div>
+            </div>
+
+            {/* Back Card with Unique QR Code */}
+            <div className="id-card-badge">
+              <div className="id-card-header" style={{ background: '#0f172a' }}>
+                <div className="id-card-header-college">INSTITUTIONAL DIGITAL CREDENTIAL</div>
+                <div className="id-card-header-sub">OFFICIAL SCANNABLE VERIFICATION BADGE</div>
+              </div>
+
+              <div className="id-card-body" style={{ textAlign: 'center' }}>
+                <div style={{ display: 'inline-block', padding: '6px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                  <img
+                    src={digitalId.qr_code_image}
+                    alt="Student ID QR Code"
+                    style={{ width: '130px', height: '130px', display: 'block' }}
+                  />
+                </div>
+
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#1e3a8a', marginTop: '8px' }}>
+                  UNIQUE SECURE QR CODE
+                </div>
+                <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
+                  Scan with any camera or scanner to verify student credentials.
+                </div>
+
+                <div style={{ marginTop: '10px', padding: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'left', fontSize: '10px', color: '#475569' }}>
+                  <div><strong>Address:</strong> {digitalId.digital_id.address}</div>
+                  <div><strong>Emergency Helpline:</strong> {digitalId.digital_id.emergency_contact}</div>
+                  <div style={{ marginTop: '4px', color: '#64748b', fontStyle: 'italic' }}>
+                    If found, return to Registrar Office, Apex Institute of Engineering & Technology.
+                  </div>
+                </div>
+              </div>
+
+              <div className="id-card-footer">
+                <span>Barcode Access: 1MS21CS084</span>
+                <span>ISO/IEC 18004</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Tools */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px' }}>
+            <button type="button" className="btn-primary" onClick={handlePrintIdCard}>
+              Print / Save ID Card
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => setShowQrInspector(true)}>
+              Inspect QR Encoded Content
+            </button>
+            <button type="button" className="btn-secondary" onClick={handleVerifyCredential} disabled={verifyLoading}>
+              {verifyLoading ? 'Verifying...' : 'Simulate External Scanner Verification'}
+            </button>
+          </div>
+
+          {/* Verification Result Drawer */}
+          {verifyResult && (
+            <div style={{ marginTop: '16px', background: '#f0fdf4', border: '1px solid #86efac', padding: '16px', borderRadius: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 700, color: '#15803d', fontSize: '14px' }}>
+                  Official Registrar Verification Certificate
+                </div>
+                <button type="button" className="btn-secondary" style={{ fontSize: '11px' }} onClick={() => setVerifyResult(null)}>
+                  Dismiss
+                </button>
+              </div>
+              <div style={{ fontSize: '12px', color: '#166534', marginTop: '4px' }}>
+                Status: <strong>{verifyResult.student.academic_status}</strong> | Authority: <strong>{verifyResult.verification_source}</strong> | Timestamp: {verifyResult.timestamp}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', marginTop: '10px', fontSize: '12px' }}>
+                <div>Name: <strong>{verifyResult.student.name}</strong></div>
+                <div>USN: <strong>{verifyResult.student.usn}</strong></div>
+                <div>Institution: <strong>{verifyResult.student.college_name}</strong></div>
+                <div>Department: <strong>{verifyResult.student.department}</strong></div>
+                <div>Validity: <strong>{verifyResult.student.valid_thru}</strong></div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal: QR Decoded Payload Inspector */}
+          {showQrInspector && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}>
+              <div className="panel-card" style={{ width: '100%', maxWidth: '540px', margin: '20px' }}>
+                <div className="panel-card-header">
+                  <h3 className="panel-card-title">QR Code Decoded Content Inspector</h3>
+                  <button type="button" className="btn-secondary" onClick={() => setShowQrInspector(false)}>Close</button>
+                </div>
+                <div className="panel-card-body">
+                  <div style={{ fontSize: '12px', color: '#475569', marginBottom: '10px' }}>
+                    The following exact text string is encoded inside the student's unique QR code. Notice that no passwords, private hashes, or security tokens are exposed:
+                  </div>
+
+                  <pre style={{
+                    background: '#0f172a', color: '#f8fafc', padding: '14px',
+                    borderRadius: '4px', fontSize: '12px', lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-all'
+                  }}>
+                    {digitalId.qr_payload_text}
+                  </pre>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px' }}>
+                    <button type="button" className="btn-secondary" onClick={() => setShowQrInspector(false)}>
+                      Close Inspector
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 10. PLACEMENT AND CAREER MODULE
+// ==========================================================
+export function PlacementsView({ userRole }) {
+  const [activeTab, setActiveTab] = useState('drives'); // 'drives' | 'applications' | 'resumes' | 'builder' | 'prep'
+  const [drives, setDrives] = useState([]);
+  const [driveType, setDriveType] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [applications, setApplications] = useState([]);
+  const [resumes, setResumes] = useState([]);
+  const [resumeData, setResumeData] = useState(null);
+  const [prepData, setPrepData] = useState({ resources: [], mock_questions: [] });
+
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+
+  // Modals & Forms
+  const [selectedDriveForApply, setSelectedDriveForApply] = useState(null);
+  const [applyResumeName, setApplyResumeName] = useState('alex_kumar_resume.pdf');
+  const [showAddDriveModal, setShowAddDriveModal] = useState(false);
+  const [showResumePreview, setShowResumePreview] = useState(false);
+  const [revealedQuestionId, setRevealedQuestionId] = useState(null);
+
+  // New Drive Form State (Admin)
+  const [driveForm, setDriveForm] = useState({
+    company_name: '',
+    job_title: '',
+    job_type: 'Full-time',
+    ctc_or_stipend: '',
+    location: 'Bangalore',
+    description: '',
+    min_cgpa: 7.5,
+    eligible_branches: 'CSE, ISE, ECE',
+    required_skills: '',
+    deadline_date: '',
+    drive_date: ''
+  });
+
+  // Resume Upload State
+  const [uploadTitle, setUploadTitle] = useState('Core Software Resume');
+  const [resumeFile, setResumeFile] = useState(null);
+
+  const loadDrives = async () => {
+    try {
+      const query = new URLSearchParams();
+      if (driveType !== 'all') query.append('type', driveType);
+      if (searchTerm) query.append('search', searchTerm);
+      const res = await apiRequest(`/placements/drives?${query.toString()}`);
+      setDrives(res.drives || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadApplications = async () => {
+    try {
+      const res = await apiRequest('/placements/applications');
+      setApplications(res.applications || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadResumes = async () => {
+    try {
+      const res = await apiRequest('/placements/resumes');
+      setResumes(res.resumes || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadResumeBuilder = async () => {
+    try {
+      const res = await apiRequest('/placements/resume-builder');
+      setResumeData(res.resume_data || {});
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadPrep = async () => {
+    try {
+      const res = await apiRequest('/placements/interview-prep');
+      setPrepData(res);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'drives') loadDrives();
+    else if (activeTab === 'applications') loadApplications();
+    else if (activeTab === 'resumes') loadResumes();
+    else if (activeTab === 'builder') loadResumeBuilder();
+    else if (activeTab === 'prep') loadPrep();
+  }, [activeTab, driveType]);
+
+  const handleApply = async (e) => {
+    e.preventDefault();
+    if (!selectedDriveForApply) return;
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/placements/apply', {
+        method: 'POST',
+        body: JSON.stringify({
+          drive_id: selectedDriveForApply.id,
+          resume_name: applyResumeName
+        })
+      });
+      setMsg(res.message);
+      setSelectedDriveForApply(null);
+      loadDrives();
+    } catch (err) {
+      setError(err.message || 'Application submission failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateDrive = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/placements/drives', {
+        method: 'POST',
+        body: JSON.stringify(driveForm)
+      });
+      setMsg(res.message);
+      setShowAddDriveModal(false);
+      loadDrives();
+    } catch (err) {
+      setError(err.message || 'Failed to create drive.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadResume = async (e) => {
+    e.preventDefault();
+    if (!resumeFile) {
+      setError('Please choose a resume file to upload.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('resume', resumeFile);
+    formData.append('title', uploadTitle);
+
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await fetch('/api/placements/resumes/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setMsg(data.message);
+      setResumeFile(null);
+      loadResumes();
+    } catch (err) {
+      setError(err.message || 'Resume upload failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveResumeBuilder = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/placements/resume-builder', {
+        method: 'POST',
+        body: JSON.stringify(resumeData)
+      });
+      setMsg(res.message);
+    } catch (err) {
+      setError(err.message || 'Failed to save resume.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateAppStatus = async (appId, newStatus) => {
+    try {
+      await apiRequest(`/placements/applications/${appId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus, remarks: `Status updated to ${newStatus} by Coordinator.` })
+      });
+      loadApplications();
+    } catch (err) {
+      setError(err.message || 'Failed to update status.');
+    }
+  };
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Campus Placements, Internships & Career Hub</div>
+          <div className="banner-sub">
+            Corporate recruitment drives, resume vault, academic resume builder, and technical interview preparation.
+          </div>
+        </div>
+      </div>
+
+      {msg && <div className="alert-box alert-success" style={{ marginBottom: '16px' }}>{msg}</div>}
+      {error && <div className="alert-box alert-danger" style={{ marginBottom: '16px' }}>{error}</div>}
+
+      {/* Tabs Switcher */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ padding: '8px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            { id: 'drives', label: 'Recruitment & Internship Drives' },
+            { id: 'applications', label: 'My Applications & Status' },
+            { id: 'resumes', label: 'Resume Vault' },
+            { id: 'builder', label: 'Interactive Resume Builder' },
+            { id: 'prep', label: 'Interview Preparation & Mock Q&A' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              className="btn-secondary"
+              style={{
+                backgroundColor: activeTab === tab.id ? '#1e3a8a' : '#ffffff',
+                color: activeTab === tab.id ? '#ffffff' : '#1e293b'
+              }}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* TAB 1: PLACEMENT DRIVES */}
+      {activeTab === 'drives' && (
+        <div>
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-body" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ backgroundColor: driveType === 'all' ? '#1e3a8a' : '#ffffff', color: driveType === 'all' ? '#ffffff' : '#1e293b' }}
+                  onClick={() => setDriveType('all')}
+                >
+                  All Opportunities
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ backgroundColor: driveType === 'fulltime' ? '#1e3a8a' : '#ffffff', color: driveType === 'fulltime' ? '#ffffff' : '#1e293b' }}
+                  onClick={() => setDriveType('fulltime')}
+                >
+                  Full-Time (FTE)
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ backgroundColor: driveType === 'internship' ? '#1e3a8a' : '#ffffff', color: driveType === 'internship' ? '#ffffff' : '#1e293b' }}
+                  onClick={() => setDriveType('internship')}
+                >
+                  Summer Internships
+                </button>
+              </div>
+
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search by company, role title, or skills..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadDrives()}
+                />
+              </div>
+
+              <button type="button" className="btn-secondary" onClick={loadDrives}>Search</button>
+
+              {userRole === 'admin' && (
+                <button type="button" className="btn-primary" onClick={() => setShowAddDriveModal(true)}>
+                  + Post Placement Drive
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
+            {drives.map((d) => (
+              <div key={d.id} className="panel-card" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div className="panel-card-header">
+                  <div>
+                    <h3 className="panel-card-title">{d.company_name}</h3>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>{d.job_title}</div>
+                  </div>
+                  <span className={`status-pill ${d.job_type === 'Internship' ? 'status-warning' : 'status-success'}`}>
+                    {d.job_type}
+                  </span>
+                </div>
+
+                <div className="panel-card-body" style={{ flex: 1 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px', fontSize: '12px' }}>
+                    <div><span className="stat-label">Package / Stipend:</span><strong> {d.ctc_or_stipend}</strong></div>
+                    <div><span className="stat-label">Location:</span> {d.location}</div>
+                    <div><span className="stat-label">Min CGPA:</span><strong> {d.min_cgpa}</strong></div>
+                    <div><span className="stat-label">Eligible:</span> {d.eligible_branches}</div>
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: '#475569', marginBottom: '10px' }}>
+                    {d.description}
+                  </div>
+
+                  <div style={{ marginBottom: '12px' }}>
+                    <div className="stat-label">Required Competencies:</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                      {d.required_skills.split(',').map((s, idx) => (
+                        <span key={idx} className="status-pill status-neutral" style={{ fontSize: '10px' }}>
+                          {s.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '11px', color: '#b91c1c' }}>
+                      Deadline: <strong>{d.deadline_date}</strong>
+                    </div>
+
+                    {d.has_applied ? (
+                      <span className="status-pill status-success">
+                        Applied ({d.application_status})
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        style={{ padding: '6px 14px' }}
+                        onClick={() => setSelectedDriveForApply(d)}
+                      >
+                        Apply Now
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: MY APPLICATIONS */}
+      {activeTab === 'applications' && (
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Placement & Internship Application Tracker</h3>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>{applications.length} Applications Logged</span>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Position</th>
+                  <th>Type</th>
+                  <th>Compensation</th>
+                  <th>Applied Date</th>
+                  <th>Status</th>
+                  <th>Recruiter Remarks</th>
+                  {userRole === 'admin' && <th>Coordinator Action</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {applications.length > 0 ? (
+                  applications.map((app) => (
+                    <tr key={app.id}>
+                      <td><strong>{app.company_name}</strong></td>
+                      <td>{app.job_title}</td>
+                      <td><span className="status-pill status-neutral">{app.job_type}</span></td>
+                      <td><strong>{app.ctc_or_stipend}</strong></td>
+                      <td>{app.applied_date}</td>
+                      <td>
+                        <span className={`status-pill ${app.status === 'Selected' ? 'status-success' : app.status === 'Rejected' ? 'status-danger' : 'status-warning'}`}>
+                          {app.status}
+                        </span>
+                      </td>
+                      <td>{app.remarks || 'Application under screening.'}</td>
+                      {userRole === 'admin' && (
+                        <td>
+                          <select
+                            className="form-select"
+                            style={{ padding: '2px 6px', fontSize: '11px' }}
+                            value={app.status}
+                            onChange={(e) => handleUpdateAppStatus(app.id, e.target.value)}
+                          >
+                            <option value="Applied">Applied</option>
+                            <option value="Shortlisted">Shortlisted</option>
+                            <option value="Interview Scheduled">Interview Scheduled</option>
+                            <option value="Selected">Selected</option>
+                            <option value="Rejected">Rejected</option>
+                          </select>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>No recruitment applications submitted yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: RESUME VAULT */}
+      {activeTab === 'resumes' && (
+        <div className="dashboard-sections-grid">
+          <div className="panel-card">
+            <div className="panel-card-header"><h3 className="panel-card-title">Upload New Resume Document</h3></div>
+            <div className="panel-card-body">
+              <form onSubmit={handleUploadResume}>
+                <div className="form-group">
+                  <label>Resume Version Title</label>
+                  <input
+                    type="text" required className="form-input"
+                    value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Select Document (PDF / DOCX)</label>
+                  <input
+                    type="file" required accept=".pdf,.docx,.doc" className="form-input"
+                    onChange={(e) => setResumeFile(e.target.files[0])}
+                  />
+                </div>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Uploading...' : 'Upload to Placement Vault'}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div className="panel-card">
+            <div className="panel-card-header"><h3 className="panel-card-title">Active Resumes on Record</h3></div>
+            <div className="panel-card-body">
+              {resumes.map((r) => (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderBottom: '1px solid #e2e8f0' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, color: '#1e3a8a' }}>{r.title}</div>
+                    <div style={{ fontSize: '11px', color: '#64748b' }}>
+                      File: {r.file_name} | Uploaded: {r.uploaded_at}
+                    </div>
+                  </div>
+                  <a
+                    href={`/api/placements/resumes/${r.id}/download`}
+                    className="btn-secondary"
+                    style={{ textDecoration: 'none', padding: '6px 12px', fontSize: '12px' }}
+                  >
+                    Download Resume
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: RESUME BUILDER */}
+      {activeTab === 'builder' && resumeData && (
+        <div className="dashboard-sections-grid">
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Candidate Profile & Credentials Form</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowResumePreview(true)}>
+                Preview Formatted Resume
+              </button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleSaveResumeBuilder}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Full Name</label>
+                    <input
+                      type="text" className="form-input" value={resumeData.full_name}
+                      onChange={(e) => setResumeData({ ...resumeData, full_name: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Professional Headline</label>
+                    <input
+                      type="text" className="form-input" value={resumeData.headline}
+                      onChange={(e) => setResumeData({ ...resumeData, headline: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Email Address</label>
+                    <input
+                      type="email" className="form-input" value={resumeData.email}
+                      onChange={(e) => setResumeData({ ...resumeData, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Phone Number</label>
+                    <input
+                      type="text" className="form-input" value={resumeData.phone}
+                      onChange={(e) => setResumeData({ ...resumeData, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Executive Professional Summary</label>
+                  <textarea
+                    rows="3" className="form-input" value={resumeData.summary}
+                    onChange={(e) => setResumeData({ ...resumeData, summary: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Technical Skills (Comma Separated)</label>
+                  <input
+                    type="text" className="form-input"
+                    value={Array.isArray(resumeData.skills) ? resumeData.skills.join(', ') : resumeData.skills}
+                    onChange={(e) => setResumeData({ ...resumeData, skills: e.target.value.split(',').map(s => s.trim()) })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Certifications (Comma Separated)</label>
+                  <input
+                    type="text" className="form-input"
+                    value={Array.isArray(resumeData.certifications) ? resumeData.certifications.join(', ') : resumeData.certifications}
+                    onChange={(e) => setResumeData({ ...resumeData, certifications: e.target.value.split(',').map(s => s.trim()) })}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    Save Resume Profile
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setShowResumePreview(true)}>
+                    Printable Preview
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          {/* Quick Preview Card */}
+          <div className="panel-card">
+            <div className="panel-card-header"><h3 className="panel-card-title">Live Resume Sheet Preview</h3></div>
+            <div className="panel-card-body" style={{ background: '#ffffff', padding: '20px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #1e3a8a', paddingBottom: '10px', marginBottom: '12px' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>{resumeData.full_name}</h2>
+                <div style={{ fontSize: '12px', color: '#1e3a8a', fontWeight: 600 }}>{resumeData.headline}</div>
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                  {resumeData.email} | {resumeData.phone} | Bangalore, India
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px', marginBottom: '4px' }}>
+                  Professional Summary
+                </div>
+                <p style={{ fontSize: '11px', color: '#334155', margin: 0 }}>{resumeData.summary}</p>
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px', marginBottom: '4px' }}>
+                  Technical Proficiencies
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {(resumeData.skills || []).map((s, i) => (
+                    <span key={i} className="status-pill status-neutral" style={{ fontSize: '10px' }}>{s}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px', marginBottom: '4px' }}>
+                  Education
+                </div>
+                {(resumeData.education || []).map((ed, i) => (
+                  <div key={i} style={{ fontSize: '11px', marginBottom: '4px' }}>
+                    <strong>{ed.degree}</strong> - {ed.institution} ({ed.year}) | <strong>{ed.score}</strong>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px', marginBottom: '4px' }}>
+                  Key Academic Projects
+                </div>
+                {(resumeData.projects || []).map((pj, i) => (
+                  <div key={i} style={{ fontSize: '11px', marginBottom: '4px' }}>
+                    <strong>{pj.title}</strong> [{pj.tech}]: {pj.description}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: INTERVIEW PREPARATION */}
+      {activeTab === 'prep' && (
+        <div className="dashboard-sections-grid">
+          <div className="panel-card">
+            <div className="panel-card-header"><h3 className="panel-card-title">Technical Knowledge Repositories</h3></div>
+            <div className="panel-card-body">
+              {prepData.resources.map((res) => (
+                <div key={res.id} style={{ marginBottom: '14px', paddingBottom: '14px', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 600, color: '#1e3a8a' }}>{res.title}</div>
+                    <span className="status-pill status-neutral">{res.category}</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#475569', margin: '4px 0' }}>{res.description}</p>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    Key Focus Topics: <strong>{res.key_topics}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Mock Interview Question Bank</h3>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>Click to Reveal Model Answers</span>
+            </div>
+            <div className="panel-card-body">
+              {prepData.mock_questions.map((q) => (
+                <div key={q.id} style={{ marginBottom: '14px', border: '1px solid #e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div
+                    style={{ background: '#f8fafc', padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    onClick={() => setRevealedQuestionId(revealedQuestionId === q.id ? null : q.id)}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a' }}>{q.question}</div>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                        Tags: {q.company_tags} | Category: {q.category}
+                      </div>
+                    </div>
+                    <span className={`status-pill ${q.difficulty === 'Hard' ? 'status-danger' : 'status-warning'}`}>
+                      {q.difficulty}
+                    </span>
+                  </div>
+
+                  {revealedQuestionId === q.id && (
+                    <div style={{ padding: '12px 14px', background: '#ffffff', borderTop: '1px solid #e2e8f0', fontSize: '12px', color: '#334155', lineHeight: 1.6 }}>
+                      <strong style={{ color: '#15803d' }}>Model Solution & Architecture Approach:</strong>
+                      <div style={{ marginTop: '4px' }}>{q.sample_answer}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Apply to Placement Drive */}
+      {selectedDriveForApply && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '520px', margin: '20px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Apply for {selectedDriveForApply.company_name}</h3>
+              <button type="button" className="btn-secondary" onClick={() => setSelectedDriveForApply(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleApply}>
+                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '4px', marginBottom: '14px', fontSize: '12px' }}>
+                  <div>Role: <strong>{selectedDriveForApply.job_title}</strong></div>
+                  <div>Compensation: <strong>{selectedDriveForApply.ctc_or_stipend}</strong></div>
+                  <div>Minimum Required CGPA: <strong>{selectedDriveForApply.min_cgpa}</strong></div>
+                  <div style={{ marginTop: '6px', color: '#15803d', fontWeight: 600 }}>
+                    Eligibility Status: Verified (Student CGPA &gt;= Cutoff)
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Select Resume from Vault</label>
+                  <select
+                    className="form-select"
+                    value={applyResumeName}
+                    onChange={(e) => setApplyResumeName(e.target.value)}
+                  >
+                    <option value="alex_kumar_resume.pdf">Alex Kumar - Core Software Resume (Primary)</option>
+                    <option value="systems_resume_v2.pdf">Alex Kumar - Distributed Systems Resume</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    {loading ? 'Submitting Application...' : 'Confirm & Submit Application'}
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setSelectedDriveForApply(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add Placement Drive (Admin) */}
+      {showAddDriveModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '560px', margin: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Post New Campus Recruitment Drive</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowAddDriveModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleCreateDrive}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Company Name</label>
+                    <input
+                      type="text" required className="form-input" value={driveForm.company_name}
+                      onChange={(e) => setDriveForm({ ...driveForm, company_name: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Job Title</label>
+                    <input
+                      type="text" required className="form-input" value={driveForm.job_title}
+                      onChange={(e) => setDriveForm({ ...driveForm, job_title: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Opportunity Type</label>
+                    <select
+                      className="form-select" value={driveForm.job_type}
+                      onChange={(e) => setDriveForm({ ...driveForm, job_type: e.target.value })}
+                    >
+                      <option value="Full-time">Full-time (FTE)</option>
+                      <option value="Internship">Summer Internship</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>CTC / Stipend</label>
+                    <input
+                      type="text" required placeholder="e.g. ₹28.0 LPA or ₹80,000 / month" className="form-input"
+                      value={driveForm.ctc_or_stipend} onChange={(e) => setDriveForm({ ...driveForm, ctc_or_stipend: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Minimum CGPA</label>
+                    <input
+                      type="number" step="0.1" min="5" max="10" className="form-input"
+                      value={driveForm.min_cgpa} onChange={(e) => setDriveForm({ ...driveForm, min_cgpa: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Location</label>
+                    <input
+                      type="text" className="form-input" value={driveForm.location}
+                      onChange={(e) => setDriveForm({ ...driveForm, location: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Required Technical Skills</label>
+                  <input
+                    type="text" placeholder="e.g. C++, Java, Distributed Systems" className="form-input"
+                    value={driveForm.required_skills} onChange={(e) => setDriveForm({ ...driveForm, required_skills: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Job Description</label>
+                  <textarea
+                    rows="3" className="form-input" value={driveForm.description}
+                    onChange={(e) => setDriveForm({ ...driveForm, description: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Application Deadline</label>
+                    <input
+                      type="date" required className="form-input" value={driveForm.deadline_date}
+                      onChange={(e) => setDriveForm({ ...driveForm, deadline_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Drive Date</label>
+                    <input
+                      type="date" required className="form-input" value={driveForm.drive_date}
+                      onChange={(e) => setDriveForm({ ...driveForm, drive_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    Publish Placement Drive
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setShowAddDriveModal(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 11. PROJECTS HUB MODULE
+// ==========================================================
+export function ProjectsView({ userRole }) {
+  const [projects, setProjects] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [teamFilter, setTeamFilter] = useState('ALL');
+
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+
+  // Modals
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinRole, setJoinRole] = useState('Frontend Engineer');
+  const [joinMsg, setJoinMsg] = useState('');
+
+  // Feedback Modal (Faculty)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackScore, setFeedbackScore] = useState(48);
+  const [feedbackComments, setFeedbackComments] = useState('');
+
+  // Create Project Form
+  const [projectForm, setProjectForm] = useState({
+    title: '',
+    category: 'Capstone Project',
+    description: '',
+    technologies: '',
+    github_url: '',
+    demo_url: '',
+    team_status: 'Looking for Teammates',
+    open_roles: '1 Systems Dev, 1 React UI Engineer',
+    guide_name: 'Dr. Ramesh Rao'
+  });
+  const [docFile, setDocFile] = useState(null);
+
+  const loadProjects = async () => {
+    try {
+      const q = new URLSearchParams();
+      if (categoryFilter !== 'ALL') q.append('category', categoryFilter);
+      if (teamFilter !== 'ALL') q.append('team_status', teamFilter);
+      if (searchTerm) q.append('search', searchTerm);
+      const res = await apiRequest(`/projects?${q.toString()}`);
+      setProjects(res.projects || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadProjects();
+  }, [categoryFilter, teamFilter]);
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+
+    const formData = new FormData();
+    Object.keys(projectForm).forEach(k => formData.append(k, projectForm[k]));
+    if (docFile) formData.append('document_file', docFile);
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to showcase project');
+
+      setMsg(data.message);
+      setShowCreateModal(false);
+      setDocFile(null);
+      loadProjects();
+    } catch (err) {
+      setError(err.message || 'Project registration failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendJoinRequest = async (e) => {
+    e.preventDefault();
+    if (!selectedProject) return;
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/projects/${selectedProject.id}/teammate-request`, {
+        method: 'POST',
+        body: JSON.stringify({
+          role_applied: joinRole,
+          message: joinMsg,
+          requester_name: 'Alex Kumar',
+          requester_usn: '1MS21CS084'
+        })
+      });
+      setMsg(res.message);
+      setShowJoinModal(false);
+      setJoinMsg('');
+    } catch (err) {
+      setError(err.message || 'Failed to submit teammate request.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendFeedback = async (e) => {
+    e.preventDefault();
+    if (!selectedProject) return;
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/projects/${selectedProject.id}/feedback`, {
+        method: 'POST',
+        body: JSON.stringify({
+          faculty_name: userRole === 'faculty' ? 'Dr. Ramesh Rao' : 'Dean Academics',
+          score: parseInt(feedbackScore, 10),
+          max_score: 50,
+          comments: feedbackComments
+        })
+      });
+      setMsg(res.message);
+      setShowFeedbackModal(false);
+      setFeedbackComments('');
+      loadProjects();
+    } catch (err) {
+      setError(err.message || 'Failed to submit evaluation.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Academic Projects Hub & Collaborative Innovation</div>
+          <div className="banner-sub">
+            Showcase capstone prototypes, discover teammate openings, coordinate with faculty guides, and track evaluations.
+          </div>
+        </div>
+      </div>
+
+      {msg && <div className="alert-box alert-success" style={{ marginBottom: '16px' }}>{msg}</div>}
+      {error && <div className="alert-box alert-danger" style={{ marginBottom: '16px' }}>{error}</div>}
+
+      {/* Filter and Showcase Action Header */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: '220px' }}>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search projects by title, stack, keywords..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && loadProjects()}
+            />
+          </div>
+
+          <div>
+            <select
+              className="form-select"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="ALL">All Categories</option>
+              <option value="Capstone Project">Capstone Project</option>
+              <option value="Mini Project">Mini Project</option>
+              <option value="Research">Research & Papers</option>
+              <option value="Open Source">Open Source Tooling</option>
+            </select>
+          </div>
+
+          <div>
+            <select
+              className="form-select"
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+            >
+              <option value="ALL">All Team Statuses</option>
+              <option value="Looking for Teammates">Looking for Teammates</option>
+              <option value="Team Full">Team Full</option>
+            </select>
+          </div>
+
+          <button type="button" className="btn-secondary" onClick={loadProjects}>Search</button>
+
+          <button type="button" className="btn-primary" onClick={() => setShowCreateModal(true)}>
+            + Showcase Academic Project
+          </button>
+        </div>
+      </div>
+
+      {/* Project Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
+        {projects.map((p) => (
+          <div key={p.id} className="panel-card" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="panel-card-header">
+              <div>
+                <h3 className="panel-card-title">{p.title}</h3>
+                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                  Author: <strong>{p.student_name}</strong> ({p.usn})
+                </div>
+              </div>
+              <span className="status-pill status-neutral">{p.category}</span>
+            </div>
+
+            <div className="panel-card-body" style={{ flex: 1 }}>
+              <p style={{ fontSize: '12px', color: '#334155', marginBottom: '12px' }}>
+                {p.description}
+              </p>
+
+              <div style={{ marginBottom: '10px' }}>
+                <div className="stat-label">Technologies Used:</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                  {p.technologies.split(',').map((t, idx) => (
+                    <span key={idx} className="status-pill status-neutral" style={{ fontSize: '10px' }}>
+                      {t.trim()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '12px' }}>
+                <div>Faculty Guide: <strong>{p.guide_name || 'Dr. Ramesh Rao'}</strong> ({p.guide_status})</div>
+                {p.team_status === 'Looking for Teammates' ? (
+                  <div style={{ marginTop: '4px', color: '#b45309' }}>
+                    Open Slots: <strong>{p.open_roles || 'Open Collaboration'}</strong>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: '4px', color: '#15803d' }}>Team Status: Full</div>
+                )}
+                {p.avg_score && (
+                  <div style={{ marginTop: '4px', color: '#1e3a8a', fontWeight: 600 }}>
+                    Faculty Evaluation Score: {p.avg_score} / 50
+                  </div>
+                )}
+              </div>
+
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {p.github_url && (
+                    <a
+                      href={p.github_url} target="_blank" rel="noreferrer"
+                      className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', textDecoration: 'none' }}
+                    >
+                      GitHub Repo
+                    </a>
+                  )}
+                  {p.document_file && (
+                    <a
+                      href={`/api/projects/${p.id}/document/download`}
+                      className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', textDecoration: 'none' }}
+                    >
+                      Architecture PDF
+                    </a>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {p.team_status === 'Looking for Teammates' && (
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                      onClick={() => { setSelectedProject(p); setShowJoinModal(true); }}
+                    >
+                      Join Team
+                    </button>
+                  )}
+
+                  {(userRole === 'faculty' || userRole === 'admin') && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                      onClick={() => { setSelectedProject(p); setShowFeedbackModal(true); }}
+                    >
+                      Evaluate
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Modal: Showcase New Project */}
+      {showCreateModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '580px', margin: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Showcase New Academic Project</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleCreateProject}>
+                <div className="form-group">
+                  <label>Project Title</label>
+                  <input
+                    type="text" required className="form-input" value={projectForm.title}
+                    onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Project Domain Category</label>
+                    <select
+                      className="form-select" value={projectForm.category}
+                      onChange={(e) => setProjectForm({ ...projectForm, category: e.target.value })}
+                    >
+                      <option value="Capstone Project">Capstone Project</option>
+                      <option value="Mini Project">Mini Project</option>
+                      <option value="Research">Research & Papers</option>
+                      <option value="Open Source">Open Source Tooling</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Faculty Guide Mentor</label>
+                    <input
+                      type="text" className="form-input" value={projectForm.guide_name}
+                      onChange={(e) => setProjectForm({ ...projectForm, guide_name: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Technologies Used (Comma Separated)</label>
+                  <input
+                    type="text" required placeholder="e.g. Go, Docker, gRPC, React.js" className="form-input"
+                    value={projectForm.technologies} onChange={(e) => setProjectForm({ ...projectForm, technologies: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Detailed Abstract & Problem Statement</label>
+                  <textarea
+                    rows="3" required className="form-input" value={projectForm.description}
+                    onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>GitHub Repository URL</label>
+                    <input
+                      type="url" placeholder="https://github.com/..." className="form-input"
+                      value={projectForm.github_url} onChange={(e) => setProjectForm({ ...projectForm, github_url: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Live Hosted Prototype URL</label>
+                    <input
+                      type="url" placeholder="https://..." className="form-input"
+                      value={projectForm.demo_url} onChange={(e) => setProjectForm({ ...projectForm, demo_url: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Team Recruitment Status</label>
+                    <select
+                      className="form-select" value={projectForm.team_status}
+                      onChange={(e) => setProjectForm({ ...projectForm, team_status: e.target.value })}
+                    >
+                      <option value="Looking for Teammates">Looking for Teammates</option>
+                      <option value="Team Full">Team Full</option>
+                      <option value="Individual">Individual Work</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Open Teammate Roles</label>
+                    <input
+                      type="text" placeholder="e.g. 1 ML Engineer, 1 UI Dev" className="form-input"
+                      value={projectForm.open_roles} onChange={(e) => setProjectForm({ ...projectForm, open_roles: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Project Architecture / Report Document (PDF)</label>
+                  <input
+                    type="file" accept=".pdf" className="form-input"
+                    onChange={(e) => setDocFile(e.target.files[0])}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    Publish Academic Project
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Teammate Join Request */}
+      {showJoinModal && selectedProject && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '480px', margin: '20px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Join Project Team</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowJoinModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleSendJoinRequest}>
+                <div style={{ fontSize: '13px', marginBottom: '12px' }}>
+                  Applying to collaborate on: <strong>{selectedProject.title}</strong>
+                </div>
+                <div className="form-group">
+                  <label>Role You Want to Fill</label>
+                  <input
+                    type="text" required className="form-input" value={joinRole}
+                    onChange={(e) => setJoinRole(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Contribution Pitch / Message to Team Lead</label>
+                  <textarea
+                    rows="3" required placeholder="Describe your relevant skills, past tools, and availability..."
+                    className="form-input" value={joinMsg} onChange={(e) => setJoinMsg(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    Send Teammate Request
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setShowJoinModal(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Faculty Feedback & Evaluation */}
+      {showFeedbackModal && selectedProject && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '480px', margin: '20px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Faculty Project Evaluation</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowFeedbackModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleSendFeedback}>
+                <div style={{ fontSize: '13px', marginBottom: '12px' }}>
+                  Project: <strong>{selectedProject.title}</strong>
+                </div>
+                <div className="form-group">
+                  <label>Evaluation Marks (Max 50)</label>
+                  <input
+                    type="number" min="0" max="50" required className="form-input"
+                    value={feedbackScore} onChange={(e) => setFeedbackScore(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Faculty Written Feedback & Assessment Remarks</label>
+                  <textarea
+                    rows="4" required placeholder="Comment on architecture design, testing rigor, and implementation quality..."
+                    className="form-input" value={feedbackComments} onChange={(e) => setFeedbackComments(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    Submit Evaluation
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setShowFeedbackModal(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 12. EVENTS & CLUBS MODULE
+// ==========================================================
+export function EventsView({ userRole }) {
+  const [activeTab, setActiveTab] = useState('events'); // 'events' | 'my_registrations' | 'cert_desk'
+  const [events, setEvents] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [myRegistrations, setMyRegistrations] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+
+  // Modals
+  const [showAddEventModal, setShowAddEventModal] = useState(false);
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    category: 'Hackathon',
+    club_name: 'ACM Chapter',
+    event_date: '',
+    event_time: '10:00 AM',
+    venue: 'Main Auditorium',
+    description: '',
+    registration_deadline: '',
+    seats_total: 100
+  });
+
+  // Certificate Upload State (Admin / Faculty)
+  const [certEventId, setCertEventId] = useState(1);
+  const [certStudentUsn, setCertStudentUsn] = useState('1MS21CS084');
+  const [certTitle, setCertTitle] = useState('Certificate of Participation & Merit');
+  const [certFile, setCertFile] = useState(null);
+
+  const loadEvents = async () => {
+    try {
+      const q = new URLSearchParams();
+      if (categoryFilter !== 'ALL') q.append('category', categoryFilter);
+      if (searchTerm) q.append('search', searchTerm);
+      const res = await apiRequest(`/events?${q.toString()}`);
+      setEvents(res.events || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadMyRegistrations = async () => {
+    try {
+      const res = await apiRequest('/events/my-registrations');
+      setMyRegistrations(res.registrations || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'events') loadEvents();
+    else if (activeTab === 'my_registrations') loadMyRegistrations();
+  }, [activeTab, categoryFilter]);
+
+  const handleRegister = async (eventId, title) => {
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/events/${eventId}/register`, { method: 'POST' });
+      setMsg(res.message);
+      loadEvents();
+    } catch (err) {
+      setError(err.message || 'Registration failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/events', {
+        method: 'POST',
+        body: JSON.stringify(eventForm)
+      });
+      setMsg(res.message);
+      setShowAddEventModal(false);
+      loadEvents();
+    } catch (err) {
+      setError(err.message || 'Failed to create event.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    if (!window.confirm('Delete this event listing?')) return;
+    try {
+      await apiRequest(`/events/${eventId}`, { method: 'DELETE' });
+      loadEvents();
+    } catch (err) {
+      setError(err.message || 'Failed to delete event.');
+    }
+  };
+
+  const handleUploadCertificate = async (e) => {
+    e.preventDefault();
+    if (!certFile) {
+      setError('Please select a certificate document (PDF).');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('certificate', certFile);
+    formData.append('usn', certStudentUsn);
+    formData.append('certificate_title', certTitle);
+
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/events/${certEventId}/certificate/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Certificate issuance failed');
+      setMsg(data.message);
+      setCertFile(null);
+    } catch (err) {
+      setError(err.message || 'Certificate upload failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Campus Events, Hackathons & Club Activities</div>
+          <div className="banner-sub">
+            Technical symposiums, hackathons, guest seminars, registered tickets, and verified participation certificates.
+          </div>
+        </div>
+      </div>
+
+      {msg && <div className="alert-box alert-success" style={{ marginBottom: '16px' }}>{msg}</div>}
+      {error && <div className="alert-box alert-danger" style={{ marginBottom: '16px' }}>{error}</div>}
+
+      {/* Navigation Switcher */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ padding: '8px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ backgroundColor: activeTab === 'events' ? '#1e3a8a' : '#ffffff', color: activeTab === 'events' ? '#ffffff' : '#1e293b' }}
+            onClick={() => setActiveTab('events')}
+          >
+            All Upcoming Activities & Hackathons
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ backgroundColor: activeTab === 'my_registrations' ? '#1e3a8a' : '#ffffff', color: activeTab === 'my_registrations' ? '#ffffff' : '#1e293b' }}
+            onClick={() => setActiveTab('my_registrations')}
+          >
+            My Event Passes & Certificates
+          </button>
+          {(userRole === 'admin' || userRole === 'faculty') && (
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ backgroundColor: activeTab === 'cert_desk' ? '#1e3a8a' : '#ffffff', color: activeTab === 'cert_desk' ? '#ffffff' : '#1e293b' }}
+              onClick={() => setActiveTab('cert_desk')}
+            >
+              Issue Event Certificates
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* TAB 1: ALL EVENTS */}
+      {activeTab === 'events' && (
+        <div>
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-body" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search events by title, organizing club, or venue..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadEvents()}
+                />
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <option value="ALL">All Categories</option>
+                  <option value="Hackathon">Hackathon</option>
+                  <option value="Workshop">Workshop</option>
+                  <option value="Technical Club">Technical Club</option>
+                  <option value="Cultural & Sports">Cultural & Sports</option>
+                </select>
+              </div>
+
+              <button type="button" className="btn-secondary" onClick={loadEvents}>Search</button>
+
+              {userRole === 'admin' && (
+                <button type="button" className="btn-primary" onClick={() => setShowAddEventModal(true)}>
+                  + Post New Event
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
+            {events.map((ev) => (
+              <div key={ev.id} className="panel-card" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div className="panel-card-header">
+                  <div>
+                    <h3 className="panel-card-title">{ev.title}</h3>
+                    <div style={{ fontSize: '11px', color: '#64748b' }}>Club: {ev.club_name}</div>
+                  </div>
+                  <span className={`status-pill ${ev.category === 'Hackathon' ? 'status-warning' : 'status-neutral'}`}>
+                    {ev.category}
+                  </span>
+                </div>
+
+                <div className="panel-card-body" style={{ flex: 1 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px', fontSize: '12px' }}>
+                    <div><span className="stat-label">Date & Time:</span><strong> {ev.event_date} ({ev.event_time})</strong></div>
+                    <div><span className="stat-label">Venue:</span> {ev.venue}</div>
+                    <div><span className="stat-label">Seats Booked:</span><strong> {ev.seats_booked} / {ev.seats_total}</strong></div>
+                    <div><span className="stat-label">Deadline:</span> {ev.registration_deadline}</div>
+                  </div>
+
+                  <p style={{ fontSize: '12px', color: '#475569', marginBottom: '14px' }}>
+                    {ev.description}
+                  </p>
+
+                  <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {ev.is_registered ? (
+                      <span className="status-pill status-success">
+                        Pass Confirmed ({ev.attendance_status})
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        style={{ padding: '6px 14px' }}
+                        disabled={loading || ev.seats_booked >= ev.seats_total}
+                        onClick={() => handleRegister(ev.id, ev.title)}
+                      >
+                        {ev.seats_booked >= ev.seats_total ? 'Sold Out' : 'Register for Event'}
+                      </button>
+                    )}
+
+                    {userRole === 'admin' && (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ padding: '4px 8px', fontSize: '11px', color: '#b91c1c' }}
+                        onClick={() => handleDeleteEvent(ev.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: MY PASSES & CERTIFICATES */}
+      {activeTab === 'my_registrations' && (
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Registered Events & Verified Certificates</h3>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>{myRegistrations.length} Registrations on File</span>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Event Name</th>
+                  <th>Category</th>
+                  <th>Club Organizer</th>
+                  <th>Date & Location</th>
+                  <th>Registration Status</th>
+                  <th>Participation Certificate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myRegistrations.length > 0 ? (
+                  myRegistrations.map((reg) => (
+                    <tr key={reg.reg_id}>
+                      <td><strong>{reg.title}</strong></td>
+                      <td><span className="status-pill status-neutral">{reg.category}</span></td>
+                      <td>{reg.club_name}</td>
+                      <td>{reg.event_date} - {reg.venue}</td>
+                      <td>
+                        <span className={`status-pill ${reg.attendance_status === 'Attended' ? 'status-success' : 'status-warning'}`}>
+                          {reg.attendance_status}
+                        </span>
+                      </td>
+                      <td>
+                        {reg.certificate_issued ? (
+                          <a
+                            href={`/api/events/certificates/${reg.reg_id}/download`}
+                            className="btn-secondary"
+                            style={{ textDecoration: 'none', padding: '4px 10px', fontSize: '11px', color: '#15803d', fontWeight: 600 }}
+                          >
+                            Download Certificate (PDF)
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>
+                            Certificate Pending Attendance
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No event registrations found. Register for events above.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: CERTIFICATE ISSUANCE DESK (ADMIN/FACULTY) */}
+      {activeTab === 'cert_desk' && (
+        <div className="panel-card" style={{ maxWidth: '600px' }}>
+          <div className="panel-card-header"><h3 className="panel-card-title">Issue Official Participation Certificate</h3></div>
+          <div className="panel-card-body">
+            <form onSubmit={handleUploadCertificate}>
+              <div className="form-group">
+                <label>Select Event</label>
+                <select
+                  className="form-select" value={certEventId}
+                  onChange={(e) => setCertEventId(e.target.value)}
+                >
+                  {events.map(ev => (
+                    <option key={ev.id} value={ev.id}>{ev.title} ({ev.event_date})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Recipient Student USN</label>
+                <input
+                  type="text" required className="form-input"
+                  value={certStudentUsn} onChange={(e) => setCertStudentUsn(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Certificate Title & Award</label>
+                <input
+                  type="text" required className="form-input"
+                  value={certTitle} onChange={(e) => setCertTitle(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Upload Certificate Document (PDF)</label>
+                <input
+                  type="file" required accept=".pdf" className="form-input"
+                  onChange={(e) => setCertFile(e.target.files[0])}
+                />
+              </div>
+
+              <button type="submit" className="btn-primary" disabled={loading}>
+                {loading ? 'Issuing...' : 'Upload & Issue Certificate'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Post New Event (Admin) */}
+      {showAddEventModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '100%', maxWidth: '560px', margin: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Post New Campus Event</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowAddEventModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleCreateEvent}>
+                <div className="form-group">
+                  <label>Event Title</label>
+                  <input
+                    type="text" required className="form-input" value={eventForm.title}
+                    onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Activity Category</label>
+                    <select
+                      className="form-select" value={eventForm.category}
+                      onChange={(e) => setEventForm({ ...eventForm, category: e.target.value })}
+                    >
+                      <option value="Hackathon">Hackathon</option>
+                      <option value="Workshop">Workshop</option>
+                      <option value="Seminar">Seminar</option>
+                      <option value="Technical Club">Technical Club</option>
+                      <option value="Cultural & Sports">Cultural & Sports</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Organizing Club</label>
+                    <input
+                      type="text" required className="form-input" value={eventForm.club_name}
+                      onChange={(e) => setEventForm({ ...eventForm, club_name: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Event Date</label>
+                    <input
+                      type="date" required className="form-input" value={eventForm.event_date}
+                      onChange={(e) => setEventForm({ ...eventForm, event_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Event Timing</label>
+                    <input
+                      type="text" required className="form-input" value={eventForm.event_time}
+                      onChange={(e) => setEventForm({ ...eventForm, event_time: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Venue / Location</label>
+                    <input
+                      type="text" required className="form-input" value={eventForm.venue}
+                      onChange={(e) => setEventForm({ ...eventForm, venue: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Total Seat Capacity</label>
+                    <input
+                      type="number" min="10" max="1000" className="form-input"
+                      value={eventForm.seats_total} onChange={(e) => setEventForm({ ...eventForm, seats_total: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Event Description & Agenda</label>
+                  <textarea
+                    rows="3" required className="form-input" value={eventForm.description}
+                    onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Registration Cutoff Deadline</label>
+                  <input
+                    type="date" required className="form-input" value={eventForm.registration_deadline}
+                    onChange={(e) => setEventForm({ ...eventForm, registration_deadline: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    Publish Campus Event
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setShowAddEventModal(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 13. LIBRARY MODULE
+// ==========================================================
+export function LibraryView({ userRole }) {
+  const [activeTab, setActiveTab] = useState('catalog'); // 'catalog', 'my_books', 'history', 'circulation'
+  const [books, setBooks] = useState([]);
+  const [stats, setStats] = useState({ total_titles: 0, total_copies: 0, available_copies: 0, issued_copies: 0 });
+  const [myBooks, setMyBooks] = useState({ borrowed_books: [], total_active: 0, total_overdue_fines: 0, reminders: [] });
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [availabilityFilter, setAvailabilityFilter] = useState('ALL');
+
+  // Modals
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({
+    isbn: '',
+    title: '',
+    author: '',
+    category: 'Computer Science',
+    publisher: '',
+    edition: '1st Edition',
+    shelf_location: 'Rack CS-01',
+    total_copies: 5
+  });
+
+  const [editingBook, setEditingBook] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    author: '',
+    category: '',
+    publisher: '',
+    edition: '',
+    shelf_location: '',
+    total_copies: 5
+  });
+
+  const [issuingBook, setIssuingBook] = useState(null);
+  const [issueForm, setIssueForm] = useState({
+    usn: '1MS21CS084',
+    student_name: 'Alex Kumar',
+    days: 14
+  });
+
+  const [returningRecord, setReturningRecord] = useState(null);
+  const [returnRemarks, setReturnRemarks] = useState('Returned in good condition');
+
+  const loadCatalog = async () => {
+    try {
+      setLoading(true);
+      let url = '/library/books?';
+      if (searchTerm) url += `search=${encodeURIComponent(searchTerm)}&`;
+      if (categoryFilter !== 'ALL') url += `category=${encodeURIComponent(categoryFilter)}&`;
+      if (availabilityFilter !== 'ALL') url += `availability=${encodeURIComponent(availabilityFilter.toLowerCase())}&`;
+      const res = await apiRequest(url);
+      setBooks(res.books || []);
+      if (res.stats) setStats(res.stats);
+    } catch (err) {
+      setError(err.message || 'Failed to load library catalog.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMyBooks = async () => {
+    try {
+      setLoading(true);
+      const res = await apiRequest('/library/my-books?usn=1MS21CS084');
+      setMyBooks(res);
+    } catch (err) {
+      setError(err.message || 'Failed to load borrowed books.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    try {
+      setLoading(true);
+      const res = await apiRequest('/library/history?usn=1MS21CS084');
+      setHistory(res.history || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load borrowing history.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'catalog') loadCatalog();
+    else if (activeTab === 'my_books') loadMyBooks();
+    else if (activeTab === 'history') loadHistory();
+    else if (activeTab === 'circulation') {
+      loadCatalog();
+      loadMyBooks();
+    }
+  }, [activeTab]);
+
+  const handleAddBook = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/library/books', {
+        method: 'POST',
+        body: JSON.stringify(addForm)
+      });
+      setMsg(res.message);
+      setShowAddModal(false);
+      setAddForm({
+        isbn: '',
+        title: '',
+        author: '',
+        category: 'Computer Science',
+        publisher: '',
+        edition: '1st Edition',
+        shelf_location: 'Rack CS-01',
+        total_copies: 5
+      });
+      loadCatalog();
+    } catch (err) {
+      setError(err.message || 'Failed to add book.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateBook = async (e) => {
+    e.preventDefault();
+    if (!editingBook) return;
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/library/books/${editingBook.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(editForm)
+      });
+      setMsg(res.message);
+      setEditingBook(null);
+      loadCatalog();
+    } catch (err) {
+      setError(err.message || 'Failed to update book.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteBook = async (bookId, title) => {
+    if (!window.confirm(`Are you sure you want to remove "${title}" from the catalog?`)) return;
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/library/books/${bookId}`, {
+        method: 'DELETE'
+      });
+      setMsg(res.message);
+      loadCatalog();
+    } catch (err) {
+      setError(err.message || 'Failed to delete book.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleIssueBook = async (e) => {
+    e.preventDefault();
+    if (!issuingBook) return;
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/library/issue', {
+        method: 'POST',
+        body: JSON.stringify({
+          book_id: issuingBook.id,
+          usn: issueForm.usn,
+          student_name: issueForm.student_name,
+          days: parseInt(issueForm.days, 10)
+        })
+      });
+      setMsg(res.message);
+      setIssuingBook(null);
+      loadCatalog();
+      if (activeTab === 'my_books' || activeTab === 'circulation') {
+        loadMyBooks();
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to issue book.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReturnBook = async (e) => {
+    e.preventDefault();
+    if (!returningRecord) return;
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/library/return/${returningRecord.id}`, {
+        method: 'POST',
+        body: JSON.stringify({ remarks: returnRemarks })
+      });
+      setMsg(res.message);
+      setReturningRecord(null);
+      setReturnRemarks('Returned in good condition');
+      loadMyBooks();
+      loadCatalog();
+    } catch (err) {
+      setError(err.message || 'Failed to process return.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isLibrarian = userRole === 'admin' || userRole === 'faculty';
+
+  return (
+    <div>
+      {/* Module Title Banner */}
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">University Central Library & Digital Knowledge Vault</div>
+          <div className="banner-sub">
+            Search textbook catalog, track borrowed book loans, review automated return reminders, and manage library circulation.
+          </div>
+        </div>
+      </div>
+
+      {msg && <div className="alert-box alert-success" style={{ marginBottom: '16px' }}>{msg}</div>}
+      {error && <div className="alert-box alert-danger" style={{ marginBottom: '16px' }}>{error}</div>}
+
+      {/* Tabs Navigation */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ padding: '8px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            { id: 'catalog', label: 'Book Catalog & Search' },
+            { id: 'my_books', label: `My Borrowed Books (${myBooks.total_active || 0})` },
+            { id: 'history', label: 'Borrowing History' },
+            ...(isLibrarian ? [{ id: 'circulation', label: 'Librarian Circulation Desk' }] : [])
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              className="btn-secondary"
+              style={{
+                backgroundColor: activeTab === tab.id ? '#1e3a8a' : '#ffffff',
+                color: activeTab === tab.id ? '#ffffff' : '#1e293b'
+              }}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* TAB 1: BOOK CATALOG & SEARCH */}
+      {activeTab === 'catalog' && (
+        <div>
+          {/* Summary Metric Stats */}
+          <div className="dashboard-stats-grid" style={{ marginBottom: '16px' }}>
+            <div className="stat-card">
+              <div className="stat-label">Catalog Titles</div>
+              <div className="stat-value">{stats.total_titles}</div>
+              <div className="stat-sub">Indexed textbook titles</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Total Inventory Copies</div>
+              <div className="stat-value">{stats.total_copies}</div>
+              <div className="stat-sub">Physical shelf stock</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Available for Lending</div>
+              <div className="stat-value" style={{ color: '#16a34a' }}>{stats.available_copies}</div>
+              <div className="stat-sub">Ready for checkout</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Currently Issued</div>
+              <div className="stat-value" style={{ color: '#2563eb' }}>{stats.issued_copies}</div>
+              <div className="stat-sub">On active student loans</div>
+            </div>
+          </div>
+
+          {/* Search and Filters Bar */}
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-body" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search by title, author, ISBN, or shelf location..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadCatalog()}
+                />
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <option value="ALL">All Categories</option>
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="Mathematics & Statistics">Mathematics & Statistics</option>
+                  <option value="Electronics & Communication">Electronics & Communication</option>
+                  <option value="Information Science">Information Science</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={availabilityFilter}
+                  onChange={(e) => setAvailabilityFilter(e.target.value)}
+                >
+                  <option value="ALL">All Availability</option>
+                  <option value="available">Available Copies Only</option>
+                  <option value="out_of_stock">Out of Stock</option>
+                </select>
+              </div>
+
+              <button type="button" className="btn-secondary" onClick={loadCatalog}>
+                Search
+              </button>
+
+              {isLibrarian && (
+                <button type="button" className="btn-primary" onClick={() => setShowAddModal(true)}>
+                  + Add Book to Catalog
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Books Table */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Indexed Academic Books & Repositories</h3>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>Showing {books.length} volumes</span>
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Book Title & Edition</th>
+                    <th>Author & Publisher</th>
+                    <th>ISBN</th>
+                    <th>Category</th>
+                    <th>Shelf Rack</th>
+                    <th>Availability</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {books.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                        No books matching your query criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    books.map((b) => (
+                      <tr key={b.id}>
+                        <td>
+                          <strong>{b.title}</strong>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>{b.edition}</div>
+                        </td>
+                        <td>
+                          <div>{b.author}</div>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>{b.publisher}</div>
+                        </td>
+                        <td><code>{b.isbn}</code></td>
+                        <td><span className="status-pill status-neutral">{b.category}</span></td>
+                        <td><strong>{b.shelf_location}</strong></td>
+                        <td>
+                          <span className={`status-pill ${b.available_copies > 0 ? 'status-success' : 'status-danger'}`}>
+                            {b.available_copies} of {b.total_copies} Available
+                          </span>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                            {b.issued_copies} checked out
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {isLibrarian ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                  disabled={b.available_copies === 0}
+                                  onClick={() => {
+                                    setIssuingBook(b);
+                                    setIssueForm({ usn: '1MS21CS084', student_name: 'Alex Kumar', days: 14 });
+                                  }}
+                                >
+                                  Issue
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-secondary"
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                  onClick={() => {
+                                    setEditingBook(b);
+                                    setEditForm({
+                                      title: b.title,
+                                      author: b.author,
+                                      category: b.category,
+                                      publisher: b.publisher,
+                                      edition: b.edition,
+                                      shelf_location: b.shelf_location,
+                                      total_copies: b.total_copies
+                                    });
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-danger"
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                  onClick={() => handleDeleteBook(b.id, b.title)}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '11px' }}
+                                onClick={() => {
+                                  if (b.available_copies > 0) {
+                                    alert(`Book is currently available on shelf ${b.shelf_location}. Visit the circulation counter with student ID to issue.`);
+                                  } else {
+                                    alert(`All copies are currently issued. Expected return queue active.`);
+                                  }
+                                }}
+                              >
+                                View Shelf
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: MY BORROWED BOOKS & RETURN REMINDERS */}
+      {activeTab === 'my_books' && (
+        <div>
+          {/* Overdue Alerts & Return Reminders Notice Banner */}
+          {myBooks.reminders && myBooks.reminders.length > 0 && (
+            <div style={{ marginBottom: '16px' }}>
+              {myBooks.reminders.map((rem, idx) => (
+                <div
+                  key={idx}
+                  className={`alert-box ${rem.severity === 'high' ? 'alert-danger' : 'alert-warning'}`}
+                  style={{ marginBottom: '8px' }}
+                >
+                  <strong>[{rem.type}] </strong>
+                  {rem.message}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Quick Metrics Bar */}
+          <div className="dashboard-stats-grid" style={{ marginBottom: '16px' }}>
+            <div className="stat-card">
+              <div className="stat-label">Active Loans</div>
+              <div className="stat-value">{myBooks.total_active || 0}</div>
+              <div className="stat-sub">Books currently in possession</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Maximum Allowed Limit</div>
+              <div className="stat-value">4</div>
+              <div className="stat-sub">UG student quota</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Accrued Overdue Fines</div>
+              <div className="stat-value" style={{ color: myBooks.total_overdue_fines > 0 ? '#dc2626' : '#16a34a' }}>
+                Rs {Number(myBooks.total_overdue_fines || 0).toFixed(2)}
+              </div>
+              <div className="stat-sub">Late fee rate: Rs 2.00 / day</div>
+            </div>
+          </div>
+
+          {/* Active Borrowed Books Table */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Currently Borrowed Volumes</h3>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>Borrower USN: 1MS21CS084</span>
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Book Title</th>
+                    <th>Author & Shelf</th>
+                    <th>Issue Date</th>
+                    <th>Due Date</th>
+                    <th>Loan Status</th>
+                    <th>Fine Accrued</th>
+                    <th>Circulation Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(!myBooks.borrowed_books || myBooks.borrowed_books.length === 0) ? (
+                    <tr>
+                      <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                        No active book loans on your student record.
+                      </td>
+                    </tr>
+                  ) : (
+                    myBooks.borrowed_books.map((rec) => (
+                      <tr key={rec.id}>
+                        <td>
+                          <strong>{rec.title}</strong>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>ISBN: {rec.isbn}</div>
+                        </td>
+                        <td>
+                          <div>{rec.author}</div>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>Shelf: {rec.shelf_location}</div>
+                        </td>
+                        <td>{rec.issue_date}</td>
+                        <td><strong>{rec.due_date}</strong></td>
+                        <td>
+                          {rec.status === 'Overdue' ? (
+                            <span className="status-pill status-danger">
+                              Overdue by {rec.overdue_days} day(s)
+                            </span>
+                          ) : (
+                            <span className="status-pill status-success">
+                              {rec.days_remaining} day(s) remaining
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: '600', color: rec.calculated_fine > 0 ? '#dc2626' : '#16a34a' }}>
+                            Rs {Number(rec.calculated_fine || 0).toFixed(2)}
+                          </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                            onClick={() => {
+                              setReturningRecord(rec);
+                              setReturnRemarks('Returned in good condition');
+                            }}
+                          >
+                            Return Book
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: BORROWING HISTORY */}
+      {activeTab === 'history' && (
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Completed Borrowing History & Clearance Ledger</h3>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>Past returned volumes</span>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Book Title</th>
+                  <th>Author</th>
+                  <th>Category</th>
+                  <th>Issue Date</th>
+                  <th>Return Date</th>
+                  <th>Clearance Status</th>
+                  <th>Fine Paid</th>
+                  <th>Librarian Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                      No past borrowing history on record.
+                    </td>
+                  </tr>
+                ) : (
+                  history.map((h) => (
+                    <tr key={h.id}>
+                      <td><strong>{h.title}</strong></td>
+                      <td>{h.author}</td>
+                      <td><span className="status-pill status-neutral">{h.category}</span></td>
+                      <td>{h.issue_date}</td>
+                      <td>{h.return_date || '-'}</td>
+                      <td><span className="status-pill status-success">Returned</span></td>
+                      <td>Rs {Number(h.fine_amount || 0).toFixed(2)}</td>
+                      <td style={{ fontSize: '12px', color: '#475569' }}>{h.librarian_remarks || 'Returned on schedule'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: LIBRARIAN CIRCULATION DESK (FACULTY / ADMIN ONLY) */}
+      {activeTab === 'circulation' && isLibrarian && (
+        <div className="dashboard-sections-grid">
+          {/* Quick Issue Panel */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Issue Book to Student</h3>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleIssueBook}>
+                <div className="form-group">
+                  <label>Select Textbook from Catalog</label>
+                  <select
+                    className="form-select"
+                    value={issuingBook ? issuingBook.id : ''}
+                    onChange={(e) => {
+                      const found = books.find(b => b.id === parseInt(e.target.value, 10));
+                      setIssuingBook(found || null);
+                    }}
+                    required
+                  >
+                    <option value="">-- Choose Book --</option>
+                    {books.map(b => (
+                      <option key={b.id} value={b.id} disabled={b.available_copies <= 0}>
+                        {b.title} ({b.available_copies} available) - {b.shelf_location}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Student USN</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={issueForm.usn}
+                      onChange={(e) => setIssueForm({ ...issueForm, usn: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Student Full Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={issueForm.student_name}
+                      onChange={(e) => setIssueForm({ ...issueForm, student_name: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Lending Period (Days)</label>
+                  <select
+                    className="form-select"
+                    value={issueForm.days}
+                    onChange={(e) => setIssueForm({ ...issueForm, days: parseInt(e.target.value, 10) })}
+                  >
+                    <option value={7}>7 Days (Reserve Loan)</option>
+                    <option value={14}>14 Days (Standard Student Loan)</option>
+                    <option value={28}>28 Days (Faculty / Research Loan)</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={!issuingBook || issuingBook.available_copies <= 0 || loading}
+                >
+                  Confirm Issue & Record Loan
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Quick Return Ledger Panel */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Active Circulation Returns</h3>
+            </div>
+            <div className="panel-card-body">
+              <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
+                Inspect student borrow records, calculate late fines automatically at Rs 2.00/day, and clear shelf records.
+              </p>
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Book</th>
+                      <th>Due Date</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(!myBooks.borrowed_books || myBooks.borrowed_books.length === 0) ? (
+                      <tr>
+                        <td colSpan="4" style={{ textAlign: 'center', padding: '16px', color: '#64748b' }}>
+                          No active loan records for this test student.
+                        </td>
+                      </tr>
+                    ) : (
+                      myBooks.borrowed_books.map(b => (
+                        <tr key={b.id}>
+                          <td><strong>{b.student_name}</strong><br /><span style={{ fontSize: '11px', color: '#64748b' }}>{b.usn}</span></td>
+                          <td>{b.title}</td>
+                          <td>{b.due_date}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '11px' }}
+                              onClick={() => {
+                                setReturningRecord(b);
+                                setReturnRemarks('Returned via Circulation Counter');
+                              }}
+                            >
+                              Process Return
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD NEW BOOK */}
+      {showAddModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Add New Textbook to Catalog</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleAddBook}>
+                <div className="form-group">
+                  <label>ISBN Identifier</label>
+                  <input
+                    type="text" className="form-input" placeholder="e.g. 978-0131103627"
+                    value={addForm.isbn} onChange={(e) => setAddForm({ ...addForm, isbn: e.target.value })} required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Textbook Title</label>
+                  <input
+                    type="text" className="form-input" placeholder="e.g. Database System Concepts"
+                    value={addForm.title} onChange={(e) => setAddForm({ ...addForm, title: e.target.value })} required
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Author(s)</label>
+                    <input
+                      type="text" className="form-input" placeholder="e.g. Silberschatz, Korth, Sudarshan"
+                      value={addForm.author} onChange={(e) => setAddForm({ ...addForm, author: e.target.value })} required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Academic Category</label>
+                    <select
+                      className="form-select"
+                      value={addForm.category} onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
+                    >
+                      <option value="Computer Science">Computer Science</option>
+                      <option value="Mathematics & Statistics">Mathematics & Statistics</option>
+                      <option value="Electronics & Communication">Electronics & Communication</option>
+                      <option value="Information Science">Information Science</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Publisher</label>
+                    <input
+                      type="text" className="form-input" placeholder="e.g. McGraw-Hill"
+                      value={addForm.publisher} onChange={(e) => setAddForm({ ...addForm, publisher: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Edition</label>
+                    <input
+                      type="text" className="form-input" placeholder="e.g. 7th Edition"
+                      value={addForm.edition} onChange={(e) => setAddForm({ ...addForm, edition: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Shelf Location</label>
+                    <input
+                      type="text" className="form-input" placeholder="e.g. Rack CS-04"
+                      value={addForm.shelf_location} onChange={(e) => setAddForm({ ...addForm, shelf_location: e.target.value })} required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Total Copies</label>
+                    <input
+                      type="number" min="1" className="form-input"
+                      value={addForm.total_copies} onChange={(e) => setAddForm({ ...addForm, total_copies: parseInt(e.target.value, 10) || 1 })} required
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading}>Save Textbook</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT BOOK */}
+      {editingBook && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Edit Book: {editingBook.title}</h3>
+              <button type="button" className="btn-secondary" onClick={() => setEditingBook(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleUpdateBook}>
+                <div className="form-group">
+                  <label>Textbook Title</label>
+                  <input
+                    type="text" className="form-input"
+                    value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} required
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Author</label>
+                    <input
+                      type="text" className="form-input"
+                      value={editForm.author} onChange={(e) => setEditForm({ ...editForm, author: e.target.value })} required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Category</label>
+                    <input
+                      type="text" className="form-input"
+                      value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} required
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Publisher</label>
+                    <input
+                      type="text" className="form-input"
+                      value={editForm.publisher} onChange={(e) => setEditForm({ ...editForm, publisher: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Edition</label>
+                    <input
+                      type="text" className="form-input"
+                      value={editForm.edition} onChange={(e) => setEditForm({ ...editForm, edition: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Shelf Location</label>
+                    <input
+                      type="text" className="form-input"
+                      value={editForm.shelf_location} onChange={(e) => setEditForm({ ...editForm, shelf_location: e.target.value })} required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Total Copies (Min: {editingBook.issued_copies})</label>
+                    <input
+                      type="number" min={editingBook.issued_copies} className="form-input"
+                      value={editForm.total_copies} onChange={(e) => setEditForm({ ...editForm, total_copies: parseInt(e.target.value, 10) || editingBook.issued_copies })} required
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setEditingBook(null)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading}>Update Book</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ISSUE BOOK */}
+      {issuingBook && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '480px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Issue Book to Student</h3>
+              <button type="button" className="btn-secondary" onClick={() => setIssuingBook(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '13px' }}>
+                <div>Book: <strong>{issuingBook.title}</strong></div>
+                <div style={{ color: '#64748b', fontSize: '11px' }}>Shelf: {issuingBook.shelf_location} | Available: {issuingBook.available_copies}</div>
+              </div>
+              <form onSubmit={handleIssueBook}>
+                <div className="form-group">
+                  <label>Student USN</label>
+                  <input
+                    type="text" className="form-input"
+                    value={issueForm.usn} onChange={(e) => setIssueForm({ ...issueForm, usn: e.target.value })} required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Student Full Name</label>
+                  <input
+                    type="text" className="form-input"
+                    value={issueForm.student_name} onChange={(e) => setIssueForm({ ...issueForm, student_name: e.target.value })} required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Loan Duration</label>
+                  <select
+                    className="form-select"
+                    value={issueForm.days} onChange={(e) => setIssueForm({ ...issueForm, days: parseInt(e.target.value, 10) })}
+                  >
+                    <option value={7}>7 Days</option>
+                    <option value={14}>14 Days (Standard)</option>
+                    <option value={28}>28 Days</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setIssuingBook(null)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading}>Confirm Issue</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RETURN BOOK */}
+      {returningRecord && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '480px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Process Book Return</h3>
+              <button type="button" className="btn-secondary" onClick={() => setReturningRecord(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '13px' }}>
+                <div>Book: <strong>{returningRecord.title}</strong></div>
+                <div>Due Date: <strong>{returningRecord.due_date}</strong></div>
+                {returningRecord.calculated_fine > 0 ? (
+                  <div style={{ color: '#dc2626', marginTop: '4px' }}>
+                    Late Fine Accrued: <strong>Rs {Number(returningRecord.calculated_fine).toFixed(2)}</strong>
+                  </div>
+                ) : (
+                  <div style={{ color: '#16a34a', marginTop: '4px' }}>
+                    Returned within due date. Zero fine.
+                  </div>
+                )}
+              </div>
+              <form onSubmit={handleReturnBook}>
+                <div className="form-group">
+                  <label>Clearance Remarks</label>
+                  <input
+                    type="text" className="form-input"
+                    value={returnRemarks} onChange={(e) => setReturnRemarks(e.target.value)} required
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setReturningRecord(null)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading}>Confirm Return & Clear Record</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 14. CAMPUS SERVICES MODULE
+// ==========================================================
+export function CampusServicesView({ userRole }) {
+  const [activeTab, setActiveTab] = useState('bus'); // 'bus', 'map', 'canteen', 'lost_found', 'facilities'
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+
+  // 1. Bus Tracking State
+  const [busRoutes, setBusRoutes] = useState([]);
+  const [selectedRouteIdx, setSelectedRouteIdx] = useState(0);
+  const [busDisclaimer, setBusDisclaimer] = useState('');
+
+  // 2. Campus Map State
+  const [selectedBuildingId, setSelectedBuildingId] = useState('cs_block');
+  const [mapSearch, setMapSearch] = useState('');
+
+  // 3. Canteen State
+  const [canteenInfo, setCanteenInfo] = useState(null);
+  const [canteenMenu, setCanteenMenu] = useState([]);
+  const [canteenCategory, setCanteenCategory] = useState('ALL');
+  const [canteenDietary, setCanteenDietary] = useState('ALL');
+  const [canteenSearch, setCanteenSearch] = useState('');
+
+  // 4. Lost & Found State
+  const [lostFoundItems, setLostFoundItems] = useState([]);
+  const [lfTypeFilter, setLfTypeFilter] = useState('ALL');
+  const [lfCategoryFilter, setLfCategoryFilter] = useState('ALL');
+  const [lfStatusFilter, setLfStatusFilter] = useState('ALL');
+  const [lfSearch, setLfSearch] = useState('');
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportForm, setReportForm] = useState({
+    report_type: 'Lost',
+    item_title: '',
+    category: 'Personal Items',
+    location_reported: '',
+    date_reported: new Date().toISOString().split('T')[0],
+    description: '',
+    reporter_name: 'Alex Kumar',
+    reporter_usn: '1MS21CS084',
+    contact_email: 'student@college.edu',
+    contact_phone: '+91 98765 43210',
+    claim_instructions: 'Contact reporter directly or check with department office.'
+  });
+  const [contactingItem, setContactingItem] = useState(null);
+  const [itemMessages, setItemMessages] = useState([]);
+  const [inquiryText, setInquiryText] = useState('');
+
+  // 5. Facilities State
+  const [facilities, setFacilities] = useState([]);
+  const [facilityCategory, setFacilityCategory] = useState('ALL');
+  const [facilitySearch, setFacilitySearch] = useState('');
+
+  // LOAD DATA FUNCTIONS
+  const loadBusRoutes = async () => {
+    try {
+      setLoading(true);
+      const res = await apiRequest('/services/bus-routes');
+      setBusRoutes(res.routes || []);
+      setBusDisclaimer(res.tracking_disclaimer || '');
+    } catch (err) {
+      setError(err.message || 'Failed to load transit routes.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCanteen = async () => {
+    try {
+      setLoading(true);
+      let url = '/services/canteen?';
+      if (canteenCategory !== 'ALL') url += `category=${encodeURIComponent(canteenCategory)}&`;
+      if (canteenDietary !== 'ALL') url += `dietary=${encodeURIComponent(canteenDietary)}&`;
+      if (canteenSearch) url += `search=${encodeURIComponent(canteenSearch)}&`;
+      const res = await apiRequest(url);
+      setCanteenInfo(res.info || null);
+      setCanteenMenu(res.menu || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load canteen menu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadLostFound = async () => {
+    try {
+      setLoading(true);
+      let url = '/services/lost-found?';
+      if (lfTypeFilter !== 'ALL') url += `type=${encodeURIComponent(lfTypeFilter)}&`;
+      if (lfCategoryFilter !== 'ALL') url += `category=${encodeURIComponent(lfCategoryFilter)}&`;
+      if (lfStatusFilter !== 'ALL') url += `status=${encodeURIComponent(lfStatusFilter)}&`;
+      if (lfSearch) url += `search=${encodeURIComponent(lfSearch)}&`;
+      const res = await apiRequest(url);
+      setLostFoundItems(res.items || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load lost and found items.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFacilities = async () => {
+    try {
+      setLoading(true);
+      let url = '/services/facilities?';
+      if (facilityCategory !== 'ALL') url += `category=${encodeURIComponent(facilityCategory)}&`;
+      if (facilitySearch) url += `search=${encodeURIComponent(facilitySearch)}&`;
+      const res = await apiRequest(url);
+      setFacilities(res.facilities || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load campus facilities.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'bus') loadBusRoutes();
+    else if (activeTab === 'canteen') loadCanteen();
+    else if (activeTab === 'lost_found') loadLostFound();
+    else if (activeTab === 'facilities') loadFacilities();
+  }, [activeTab]);
+
+  // Canteen Toggle Availability
+  const handleToggleAvailability = async (itemId, currentAvailability) => {
+    const newAvail = currentAvailability === 'Available' ? 'Sold Out' : 'Available';
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/services/canteen/${itemId}/availability`, {
+        method: 'PUT',
+        body: JSON.stringify({ availability: newAvail })
+      });
+      setMsg(res.message);
+      loadCanteen();
+    } catch (err) {
+      setError(err.message || 'Failed to update item availability.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Lost & Found Handlers
+  const handleCreateReport = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/services/lost-found', {
+        method: 'POST',
+        body: JSON.stringify(reportForm)
+      });
+      setMsg(res.message);
+      setShowReportModal(false);
+      setReportForm({
+        report_type: 'Lost',
+        item_title: '',
+        category: 'Personal Items',
+        location_reported: '',
+        date_reported: new Date().toISOString().split('T')[0],
+        description: '',
+        reporter_name: 'Alex Kumar',
+        reporter_usn: '1MS21CS084',
+        contact_email: 'student@college.edu',
+        contact_phone: '+91 98765 43210',
+        claim_instructions: 'Contact reporter directly or check with department office.'
+      });
+      loadLostFound();
+    } catch (err) {
+      setError(err.message || 'Failed to submit report.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (itemId, newStatus) => {
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/services/lost-found/${itemId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus })
+      });
+      setMsg(res.message);
+      loadLostFound();
+    } catch (err) {
+      setError(err.message || 'Failed to update report status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openContactModal = async (item) => {
+    setContactingItem(item);
+    setInquiryText('');
+    try {
+      const res = await apiRequest(`/services/lost-found/${item.id}/messages`);
+      setItemMessages(res.messages || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSendInquiry = async (e) => {
+    e.preventDefault();
+    if (!contactingItem || !inquiryText.trim()) return;
+    try {
+      const res = await apiRequest(`/services/lost-found/${contactingItem.id}/message`, {
+        method: 'POST',
+        body: JSON.stringify({
+          sender_name: 'Alex Kumar',
+          sender_usn: '1MS21CS084',
+          sender_contact: '+91 98765 43210',
+          message: inquiryText.trim()
+        })
+      });
+      setMsg(res.message);
+      setInquiryText('');
+      const updated = await apiRequest(`/services/lost-found/${contactingItem.id}/messages`);
+      setItemMessages(updated.messages || []);
+      loadLostFound();
+    } catch (err) {
+      setError(err.message || 'Failed to send message.');
+    }
+  };
+
+  // Campus Map Directory Data
+  const campusBuildings = [
+    {
+      id: 'admin_block',
+      code: 'ADM-01',
+      name: 'Main Administrative Block',
+      category: 'Administration',
+      floors: 'Ground + 3 Floors',
+      departments: 'Principal Secretariat, Admissions, Registrar, Examination Controller, Student Welfare Desk',
+      timings: '09:00 AM - 05:00 PM (Mon-Sat)',
+      in_charge: 'Dr. K. S. Anand (Dean of Academic Affairs)',
+      contact: 'Intercom 101 / +91 80 2345 6700',
+      description: 'Central administrative headquarters handling student records, scholarship endorsements, and fee counters.'
+    },
+    {
+      id: 'cs_block',
+      code: 'CS-02',
+      name: 'Department of Computer Science & Engineering',
+      category: 'Academic Departments',
+      floors: 'Ground + 4 Floors',
+      departments: 'Computer Science, AI & Machine Learning, Data Science, High Performance Computing Labs',
+      timings: '08:00 AM - 07:00 PM (Mon-Sat)',
+      in_charge: 'Dr. Ramesh Rao (Head of Department)',
+      contact: 'Intercom 201 / +91 80 2345 6701',
+      description: 'Houses 8 software laboratories, faculty chambers, smart classrooms, and graduate research clusters.'
+    },
+    {
+      id: 'is_ec_block',
+      code: 'EC-03',
+      name: 'Electronics & Information Science Complex',
+      category: 'Academic Departments',
+      floors: 'Ground + 4 Floors',
+      departments: 'Electronics & Communication, Information Science, VLSI & Embedded Systems',
+      timings: '08:00 AM - 06:30 PM (Mon-Sat)',
+      in_charge: 'Dr. Geetha S. (HoD ECE)',
+      contact: 'Intercom 301 / +91 80 2345 6703',
+      description: 'Equipped with hardware testbenches, signal processing studios, and microprocessor fabrication suites.'
+    },
+    {
+      id: 'library_vault',
+      code: 'LIB-04',
+      name: 'Central University Library & Digital Vault',
+      category: 'Amenities & Utilities',
+      floors: 'Ground + 2 Floors',
+      departments: 'Circulation Desk, IEEE Digital Vault, Reference Stacks, Quiet Reading Cubicles',
+      timings: '08:00 AM - 10:00 PM (Mon-Sat)',
+      in_charge: 'Dr. Meenakshi Sundaram (Chief Librarian)',
+      contact: 'Intercom 401 / +91 80 2345 6705',
+      description: 'Houses 65,000 physical volumes, 120 e-learning workstations, journal archives, and group discussion rooms.'
+    },
+    {
+      id: 'central_labs',
+      code: 'LAB-05',
+      name: 'Central Computing & Systems Laboratories',
+      category: 'Laboratories',
+      floors: 'Ground + 2 Floors',
+      departments: 'Operating Systems Lab, Network Security Lab, Cloud Simulation Center, AI Cluster 304',
+      timings: '08:00 AM - 08:00 PM (Mon-Sat)',
+      in_charge: 'Prof. Anil Deshmukh (Lab Director)',
+      contact: 'Intercom 501 / +91 80 2345 6708',
+      description: '450 high-end Linux workstations connected via 10 Gbps backbone with uninterrupted UPS conditioning.'
+    },
+    {
+      id: 'canteen_plaza',
+      code: 'CAN-06',
+      name: 'Central Student Plaza & Food Court',
+      category: 'Food & Dining',
+      floors: 'Ground Floor + Mezzanine',
+      departments: 'Main Dining Hall, South & North Indian Food Counters, Fruit & Juice Bar, Snack Kiosk',
+      timings: '07:30 AM - 08:30 PM (Daily)',
+      in_charge: 'Mr. Raghavendra Kamath (Catering Manager)',
+      contact: 'Intercom 601 / +91 80 2345 6750',
+      description: 'Hygienic multi-cuisine dining hall with seating capacity of 600 students and cashless payment system.'
+    },
+    {
+      id: 'health_clinic',
+      code: 'MED-07',
+      name: 'Campus Health & Emergency Care Pavilion',
+      category: 'Medical & Health',
+      floors: 'Ground Floor',
+      departments: 'Resident Physician Consultation, 6-Bed Observation Ward, 24/7 Ambulance Bay, Pharmacy',
+      timings: '24 Hours / 7 Days (Continuous Emergency Service)',
+      in_charge: 'Dr. Sunita Varma (Senior Medical Officer)',
+      contact: 'Emergency Intercom 911 / +91 80 2345 6799',
+      description: 'Provides primary emergency medical treatment, first response care, diagnostic ECG, and urgent hospital transfers.'
+    },
+    {
+      id: 'sports_pavilion',
+      code: 'SPT-08',
+      name: 'Indoor Sports Arena & Athletic Complex',
+      category: 'Sports & Fitness',
+      floors: 'Ground + 1 Floor',
+      departments: 'Badminton Courts, Table Tennis Arena, Olympic Weightlifting Gym, Coaches Office',
+      timings: '06:00 AM - 09:00 AM & 04:30 PM - 08:30 PM',
+      in_charge: 'Mr. B. K. Prasad (Sports Director)',
+      contact: 'Intercom 701 / +91 80 2345 6712',
+      description: 'Multi-discipline indoor sports complex featuring wooden competition courts and cardiovascular fitness gym.'
+    },
+    {
+      id: 'auditorium_hall',
+      code: 'AUD-09',
+      name: 'APEX Convocation Auditorium & Green Hall',
+      category: 'Auditoriums & Halls',
+      floors: 'Ground + Balcony',
+      departments: 'Main Stage, Green Rooms, Audio Control Room, Media Broadcast Booth',
+      timings: 'Scheduled Events / 08:30 AM - 09:30 PM',
+      in_charge: 'Mr. K. V. Satish (Estate Operations)',
+      contact: 'Intercom 801 / +91 80 2345 6720',
+      description: 'Acoustically designed 1,200-seat amphitheater equipped with 4K projection and surround audio.'
+    }
+  ];
+
+  const selectedBuilding = campusBuildings.find(b => b.id === selectedBuildingId) || campusBuildings[0];
+
+  const filteredBuildings = campusBuildings.filter(b => {
+    if (!mapSearch) return true;
+    const q = mapSearch.toLowerCase();
+    return b.name.toLowerCase().includes(q) || b.departments.toLowerCase().includes(q) || b.code.toLowerCase().includes(q);
+  });
+
+  return (
+    <div>
+      {/* Title Banner */}
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Campus Auxiliary Services & Facilities Portal</div>
+          <div className="banner-sub">
+            College transit bus routes, interactive campus map directory, central food court menus, lost & found registry, and institutional facilities.
+          </div>
+        </div>
+      </div>
+
+      {msg && <div className="alert-box alert-success" style={{ marginBottom: '16px' }}>{msg}</div>}
+      {error && <div className="alert-box alert-danger" style={{ marginBottom: '16px' }}>{error}</div>}
+
+      {/* Services Sub-Tabs */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ padding: '8px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            { id: 'bus', label: 'College Bus Tracking & Transit' },
+            { id: 'map', label: 'Interactive Campus Map & Directory' },
+            { id: 'canteen', label: 'Canteen & Food Court' },
+            { id: 'lost_found', label: `Lost and Found (${lostFoundItems.length || 0})` },
+            { id: 'facilities', label: 'Campus Facilities' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              className="btn-secondary"
+              style={{
+                backgroundColor: activeTab === tab.id ? '#1e3a8a' : '#ffffff',
+                color: activeTab === tab.id ? '#ffffff' : '#1e293b'
+              }}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ========================================================== */}
+      {/* 1. BUS TRACKING & TRANSIT TAB */}
+      {/* ========================================================== */}
+      {activeTab === 'bus' && (
+        <div>
+          {/* Simulation Disclaimer Banner */}
+          <div className="alert-box alert-warning" style={{ marginBottom: '16px' }}>
+            <strong>Notice on Bus Telematics: </strong>
+            {busDisclaimer || 'Simulation / Demo Tracking Mode Active. Hardware GPS satellite telematics are currently simulated for demonstration.'}
+          </div>
+
+          {/* Route Selector Pills */}
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-body" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: '600' }}>Select Transit Route:</span>
+              {busRoutes.map((r, idx) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  className="btn-secondary"
+                  style={{
+                    backgroundColor: selectedRouteIdx === idx ? '#1e3a8a' : '#ffffff',
+                    color: selectedRouteIdx === idx ? '#ffffff' : '#1e293b'
+                  }}
+                  onClick={() => setSelectedRouteIdx(idx)}
+                >
+                  {r.route_number}: {r.start_point} to {r.end_point}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {busRoutes.length > 0 && busRoutes[selectedRouteIdx] && (() => {
+            const currentRoute = busRoutes[selectedRouteIdx];
+            return (
+              <div>
+                {/* Active Route Overview Card */}
+                <div className="panel-card" style={{ marginBottom: '16px' }}>
+                  <div className="panel-card-header">
+                    <div>
+                      <h3 className="panel-card-title">{currentRoute.route_number} - {currentRoute.start_point} to {currentRoute.end_point}</h3>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>Vehicle: <strong>{currentRoute.bus_number}</strong></div>
+                    </div>
+                    <span className="status-pill status-success">{currentRoute.status}</span>
+                  </div>
+                  <div className="panel-card-body">
+                    {/* Live Simulated Telematics Bar */}
+                    <div style={{
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '6px',
+                      padding: '12px',
+                      marginBottom: '16px',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '16px',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#166534', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                          Simulated Waypoint Location
+                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#14532d' }}>
+                          {currentRoute.current_demo_location}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#166534', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                          Operating Speed
+                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#14532d' }}>
+                          {currentRoute.demo_speed_kmh} km/h (Normal Transit)
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#166534', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                          Driver in Charge
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#14532d' }}>
+                          <strong>{currentRoute.driver_name}</strong> ({currentRoute.driver_phone})
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stops and Timings Table */}
+                    <h4 style={{ fontSize: '14px', marginBottom: '8px' }}>Stops & Estimated Schedule Timings</h4>
+                    <div className="table-responsive">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Stop #</th>
+                            <th>Designated Pickup / Drop Point</th>
+                            <th>Morning Inbound Pickup</th>
+                            <th>Evening Outbound Departure</th>
+                            <th>Simulation Transit Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(currentRoute.stops || []).map((stop) => {
+                            const isCurrent = currentRoute.current_demo_location.toLowerCase().includes(stop.stop_name.toLowerCase());
+                            return (
+                              <tr key={stop.stop_number} style={{ backgroundColor: isCurrent ? '#f0fdf4' : 'transparent' }}>
+                                <td><strong>#{stop.stop_number}</strong></td>
+                                <td>
+                                  <strong>{stop.stop_name}</strong>
+                                  {isCurrent && (
+                                    <span className="status-pill status-success" style={{ marginLeft: '8px', fontSize: '10px' }}>
+                                      Bus Currently Here
+                                    </span>
+                                  )}
+                                </td>
+                                <td>{stop.morning_time}</td>
+                                <td>{stop.evening_time}</td>
+                                <td>
+                                  <span className={`status-pill ${stop.status === 'Passed' ? 'status-neutral' : stop.status === 'Current' ? 'status-success' : 'status-warning'}`}>
+                                    {stop.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ========================================================== */}
+      {/* 2. CAMPUS MAP & DIRECTORY TAB */}
+      {/* ========================================================== */}
+      {activeTab === 'map' && (
+        <div>
+          {/* Map Search Bar */}
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-body" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search campus buildings, departments, laboratories..."
+                  value={mapSearch}
+                  onChange={(e) => setMapSearch(e.target.value)}
+                />
+              </div>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                Click any building block below to view its floor plan and directory details
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px' }}>
+            {/* Schematic Campus Layout Grid */}
+            <div className="panel-card">
+              <div className="panel-card-header">
+                <h3 className="panel-card-title">Campus Master Plan & Sector Grid</h3>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>University Main Campus (45 Acres)</span>
+              </div>
+              <div className="panel-card-body">
+                {/* Visual Campus Block Schematic */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '10px',
+                  background: '#f8fafc',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  {filteredBuildings.map((b) => {
+                    const isSelected = selectedBuildingId === b.id;
+                    return (
+                      <div
+                        key={b.id}
+                        onClick={() => setSelectedBuildingId(b.id)}
+                        style={{
+                          backgroundColor: isSelected ? '#1e3a8a' : '#ffffff',
+                          color: isSelected ? '#ffffff' : '#0f172a',
+                          border: isSelected ? '2px solid #1e3a8a' : '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          padding: '12px 10px',
+                          cursor: 'pointer',
+                          minHeight: '100px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between'
+                        }}
+                      >
+                        <div>
+                          <div style={{
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            color: isSelected ? '#93c5fd' : '#64748b',
+                            textTransform: 'uppercase'
+                          }}>
+                            {b.code}
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            marginTop: '2px',
+                            lineHeight: '1.2'
+                          }}>
+                            {b.name}
+                          </div>
+                        </div>
+                        <div style={{
+                          fontSize: '10px',
+                          color: isSelected ? '#e2e8f0' : '#475569',
+                          marginTop: '6px'
+                        }}>
+                          {b.category}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: '12px', fontSize: '11px', color: '#64748b', textAlign: 'center' }}>
+                  Gates: Gate 1 (North Ring Road) | Gate 2 (Student Plaza & Canteen) | Gate 3 (Sports Arena & Athletic Ground)
+                </div>
+              </div>
+            </div>
+
+            {/* Selected Building Details Inspector */}
+            <div className="panel-card">
+              <div className="panel-card-header">
+                <div>
+                  <h3 className="panel-card-title">{selectedBuilding.name}</h3>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>Code: <strong>{selectedBuilding.code}</strong></div>
+                </div>
+                <span className="status-pill status-neutral">{selectedBuilding.category}</span>
+              </div>
+              <div className="panel-card-body">
+                <div style={{ marginBottom: '12px' }}>
+                  <div className="stat-label">Description & Scope:</div>
+                  <p style={{ fontSize: '12px', color: '#334155', marginTop: '4px' }}>
+                    {selectedBuilding.description}
+                  </p>
+                </div>
+
+                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '12px' }}>
+                  <div style={{ marginBottom: '6px' }}>
+                    Floor Distribution: <strong>{selectedBuilding.floors}</strong>
+                  </div>
+                  <div style={{ marginBottom: '6px' }}>
+                    Operating Hours: <strong>{selectedBuilding.timings}</strong>
+                  </div>
+                  <div style={{ marginBottom: '6px' }}>
+                    Officer in Charge: <strong>{selectedBuilding.in_charge}</strong>
+                  </div>
+                  <div>
+                    Contact Telephone: <strong>{selectedBuilding.contact}</strong>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="stat-label">Departments & Units Inside:</div>
+                  <p style={{ fontSize: '12px', color: '#334155', marginTop: '4px' }}>
+                    {selectedBuilding.departments}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================== */}
+      {/* 3. CANTEEN & FOOD COURT TAB */}
+      {/* ========================================================== */}
+      {activeTab === 'canteen' && (
+        <div>
+          {/* Canteen General Information Banner */}
+          {canteenInfo && (
+            <div className="panel-card" style={{ marginBottom: '16px' }}>
+              <div className="panel-card-header">
+                <div>
+                  <h3 className="panel-card-title">{canteenInfo.name}</h3>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>Location: {canteenInfo.location}</div>
+                </div>
+                <span className="status-pill status-success">Open Today</span>
+              </div>
+              <div className="panel-card-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
+                  <strong>Operating Timings:</strong>
+                  <div style={{ color: '#475569', marginTop: '2px' }}>{canteenInfo.opening_hours}</div>
+                </div>
+                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
+                  <strong>Meal Schedule:</strong>
+                  <div style={{ color: '#475569', marginTop: '2px' }}>Breakfast: {canteenInfo.breakfast_timings}</div>
+                  <div style={{ color: '#475569' }}>Lunch: {canteenInfo.lunch_timings}</div>
+                </div>
+                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
+                  <strong>Accepted Payment:</strong>
+                  <div style={{ color: '#475569', marginTop: '2px' }}>{canteenInfo.payment_methods}</div>
+                  <div style={{ color: '#64748b', fontSize: '11px' }}>Enquiry: {canteenInfo.contact}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Menu Search and Filters */}
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-body" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search food items (e.g. Masala Dosa, Thali, Coffee)..."
+                  value={canteenSearch}
+                  onChange={(e) => setCanteenSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadCanteen()}
+                />
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={canteenCategory}
+                  onChange={(e) => setCanteenCategory(e.target.value)}
+                >
+                  <option value="ALL">All Meal Categories</option>
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Lunch & Meals">Lunch & Meals</option>
+                  <option value="Snacks & Quick Bites">Snacks & Quick Bites</option>
+                  <option value="Beverages">Beverages</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={canteenDietary}
+                  onChange={(e) => setCanteenDietary(e.target.value)}
+                >
+                  <option value="ALL">All Dietary Preferences</option>
+                  <option value="Vegetarian">Vegetarian</option>
+                  <option value="Non-Vegetarian">Non-Vegetarian</option>
+                  <option value="Vegan">Vegan</option>
+                </select>
+              </div>
+
+              <button type="button" className="btn-secondary" onClick={loadCanteen}>
+                Filter Menu
+              </button>
+            </div>
+          </div>
+
+          {/* Canteen Items Table */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Daily Canteen Menu & Pricing</h3>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>Showing {canteenMenu.length} items</span>
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Item Name</th>
+                    <th>Category</th>
+                    <th>Dietary Type</th>
+                    <th>Serving Window</th>
+                    <th>Unit Price (INR)</th>
+                    <th>Current Availability</th>
+                    {(userRole === 'admin' || userRole === 'faculty') && <th>Staff Control</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {canteenMenu.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                        No menu items found for the selected category.
+                      </td>
+                    </tr>
+                  ) : (
+                    canteenMenu.map((item) => (
+                      <tr key={item.id}>
+                        <td><strong>{item.item_name}</strong></td>
+                        <td><span className="status-pill status-neutral">{item.category}</span></td>
+                        <td>
+                          <span className={`status-pill ${item.dietary === 'Vegetarian' || item.dietary === 'Vegan' ? 'status-success' : 'status-warning'}`}>
+                            {item.dietary}
+                          </span>
+                        </td>
+                        <td>{item.timings}</td>
+                        <td><strong>Rs {Number(item.price).toFixed(2)}</strong></td>
+                        <td>
+                          <span className={`status-pill ${item.availability === 'Available' ? 'status-success' : 'status-danger'}`}>
+                            {item.availability}
+                          </span>
+                        </td>
+                        {(userRole === 'admin' || userRole === 'faculty') && (
+                          <td>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '11px' }}
+                              onClick={() => handleToggleAvailability(item.id, item.availability)}
+                            >
+                              Mark {item.availability === 'Available' ? 'Sold Out' : 'Available'}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================== */}
+      {/* 4. LOST AND FOUND PORTAL TAB */}
+      {/* ========================================================== */}
+      {activeTab === 'lost_found' && (
+        <div>
+          {/* Action Header & Quick Stats */}
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-body" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search lost and found items by title, description, or location..."
+                  value={lfSearch}
+                  onChange={(e) => setLfSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadLostFound()}
+                />
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={lfTypeFilter}
+                  onChange={(e) => setLfTypeFilter(e.target.value)}
+                >
+                  <option value="ALL">All Reports</option>
+                  <option value="Lost">Lost Items Only</option>
+                  <option value="Found">Found Items Only</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={lfCategoryFilter}
+                  onChange={(e) => setLfCategoryFilter(e.target.value)}
+                >
+                  <option value="ALL">All Categories</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Documents & IDs">Documents & IDs</option>
+                  <option value="Books & Stationery">Books & Stationery</option>
+                  <option value="Personal Items">Personal Items</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={lfStatusFilter}
+                  onChange={(e) => setLfStatusFilter(e.target.value)}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="Open">Open</option>
+                  <option value="Claimed">Claimed</option>
+                  <option value="Resolved">Resolved</option>
+                </select>
+              </div>
+
+              <button type="button" className="btn-secondary" onClick={loadLostFound}>
+                Search
+              </button>
+
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setReportForm({ ...reportForm, report_type: 'Lost' });
+                  setShowReportModal(true);
+                }}
+              >
+                + Report Lost Item
+              </button>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ backgroundColor: '#0284c7', color: '#ffffff' }}
+                onClick={() => {
+                  setReportForm({ ...reportForm, report_type: 'Found' });
+                  setShowReportModal(true);
+                }}
+              >
+                + Report Found Item
+              </button>
+            </div>
+          </div>
+
+          {/* Reported Items Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
+            {lostFoundItems.length === 0 ? (
+              <div className="panel-card" style={{ gridColumn: '1 / -1', padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                No lost or found items reported matching your filters.
+              </div>
+            ) : (
+              lostFoundItems.map((item) => (
+                <div key={item.id} className="panel-card" style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div className="panel-card-header">
+                    <div>
+                      <span className={`status-pill ${item.report_type === 'Lost' ? 'status-danger' : 'status-success'}`} style={{ marginRight: '6px' }}>
+                        {item.report_type.toUpperCase()}
+                      </span>
+                      <span className="status-pill status-neutral">{item.category}</span>
+                    </div>
+                    <span className={`status-pill ${item.status === 'Open' ? 'status-warning' : 'status-success'}`}>
+                      {item.status}
+                    </span>
+                  </div>
+
+                  <div className="panel-card-body" style={{ flex: 1 }}>
+                    <h4 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '4px' }}>{item.item_title}</h4>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px' }}>
+                      Location Reported: <strong>{item.location_reported}</strong> | Date: {item.date_reported}
+                    </div>
+
+                    <p style={{ fontSize: '12px', color: '#334155', marginBottom: '12px' }}>
+                      {item.description}
+                    </p>
+
+                    <div style={{ background: '#f8fafc', padding: '8px', borderRadius: '4px', marginBottom: '12px', fontSize: '11px' }}>
+                      <div>Reporter: <strong>{item.reporter_name}</strong> ({item.reporter_usn})</div>
+                      <div>Claim Instructions: {item.claim_instructions || 'Contact reporter directly.'}</div>
+                      {item.message_count > 0 && (
+                        <div style={{ color: '#2563eb', marginTop: '4px', fontWeight: 'bold' }}>
+                          {item.message_count} inquiry message(s) received
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        style={{ padding: '6px 12px', fontSize: '12px', flex: 1 }}
+                        onClick={() => openContactModal(item)}
+                      >
+                        Contact / Inquire ({item.message_count || 0})
+                      </button>
+
+                      {item.status === 'Open' && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '12px' }}
+                          onClick={() => handleUpdateStatus(item.id, 'Claimed')}
+                        >
+                          Mark Claimed
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================== */}
+      {/* 5. CAMPUS FACILITIES DIRECTORY TAB */}
+      {/* ========================================================== */}
+      {activeTab === 'facilities' && (
+        <div>
+          {/* Facilities Filter */}
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-body" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search facilities by name, building, equipment, or features..."
+                  value={facilitySearch}
+                  onChange={(e) => setFacilitySearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadFacilities()}
+                />
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={facilityCategory}
+                  onChange={(e) => setFacilityCategory(e.target.value)}
+                >
+                  <option value="ALL">All Facility Domains</option>
+                  <option value="Laboratories">Laboratories</option>
+                  <option value="Sports & Fitness">Sports & Fitness</option>
+                  <option value="Medical & Health">Medical & Health</option>
+                  <option value="Auditoriums & Halls">Auditoriums & Halls</option>
+                  <option value="Amenities & Utilities">Amenities & Utilities</option>
+                </select>
+              </div>
+
+              <button type="button" className="btn-secondary" onClick={loadFacilities}>
+                Search
+              </button>
+            </div>
+          </div>
+
+          {/* Facility Cards Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '16px' }}>
+            {facilities.length === 0 ? (
+              <div className="panel-card" style={{ gridColumn: '1 / -1', padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                No campus facilities found.
+              </div>
+            ) : (
+              facilities.map((fac) => (
+                <div key={fac.id} className="panel-card" style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div className="panel-card-header">
+                    <div>
+                      <h3 className="panel-card-title">{fac.facility_name}</h3>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>Location: {fac.building_location}</div>
+                    </div>
+                    <span className="status-pill status-neutral">{fac.category}</span>
+                  </div>
+
+                  <div className="panel-card-body" style={{ flex: 1 }}>
+                    <p style={{ fontSize: '12px', color: '#334155', marginBottom: '12px' }}>
+                      {fac.description}
+                    </p>
+
+                    <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '12px' }}>
+                      <div>Operating Hours: <strong>{fac.operating_hours}</strong></div>
+                      <div>In-Charge: <strong>{fac.in_charge_name}</strong></div>
+                      <div>Emergency / Contact: <strong>{fac.contact_tel}</strong></div>
+                    </div>
+
+                    <div>
+                      <div className="stat-label">Key Specifications & Features:</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                        {(fac.key_features || '').split(',').map((feat, idx) => (
+                          <span key={idx} className="status-pill status-neutral" style={{ fontSize: '11px' }}>
+                            {feat.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: REPORT LOST / FOUND ITEM */}
+      {showReportModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Report {reportForm.report_type} Item to Campus Registry</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowReportModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleCreateReport}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Report Type</label>
+                    <select
+                      className="form-select"
+                      value={reportForm.report_type}
+                      onChange={(e) => setReportForm({ ...reportForm, report_type: e.target.value })}
+                    >
+                      <option value="Lost">Lost Item</option>
+                      <option value="Found">Found Item</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Item Classification</label>
+                    <select
+                      className="form-select"
+                      value={reportForm.category}
+                      onChange={(e) => setReportForm({ ...reportForm, category: e.target.value })}
+                    >
+                      <option value="Electronics">Electronics</option>
+                      <option value="Documents & IDs">Documents & IDs</option>
+                      <option value="Books & Stationery">Books & Stationery</option>
+                      <option value="Personal Items">Personal Items</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Item Title & Model</label>
+                  <input
+                    type="text" className="form-input" placeholder="e.g. HP Wireless Ergonomic Mouse (Black)"
+                    value={reportForm.item_title}
+                    onChange={(e) => setReportForm({ ...reportForm, item_title: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Location Where Lost / Found</label>
+                    <input
+                      type="text" className="form-input" placeholder="e.g. Systems Lab 3, Row 4"
+                      value={reportForm.location_reported}
+                      onChange={(e) => setReportForm({ ...reportForm, location_reported: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Date</label>
+                    <input
+                      type="date" className="form-input"
+                      value={reportForm.date_reported}
+                      onChange={(e) => setReportForm({ ...reportForm, date_reported: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Detailed Description & Identifying Marks</label>
+                  <textarea
+                    className="form-textarea" rows="3"
+                    placeholder="Provide detailed description, color, identifying scratches, or content..."
+                    value={reportForm.description}
+                    onChange={(e) => setReportForm({ ...reportForm, description: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Reporter Name</label>
+                    <input
+                      type="text" className="form-input"
+                      value={reportForm.reporter_name}
+                      onChange={(e) => setReportForm({ ...reportForm, reporter_name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Reporter USN / ID</label>
+                    <input
+                      type="text" className="form-input"
+                      value={reportForm.reporter_usn}
+                      onChange={(e) => setReportForm({ ...reportForm, reporter_usn: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Contact Email</label>
+                    <input
+                      type="email" className="form-input"
+                      value={reportForm.contact_email}
+                      onChange={(e) => setReportForm({ ...reportForm, contact_email: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Contact Phone</label>
+                    <input
+                      type="text" className="form-input"
+                      value={reportForm.contact_phone}
+                      onChange={(e) => setReportForm({ ...reportForm, contact_phone: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Claim / Retrieval Instructions</label>
+                  <input
+                    type="text" className="form-input" placeholder="e.g. Deposit with CS Lab attendant or call reporter directly"
+                    value={reportForm.claim_instructions}
+                    onChange={(e) => setReportForm({ ...reportForm, claim_instructions: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setShowReportModal(false)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading}>Submit Report</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CONTACT REPORTER / IN-PORTAL INQUIRY */}
+      {contactingItem && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <div>
+                <h3 className="panel-card-title">Inquiry: {contactingItem.item_title}</h3>
+                <div style={{ fontSize: '11px', color: '#64748b' }}>Reported by: <strong>{contactingItem.reporter_name}</strong> ({contactingItem.reporter_usn})</div>
+              </div>
+              <button type="button" className="btn-secondary" onClick={() => setContactingItem(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              {/* Reporter Contact Info Box */}
+              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', marginBottom: '14px', fontSize: '12px' }}>
+                <div>Email: <strong>{contactingItem.contact_email}</strong></div>
+                <div>Phone: <strong>{contactingItem.contact_phone}</strong></div>
+                <div>Claim Instructions: {contactingItem.claim_instructions || 'Contact reporter directly.'}</div>
+              </div>
+
+              {/* Existing Message Thread */}
+              <h4 style={{ fontSize: '13px', marginBottom: '8px' }}>In-Portal Inquiries & Messages ({itemMessages.length})</h4>
+              <div style={{ maxHeight: '180px', overflowY: 'auto', marginBottom: '14px', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px' }}>
+                {itemMessages.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: '#64748b', textAlign: 'center', padding: '12px' }}>
+                    No messages sent yet. Use the form below to message the reporter.
+                  </div>
+                ) : (
+                  itemMessages.map((m) => (
+                    <div key={m.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>
+                        <strong>{m.sender_name} ({m.sender_usn})</strong>
+                        <span>{m.sent_at}</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#0f172a' }}>{m.message}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Send New Inquiry Form */}
+              <form onSubmit={handleSendInquiry}>
+                <div className="form-group">
+                  <label>Send a Message to Reporter</label>
+                  <textarea
+                    className="form-textarea" rows="3"
+                    placeholder="Type your inquiry or update (e.g., 'I found this item and handed it to the department office')..."
+                    value={inquiryText}
+                    onChange={(e) => setInquiryText(e.target.value)}
+                    required
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setContactingItem(null)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading || !inquiryText.trim()}>Send Message</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 15. COMMUNICATION & NOTIFICATIONS MODULE
+// ==========================================================
+export function NotificationsView({ userRole }) {
+  const [activeTab, setActiveTab] = useState('inbox'); // 'inbox', 'appointments', 'directory'
+  const [notifs, setNotifs] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+
+  // Admin Publish Modal
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishForm, setPublishForm] = useState({
+    title: '',
+    category: 'College Announcement',
+    department: 'Office of Academic Affairs',
+    content: '',
+    priority: 'Normal',
+    target_role: 'all'
+  });
+
+  // Faculty Appointments State
+  const [appointments, setAppointments] = useState([]);
+  const [facultyList, setFacultyList] = useState([]);
+  const [showApptModal, setShowApptModal] = useState(false);
+  const [apptForm, setApptForm] = useState({
+    faculty_name: 'Dr. Ramesh Rao (Head of Systems)',
+    department: 'Computer Science & Engineering',
+    purpose: '',
+    requested_date: new Date().toISOString().split('T')[0],
+    requested_slot: '10:30 AM - 11:00 AM'
+  });
+
+  const loadNotifications = async () => {
+    try {
+      setLoading(true);
+      let url = '/notifications?';
+      if (categoryFilter !== 'ALL') url += `category=${encodeURIComponent(categoryFilter)}&`;
+      if (statusFilter !== 'ALL') url += `status=${encodeURIComponent(statusFilter.toLowerCase())}&`;
+      const res = await apiRequest(url);
+      setNotifs(res.notifications || []);
+      setUnreadCount(res.unread_count || 0);
+    } catch (err) {
+      setError(err.message || 'Failed to load notifications.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAppointments = async () => {
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/communications/appointments?role=${userRole}`);
+      setAppointments(res.appointments || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load appointment requests.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFacultyDirectory = async () => {
+    try {
+      const res = await apiRequest('/communications/faculty-directory');
+      setFacultyList(res.faculty || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'inbox') loadNotifications();
+    else if (activeTab === 'appointments') {
+      loadAppointments();
+      loadFacultyDirectory();
+    } else if (activeTab === 'directory') {
+      loadFacultyDirectory();
+    }
+  }, [activeTab, categoryFilter, statusFilter]);
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await apiRequest(`/notifications/${id}/read`, { method: 'PUT' });
+      loadNotifications();
+    } catch (err) {
+      setError(err.message || 'Failed to mark as read.');
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await apiRequest('/notifications/mark-all-read', { method: 'POST' });
+      setMsg('All circulars marked as read.');
+      loadNotifications();
+    } catch (err) {
+      setError(err.message || 'Failed to mark all as read.');
+    }
+  };
+
+  const handleDeleteNotif = async (id) => {
+    if (!window.confirm('Delete this official announcement?')) return;
+    try {
+      await apiRequest(`/notifications/${id}`, { method: 'DELETE' });
+      setMsg('Notification deleted.');
+      loadNotifications();
+    } catch (err) {
+      setError(err.message || 'Failed to delete notification.');
+    }
+  };
+
+  const handlePublishNotification = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/notifications', {
+        method: 'POST',
+        body: JSON.stringify(publishForm)
+      });
+      setMsg(res.message);
+      setShowPublishModal(false);
+      setPublishForm({
+        title: '',
+        category: 'College Announcement',
+        department: 'Office of Academic Affairs',
+        content: '',
+        priority: 'Normal',
+        target_role: 'all'
+      });
+      loadNotifications();
+    } catch (err) {
+      setError(err.message || 'Failed to publish notice.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequestAppointment = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const res = await apiRequest('/communications/appointments', {
+        method: 'POST',
+        body: JSON.stringify(apptForm)
+      });
+      setMsg(res.message);
+      setShowApptModal(false);
+      setApptForm({
+        faculty_name: 'Dr. Ramesh Rao (Head of Systems)',
+        department: 'Computer Science & Engineering',
+        purpose: '',
+        requested_date: new Date().toISOString().split('T')[0],
+        requested_slot: '10:30 AM - 11:00 AM'
+      });
+      loadAppointments();
+    } catch (err) {
+      setError(err.message || 'Failed to book appointment.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateApptStatus = async (id, status, remarks = '') => {
+    try {
+      const res = await apiRequest(`/communications/appointments/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, remarks })
+      });
+      setMsg(res.message);
+      loadAppointments();
+    } catch (err) {
+      setError(err.message || 'Failed to update appointment status.');
+    }
+  };
+
+  const filteredNotifs = notifs.filter(n => {
+    if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    return n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q) || n.department.toLowerCase().includes(q);
+  });
+
+  const getCategoryBadgeClass = (cat) => {
+    switch (cat) {
+      case 'Examination': return 'status-primary';
+      case 'Placement': return 'status-success';
+      case 'Assignment Reminder': return 'status-warning';
+      case 'Attendance Alert': return 'status-danger';
+      default: return 'status-neutral';
+    }
+  };
+
+  return (
+    <div>
+      {/* Banner */}
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">College Communications, Announcements & Faculty Connect</div>
+          <div className="banner-sub">
+            Institutional circulars, examination alerts, placement bulletins, attendance warnings, and faculty appointment bookings.
+          </div>
+        </div>
+      </div>
+
+      {msg && <div className="alert-box alert-success" style={{ marginBottom: '16px' }}>{msg}</div>}
+      {error && <div className="alert-box alert-danger" style={{ marginBottom: '16px' }}>{error}</div>}
+
+      {/* Tabs Switcher */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ padding: '8px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            { id: 'inbox', label: `Notifications Inbox (${unreadCount} Unread)` },
+            { id: 'appointments', label: `Faculty Appointments (${appointments.length})` },
+            { id: 'directory', label: 'Faculty Directory & Office Hours' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              className="btn-secondary"
+              style={{
+                backgroundColor: activeTab === tab.id ? '#1e3a8a' : '#ffffff',
+                color: activeTab === tab.id ? '#ffffff' : '#1e293b'
+              }}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* TAB 1: NOTIFICATIONS INBOX */}
+      {activeTab === 'inbox' && (
+        <div>
+          {/* Top Metric Cards */}
+          <div className="dashboard-stats-grid" style={{ marginBottom: '16px' }}>
+            <div className="stat-card">
+              <div className="stat-label">Total Notices</div>
+              <div className="stat-value">{notifs.length}</div>
+              <div className="stat-sub">Archived circulars</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Unread Alerts</div>
+              <div className="stat-value" style={{ color: unreadCount > 0 ? '#dc2626' : '#16a34a' }}>
+                {unreadCount}
+              </div>
+              <div className="stat-sub">Requires your review</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Examinations</div>
+              <div className="stat-value">
+                {notifs.filter(n => n.category === 'Examination').length}
+              </div>
+              <div className="stat-sub">Hall tickets & schedules</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Attendance & Deadlines</div>
+              <div className="stat-value">
+                {notifs.filter(n => n.category === 'Attendance Alert' || n.category === 'Assignment Reminder').length}
+              </div>
+              <div className="stat-sub">Urgent reminders</div>
+            </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-body" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search notices by keyword, course, or department..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <option value="ALL">All Announcement Categories</option>
+                  <option value="College Announcement">College Announcements</option>
+                  <option value="Examination">Examination Notifications</option>
+                  <option value="Placement">Placement Drives</option>
+                  <option value="Assignment Reminder">Assignment Reminders</option>
+                  <option value="Attendance Alert">Attendance Alerts</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  className="form-select"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="unread">Unread Only</option>
+                  <option value="read">Read Only</option>
+                </select>
+              </div>
+
+              {unreadCount > 0 && (
+                <button type="button" className="btn-secondary" onClick={handleMarkAllRead}>
+                  Mark All Read
+                </button>
+              )}
+
+              {(userRole === 'admin' || userRole === 'faculty') && (
+                <button type="button" className="btn-primary" onClick={() => setShowPublishModal(true)}>
+                  + Publish Announcement
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Notifications List */}
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Official Announcements & Notifications Ledger</h3>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>Showing {filteredNotifs.length} notices</span>
+            </div>
+            <div className="panel-card-body" style={{ padding: '0' }}>
+              {filteredNotifs.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                  No announcements match your search or filter criteria.
+                </div>
+              ) : (
+                <ul className="item-list" style={{ margin: '0' }}>
+                  {filteredNotifs.map((n) => (
+                    <li
+                      key={n.id}
+                      className="list-item"
+                      style={{
+                        padding: '16px',
+                        borderBottom: '1px solid #e2e8f0',
+                        backgroundColor: n.is_read ? '#ffffff' : '#f0fdf4'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className={`status-pill ${getCategoryBadgeClass(n.category)}`} style={{ fontSize: '11px' }}>
+                            {n.category}
+                          </span>
+                          {n.priority === 'Urgent' && (
+                            <span className="status-pill status-danger" style={{ fontSize: '10px' }}>URGENT</span>
+                          )}
+                          {!n.is_read && (
+                            <span className="status-pill status-primary" style={{ fontSize: '10px' }}>UNREAD</span>
+                          )}
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>
+                            {n.published_date}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {!n.is_read && (
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '11px' }}
+                              onClick={() => handleMarkAsRead(n.id)}
+                            >
+                              Mark Read
+                            </button>
+                          )}
+                          {userRole === 'admin' && (
+                            <button
+                              type="button"
+                              className="btn-danger"
+                              style={{ padding: '4px 8px', fontSize: '11px' }}
+                              onClick={() => handleDeleteNotif(n.id)}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a', marginBottom: '6px' }}>
+                        {n.title}
+                      </h4>
+
+                      <p style={{ fontSize: '13px', color: '#334155', lineHeight: '1.5', marginBottom: '8px' }}>
+                        {n.content}
+                      </p>
+
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        Issuing Authority: <strong>{n.department}</strong> | Scope: {n.target_role === 'all' ? 'Entire College' : n.target_role.toUpperCase()}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: FACULTY APPOINTMENTS & CONSULTATION */}
+      {activeTab === 'appointments' && (
+        <div>
+          <div className="panel-card" style={{ marginBottom: '16px' }}>
+            <div className="panel-card-header">
+              <div>
+                <h3 className="panel-card-title">Faculty Consultation & Meeting Appointments</h3>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>Schedule office hours for project guidance, doubt clearing, or mentoring.</div>
+              </div>
+              <button type="button" className="btn-primary" onClick={() => setShowApptModal(true)}>
+                + Request Faculty Appointment
+              </button>
+            </div>
+          </div>
+
+          <div className="panel-card">
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Scheduled Consultation Sessions</h3>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>Student USN: 1MS21CS084</span>
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Faculty Member</th>
+                    <th>Department</th>
+                    <th>Consultation Purpose</th>
+                    <th>Requested Date & Slot</th>
+                    <th>Status</th>
+                    <th>Faculty Remarks</th>
+                    {(userRole === 'faculty' || userRole === 'admin') && <th>Action</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {appointments.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                        No appointment requests found. Click the button above to request a consultation slot.
+                      </td>
+                    </tr>
+                  ) : (
+                    appointments.map((a) => (
+                      <tr key={a.id}>
+                        <td><strong>{a.faculty_name}</strong></td>
+                        <td>{a.department}</td>
+                        <td style={{ maxWidth: '280px' }}>{a.purpose}</td>
+                        <td>
+                          <strong>{a.requested_date}</strong>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>{a.requested_slot}</div>
+                        </td>
+                        <td>
+                          <span className={`status-pill ${
+                            a.status === 'Confirmed' ? 'status-success' :
+                            a.status === 'Pending' ? 'status-warning' :
+                            a.status === 'Completed' ? 'status-neutral' : 'status-danger'
+                          }`}>
+                            {a.status}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '12px', color: '#475569' }}>
+                          {a.faculty_remarks || 'Awaiting faculty confirmation.'}
+                        </td>
+                        {(userRole === 'faculty' || userRole === 'admin') && (
+                          <td>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              {a.status === 'Pending' && (
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                  onClick={() => handleUpdateApptStatus(a.id, 'Confirmed', 'Approved. Slot reserved.')}
+                                >
+                                  Confirm
+                                </button>
+                              )}
+                              {a.status === 'Confirmed' && (
+                                <button
+                                  type="button"
+                                  className="btn-secondary"
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                  onClick={() => handleUpdateApptStatus(a.id, 'Completed', 'Consultation finished.')}
+                                >
+                                  Complete
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: FACULTY DIRECTORY & OFFICE HOURS */}
+      {activeTab === 'directory' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
+          {facultyList.map((f, idx) => (
+            <div key={idx} className="panel-card" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="panel-card-header">
+                <div>
+                  <h3 className="panel-card-title">{f.name}</h3>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>{f.designation}</div>
+                </div>
+                <span className="status-pill status-neutral">{f.department.split('&')[0]}</span>
+              </div>
+              <div className="panel-card-body" style={{ flex: 1 }}>
+                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '12px' }}>
+                  <div style={{ marginBottom: '4px' }}>Office Room: <strong>{f.office}</strong></div>
+                  <div style={{ marginBottom: '4px' }}>Email: <strong>{f.email}</strong></div>
+                  <div>Consultation Slot: <strong>{f.consultation_hours}</strong></div>
+                </div>
+
+                <div>
+                  <div className="stat-label">Primary Courses:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px', marginBottom: '12px' }}>
+                    {f.courses.map((c, cIdx) => (
+                      <span key={cIdx} className="status-pill status-neutral" style={{ fontSize: '10px' }}>
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ width: '100%', fontSize: '12px', padding: '6px 12px' }}
+                  onClick={() => {
+                    setApptForm({
+                      ...apptForm,
+                      faculty_name: f.name,
+                      department: f.department
+                    });
+                    setActiveTab('appointments');
+                    setShowApptModal(true);
+                  }}
+                >
+                  Book Consultation Slot
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* MODAL: PUBLISH ANNOUNCEMENT */}
+      {showPublishModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Publish Official Notice / Announcement</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowPublishModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handlePublishNotification}>
+                <div className="form-group">
+                  <label>Announcement Title</label>
+                  <input
+                    type="text" className="form-input" placeholder="e.g. Schedule for Final Year Project Progress Review"
+                    value={publishForm.title} onChange={(e) => setPublishForm({ ...publishForm, title: e.target.value })} required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Notice Category</label>
+                    <select
+                      className="form-select"
+                      value={publishForm.category} onChange={(e) => setPublishForm({ ...publishForm, category: e.target.value })}
+                    >
+                      <option value="College Announcement">College Announcement</option>
+                      <option value="Examination">Examination Notification</option>
+                      <option value="Placement">Placement Drive</option>
+                      <option value="Assignment Reminder">Assignment Reminder</option>
+                      <option value="Attendance Alert">Attendance Alert</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Issuing Department</label>
+                    <input
+                      type="text" className="form-input"
+                      value={publishForm.department} onChange={(e) => setPublishForm({ ...publishForm, department: e.target.value })} required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Priority Level</label>
+                    <select
+                      className="form-select"
+                      value={publishForm.priority} onChange={(e) => setPublishForm({ ...publishForm, priority: e.target.value })}
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="High">High</option>
+                      <option value="Urgent">Urgent</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Target Audience</label>
+                    <select
+                      className="form-select"
+                      value={publishForm.target_role} onChange={(e) => setPublishForm({ ...publishForm, target_role: e.target.value })}
+                    >
+                      <option value="all">Entire College</option>
+                      <option value="student">Students Only</option>
+                      <option value="faculty">Faculty Only</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Announcement Details & Body</label>
+                  <textarea
+                    rows="4" className="form-textarea" placeholder="Enter complete circular text, instructions, and deadlines..."
+                    value={publishForm.content} onChange={(e) => setPublishForm({ ...publishForm, content: e.target.value })} required
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setShowPublishModal(false)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading}>Publish Circular</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: REQUEST FACULTY APPOINTMENT */}
+      {showApptModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '520px' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Book Faculty Consultation Slot</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowApptModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleRequestAppointment}>
+                <div className="form-group">
+                  <label>Choose Faculty Member</label>
+                  <select
+                    className="form-select"
+                    value={apptForm.faculty_name}
+                    onChange={(e) => {
+                      const selected = facultyList.find(f => f.name === e.target.value);
+                      setApptForm({
+                        ...apptForm,
+                        faculty_name: e.target.value,
+                        department: selected ? selected.department : apptForm.department
+                      });
+                    }}
+                    required
+                  >
+                    {facultyList.map((f, idx) => (
+                      <option key={idx} value={f.name}>
+                        {f.name} ({f.department})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Preferred Date</label>
+                    <input
+                      type="date" className="form-input"
+                      value={apptForm.requested_date}
+                      onChange={(e) => setApptForm({ ...apptForm, requested_date: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Time Slot</label>
+                    <select
+                      className="form-select"
+                      value={apptForm.requested_slot}
+                      onChange={(e) => setApptForm({ ...apptForm, requested_slot: e.target.value })}
+                    >
+                      <option value="09:30 AM - 10:00 AM">09:30 AM - 10:00 AM</option>
+                      <option value="10:30 AM - 11:00 AM">10:30 AM - 11:00 AM</option>
+                      <option value="02:00 PM - 02:30 PM">02:00 PM - 02:30 PM</option>
+                      <option value="04:00 PM - 04:30 PM">04:00 PM - 04:30 PM</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Consultation Agenda / Purpose</label>
+                  <textarea
+                    rows="3" className="form-textarea" placeholder="Detail what you would like to discuss (e.g. project review, doubt solving)..."
+                    value={apptForm.purpose} onChange={(e) => setApptForm({ ...apptForm, purpose: e.target.value })} required
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setShowApptModal(false)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading}>Submit Request</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 16. PERFORMANCE ANALYTICS MODULE
+// ==========================================================
+export function PerformanceAnalyticsView() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  useEffect(() => {
+    apiRequest('/analytics')
+      .then(setData)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading || !data) {
+    return <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Calculating academic performance metrics and visual analytics...</div>;
+  }
+
+  // Visual Chart Coordinates Math
+  const sgpaList = data.sgpa_history || [];
+  const chartWidth = 600;
+  const chartHeight = 220;
+  const paddingX = 50;
+  const paddingY = 40;
+  const plotWidth = chartWidth - paddingX * 2;
+  const plotHeight = chartHeight - paddingY * 2;
+
+  // Y Scale: 7.0 to 10.0
+  const minY = 7.0;
+  const maxY = 10.0;
+  const getY = (val) => chartHeight - paddingY - ((val - minY) / (maxY - minY)) * plotHeight;
+  const getX = (idx) => paddingX + (idx / Math.max(1, sgpaList.length - 1)) * plotWidth;
+
+  const sgpaPoints = sgpaList.map((s, idx) => `${getX(idx)},${getY(s.sgpa)}`).join(' ');
+  const cgpaPoints = sgpaList.map((s, idx) => `${getX(idx)},${getY(s.cgpa)}`).join(' ');
+
+  return (
+    <div>
+      {/* Banner */}
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Comprehensive Academic Performance Analytics</div>
+          <div className="banner-sub">
+            Multi-semester SGPA & CGPA progression graphs, subject-wise attendance threshold analysis, marks mastery breakdown, and diagnostic reports.
+          </div>
+        </div>
+      </div>
+
+      {/* Top Level Metric Cards */}
+      <div className="dashboard-stats-grid" style={{ marginBottom: '16px' }}>
+        <div className="stat-card">
+          <div className="stat-label">Current Semester SGPA</div>
+          <div className="stat-value" style={{ color: '#1e3a8a' }}>{Number(data.current_sgpa).toFixed(2)}</div>
+          <div className="stat-sub">Semester 6 examinations</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Cumulative CGPA</div>
+          <div className="stat-value" style={{ color: '#16a34a' }}>{Number(data.cumulative_cgpa).toFixed(2)}</div>
+          <div className="stat-sub">Overall Degree Benchmark</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Overall Lecture Attendance</div>
+          <div className="stat-value" style={{ color: data.overall_attendance_pct >= 85 ? '#16a34a' : '#d97706' }}>
+            {data.overall_attendance_pct}%
+          </div>
+          <div className="stat-sub">Mandatory threshold: 75%</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Subject Score Average</div>
+          <div className="stat-value">{data.overall_marks_avg}%</div>
+          <div className="stat-sub">{data.academic_standing}</div>
+        </div>
+      </div>
+
+      {/* Improvement / Trend Diagnosis Banner */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className={`status-pill ${data.trend.direction === 'Improvement' ? 'status-success' : data.trend.direction === 'Decline' ? 'status-danger' : 'status-neutral'}`}>
+                {data.trend.direction.toUpperCase()}
+              </span>
+              <strong style={{ fontSize: '14px', color: '#0f172a' }}>{data.trend.label}</strong>
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+              Degree Standing: <strong>{data.academic_standing}</strong> | Total Completed Credits: <strong>128</strong>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setShowReportModal(true)}
+          >
+            Generate Academic Performance Report
+          </button>
+        </div>
+      </div>
+
+      {/* GRAPH 1: SEMESTER SGPA & CGPA PROGRESSION (SVG CHART) */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-header">
+          <h3 className="panel-card-title">Semester-wise SGPA and Cumulative CGPA Progress</h3>
+          <div style={{ display: 'flex', gap: '16px', fontSize: '11px' }}>
+            <span style={{ color: '#2563eb' }}><strong>- - -</strong> SGPA Progression</span>
+            <span style={{ color: '#4f46e5' }}><strong>---</strong> Cumulative CGPA</span>
+            <span style={{ color: '#16a34a' }}><strong>...</strong> 9.0 Distinction Line</span>
+          </div>
+        </div>
+        <div className="panel-card-body" style={{ overflowX: 'auto', textAlign: 'center' }}>
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ width: '100%', maxWidth: '750px', height: 'auto' }}>
+            {/* Horizontal Gridlines */}
+            {[7.0, 8.0, 9.0, 10.0].map((val) => {
+              const y = getY(val);
+              return (
+                <g key={val}>
+                  <line x1={paddingX} y1={y} x2={chartWidth - paddingX} y2={y} stroke={val === 9.0 ? '#86efac' : '#e2e8f0'} strokeWidth={val === 9.0 ? '1.5' : '1'} strokeDasharray={val === 9.0 ? '4 4' : 'none'} />
+                  <text x={paddingX - 10} y={y + 4} textAnchor="end" fontSize="10" fill="#64748b">{val.toFixed(1)}</text>
+                </g>
+              );
+            })}
+
+            {/* X-Axis Semester Labels */}
+            {sgpaList.map((s, idx) => {
+              const x = getX(idx);
+              return (
+                <text key={idx} x={x} y={chartHeight - 12} textAnchor="middle" fontSize="11" fill="#475569" fontWeight="bold">
+                  {s.semester}
+                </text>
+              );
+            })}
+
+            {/* SGPA Polyline (Solid Blue) */}
+            <polyline fill="none" stroke="#2563eb" strokeWidth="2.5" points={sgpaPoints} />
+
+            {/* CGPA Polyline (Dashed Indigo) */}
+            <polyline fill="none" stroke="#4f46e5" strokeWidth="2" strokeDasharray="5 3" points={cgpaPoints} />
+
+            {/* Nodes and Values */}
+            {sgpaList.map((s, idx) => {
+              const x = getX(idx);
+              const ySgpa = getY(s.sgpa);
+              const yCgpa = getY(s.cgpa);
+              return (
+                <g key={idx}>
+                  {/* SGPA Circle */}
+                  <circle cx={x} cy={ySgpa} r="4.5" fill="#2563eb" stroke="#ffffff" strokeWidth="2" />
+                  <text x={x} y={ySgpa - 8} textAnchor="middle" fontSize="10" fill="#1e3a8a" fontWeight="bold">
+                    {s.sgpa.toFixed(2)}
+                  </text>
+
+                  {/* CGPA Square */}
+                  <rect x={x - 3.5} y={yCgpa - 3.5} width="7" height="7" fill="#4f46e5" />
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+        {/* GRAPH 2: SUBJECT-WISE ATTENDANCE COMPARISON (SVG BARS) */}
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <div>
+              <h3 className="panel-card-title">Subject-wise Attendance Comparison</h3>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>Dotted lines: 75% Mandatory, 85% Honors Benchmark</div>
+            </div>
+          </div>
+          <div className="panel-card-body">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {(data.subject_attendance || []).map((sub, idx) => {
+                const isCritical = sub.percentage < 75.0;
+                const isWarning = sub.percentage >= 75.0 && sub.percentage < 85.0;
+                const barColor = isCritical ? '#dc2626' : isWarning ? '#d97706' : '#16a34a';
+
+                return (
+                  <div key={idx}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                      <strong>{sub.code}: {sub.subject}</strong>
+                      <span style={{ fontWeight: 'bold', color: barColor }}>
+                        {sub.percentage}% ({sub.attended_classes + sub.od_classes}/{sub.total_classes} hrs)
+                      </span>
+                    </div>
+
+                    {/* Progress Bar Container with 75% and 85% markers */}
+                    <div style={{ position: 'relative', width: '100%', height: '14px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.min(100, sub.percentage)}%`, height: '100%', backgroundColor: barColor, borderRadius: '4px' }} />
+                      {/* 75% Marker */}
+                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: '75%', width: '1.5px', background: '#dc2626', opacity: 0.6 }} />
+                      {/* 85% Marker */}
+                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: '85%', width: '1.5px', background: '#16a34a', opacity: 0.8 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* GRAPH 3: SUBJECT MARKS MASTERY (SVG GROUPED BARS) */}
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <div>
+              <h3 className="panel-card-title">Subject Marks Mastery (Current Semester)</h3>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>Internal (30) | Lab (20) | External (50) | Total (100)</div>
+            </div>
+          </div>
+          <div className="panel-card-body">
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Course</th>
+                    <th>Internal /30</th>
+                    <th>Lab /20</th>
+                    <th>External /50</th>
+                    <th>Total /100</th>
+                    <th>Grade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.subject_marks || []).map((m, idx) => (
+                    <tr key={idx}>
+                      <td>
+                        <strong>{m.code}</strong>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>{m.subject}</div>
+                      </td>
+                      <td>{m.internal_marks}</td>
+                      <td>{m.lab_marks}</td>
+                      <td>{m.external_marks}</td>
+                      <td><strong>{m.total_marks}</strong></td>
+                      <td><span className="status-pill status-success">{m.grade}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ACTIONABLE DIAGNOSTIC CARDS: LOW ATTENDANCE & MARKS IMPROVEMENT */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
+        {/* Low Attendance Action Card */}
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Attendance Risk & Recovery Plan</h3>
+            <span className="status-pill status-warning">Action Required</span>
+          </div>
+          <div className="panel-card-body">
+            {(!data.low_attendance_alerts || data.low_attendance_alerts.length === 0) ? (
+              <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '4px', color: '#166534', fontSize: '12px' }}>
+                All course registrations comfortably exceed the institutional 85% attendance standard.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {data.low_attendance_alerts.map((al, idx) => (
+                  <div key={idx} style={{ background: '#fef2f2', borderLeft: '3px solid #dc2626', padding: '10px', borderRadius: '2px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold', color: '#991b1b' }}>
+                      <span>{al.code}: {al.subject}</span>
+                      <span>{al.percentage}%</span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#7f1d1d', marginTop: '4px', lineHeight: '1.4' }}>
+                      {al.message}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Marks Improvement Action Card */}
+        <div className="panel-card">
+          <div className="panel-card-header">
+            <h3 className="panel-card-title">Academic Marks Improvement Targets</h3>
+            <span className="status-pill status-neutral">Target &gt; 85%</span>
+          </div>
+          <div className="panel-card-body">
+            {(!data.marks_improvement_alerts || data.marks_improvement_alerts.length === 0) ? (
+              <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '4px', color: '#166534', fontSize: '12px' }}>
+                Outstanding performance across all enrolled theory and laboratory subjects (All scores &ge; 80%).
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {data.marks_improvement_alerts.map((al, idx) => (
+                  <div key={idx} style={{ background: '#fffbeb', borderLeft: '3px solid #d97706', padding: '10px', borderRadius: '2px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold', color: '#92400e' }}>
+                      <span>{al.code}: {al.subject}</span>
+                      <span>Score: {al.total_marks}/100 ({al.grade})</span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#78350f', marginTop: '4px', lineHeight: '1.4' }}>
+                      {al.suggestion}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* MODAL: ACADEMIC PERFORMANCE REPORT */}
+      {showReportModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '92%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Official Academic Performance & Evaluation Report</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowReportModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              {/* Institution Header */}
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: '12px', marginBottom: '14px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: '0' }}>APEX INSTITUTE OF ENGINEERING AND TECHNOLOGY</h2>
+                <div style={{ fontSize: '12px', color: '#475569' }}>Autonomous Institution | Approved by AICTE & Affiliated to University</div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '6px' }}>STUDENT ACADEMIC APPRAISAL CARD</div>
+              </div>
+
+              {/* Student Metadata Card */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: '#f8fafc', padding: '10px', borderRadius: '4px', fontSize: '12px', marginBottom: '14px' }}>
+                <div>Student Name: <strong>{data.student.name}</strong></div>
+                <div>University Seat No (USN): <strong>{data.student.usn}</strong></div>
+                <div>Department: <strong>{data.student.department}</strong></div>
+                <div>Semester: <strong>Semester {data.student.semester} ({data.student.batch})</strong></div>
+                <div>Cumulative CGPA: <strong>{Number(data.cumulative_cgpa).toFixed(2)}</strong></div>
+                <div>Academic Standing: <strong>{data.academic_standing}</strong></div>
+              </div>
+
+              {/* Multi-Semester Progress Table */}
+              <h4 style={{ fontSize: '13px', marginBottom: '6px' }}>Semester Grade Point History</h4>
+              <div className="table-responsive" style={{ marginBottom: '14px' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Semester</th>
+                      <th>Credits</th>
+                      <th>Grade Points</th>
+                      <th>Semester SGPA</th>
+                      <th>Cumulative CGPA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data.sgpa_history || []).map((s, idx) => (
+                      <tr key={idx}>
+                        <td><strong>{s.semester}</strong></td>
+                        <td>{s.credits}</td>
+                        <td>{s.grade_points}</td>
+                        <td><strong>{s.sgpa.toFixed(2)}</strong></td>
+                        <td><strong>{s.cgpa.toFixed(2)}</strong></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Current Semester Performance Summary */}
+              <h4 style={{ fontSize: '13px', marginBottom: '6px' }}>Current Semester Subject Assessment</h4>
+              <div className="table-responsive" style={{ marginBottom: '14px' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Course Code</th>
+                      <th>Course Title</th>
+                      <th>Internal /30</th>
+                      <th>External /50</th>
+                      <th>Total /100</th>
+                      <th>Grade</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data.subject_marks || []).map((m, idx) => (
+                      <tr key={idx}>
+                        <td><strong>{m.code}</strong></td>
+                        <td>{m.subject}</td>
+                        <td>{m.internal_marks + m.lab_marks}</td>
+                        <td>{m.external_marks}</td>
+                        <td><strong>{m.total_marks}</strong></td>
+                        <td>{m.grade}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Remarks */}
+              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', fontSize: '11px', color: '#475569', marginBottom: '14px' }}>
+                <strong>Faculty Advisor Endorsement: </strong>
+                Student consistently demonstrates outstanding academic rigor and analytical proficiency. Eligible for honors graduation with continuous distinction track.
+              </div>
+
+              {/* Print Action */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowReportModal(false)}>Close</button>
+                <button type="button" className="btn-primary" onClick={() => window.print()}>Print / Save PDF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================================
+// 17. FACULTY DOUBT PORTAL MODULE
+// ==========================================================
+export function FacultyDoubtPortalView({ userRole }) {
+  const [doubts, setDoubts] = useState([]);
+  const [subjectFilter, setSubjectFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+
+  // Submit Doubt Modal
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [doubtForm, setDoubtForm] = useState({
+    subject_code: 'CS601',
+    subject_name: 'Distributed Systems',
+    faculty_name: 'Dr. Ramesh Rao (Head of Systems)',
+    title: '',
+    question: ''
+  });
+  const [doubtFile, setDoubtFile] = useState(null);
+
+  // Response Modal State
+  const [respondingDoubt, setRespondingDoubt] = useState(null);
+  const [responseText, setResponseText] = useState('');
+  const [responseFile, setResponseFile] = useState(null);
+
+  const subjectsCatalog = [
+    { code: 'CS601', name: 'Distributed Systems', faculty: 'Dr. Ramesh Rao (Head of Systems)' },
+    { code: 'CS602', name: 'Machine Learning', faculty: 'Dr. Ramesh Rao (Head of Systems)' },
+    { code: 'CS603', name: 'Compiler Design', faculty: 'Prof. Anil Deshmukh' },
+    { code: 'CS604', name: 'Cloud Architecture', faculty: 'Dr. Ramesh Rao (Head of Systems)' },
+    { code: 'EC601', name: 'Embedded IoT Systems', faculty: 'Dr. Geetha S. (HoD ECE)' }
+  ];
+
+  const loadDoubts = async () => {
+    try {
+      setLoading(true);
+      let url = '/doubts?';
+      if (subjectFilter !== 'ALL') url += `subject=${encodeURIComponent(subjectFilter)}&`;
+      if (statusFilter !== 'ALL') url += `status=${encodeURIComponent(statusFilter)}&`;
+      if (searchTerm) url += `search=${encodeURIComponent(searchTerm)}&`;
+      const res = await apiRequest(url);
+      setDoubts(res.doubts || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load faculty doubts.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDoubts();
+  }, [subjectFilter, statusFilter]);
+
+  const handleSubmitDoubt = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      formData.append('subject_code', doubtForm.subject_code);
+      formData.append('subject_name', doubtForm.subject_name);
+      formData.append('faculty_name', doubtForm.faculty_name);
+      formData.append('title', doubtForm.title);
+      formData.append('question', doubtForm.question);
+      formData.append('usn', '1MS21CS084');
+      formData.append('student_name', 'Alex Kumar');
+      if (doubtFile) {
+        formData.append('attachment', doubtFile);
+      }
+
+      const res = await fetch('/api/doubts', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to post doubt');
+      setMsg(data.message);
+      setShowSubmitModal(false);
+      setDoubtForm({
+        subject_code: 'CS601',
+        subject_name: 'Distributed Systems',
+        faculty_name: 'Dr. Ramesh Rao (Head of Systems)',
+        title: '',
+        question: ''
+      });
+      setDoubtFile(null);
+      loadDoubts();
+    } catch (err) {
+      setError(err.message || 'Failed to submit doubt.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendResponse = async (e) => {
+    e.preventDefault();
+    if (!respondingDoubt || !responseText.trim()) return;
+    setMsg('');
+    setError('');
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      formData.append('response_text', responseText.trim());
+      formData.append('responder_name', userRole === 'faculty' ? 'Dr. Ramesh Rao (Head of Systems)' : 'Alex Kumar');
+      formData.append('responder_role', userRole === 'faculty' ? 'faculty' : 'student');
+      if (responseFile) {
+        formData.append('attachment', responseFile);
+      }
+
+      const res = await fetch(`/api/doubts/${respondingDoubt.id}/respond`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send response');
+      setMsg(data.message);
+      setRespondingDoubt(null);
+      setResponseText('');
+      setResponseFile(null);
+      loadDoubts();
+    } catch (err) {
+      setError(err.message || 'Failed to deliver response.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (doubtId, newStatus) => {
+    try {
+      const res = await apiRequest(`/doubts/${doubtId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus })
+      });
+      setMsg(res.message);
+      loadDoubts();
+    } catch (err) {
+      setError(err.message || 'Failed to update doubt status.');
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Submitted': return 'status-warning';
+      case 'Under Review': return 'status-primary';
+      case 'Answered': return 'status-success';
+      case 'Resolved': return 'status-neutral';
+      default: return 'status-neutral';
+    }
+  };
+
+  return (
+    <div>
+      {/* Banner */}
+      <div className="banner-card">
+        <div>
+          <div className="banner-title">Faculty Academic Doubt & Mentorship Portal</div>
+          <div className="banner-sub">
+            Direct course question submission to faculty, supporting attachments, status tracking, and structured instructor explanations.
+          </div>
+        </div>
+      </div>
+
+      {msg && <div className="alert-box alert-success" style={{ marginBottom: '16px' }}>{msg}</div>}
+      {error && <div className="alert-box alert-danger" style={{ marginBottom: '16px' }}>{error}</div>}
+
+      {/* Stats Counter Bar */}
+      <div className="dashboard-stats-grid" style={{ marginBottom: '16px' }}>
+        <div className="stat-card">
+          <div className="stat-label">Total Questions</div>
+          <div className="stat-value">{doubts.length}</div>
+          <div className="stat-sub">Submitted inquiries</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Resolved Doubts</div>
+          <div className="stat-value" style={{ color: '#16a34a' }}>
+            {doubts.filter(d => d.status === 'Resolved' || d.status === 'Answered').length}
+          </div>
+          <div className="stat-sub">Instructor solutions provided</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Pending / In Review</div>
+          <div className="stat-value" style={{ color: '#d97706' }}>
+            {doubts.filter(d => d.status === 'Submitted' || d.status === 'Under Review').length}
+          </div>
+          <div className="stat-sub">Awaiting faculty attention</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Active Instructors</div>
+          <div className="stat-value">4</div>
+          <div className="stat-sub">Course coordinators</div>
+        </div>
+      </div>
+
+      {/* Action and Filter Toolbar */}
+      <div className="panel-card" style={{ marginBottom: '16px' }}>
+        <div className="panel-card-body" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: '220px' }}>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search doubts by title, concept question, or faculty..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && loadDoubts()}
+            />
+          </div>
+
+          <div>
+            <select
+              className="form-select"
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+            >
+              <option value="ALL">All Subjects</option>
+              <option value="CS601">CS601: Distributed Systems</option>
+              <option value="CS602">CS602: Machine Learning</option>
+              <option value="CS603">CS603: Compiler Design</option>
+              <option value="CS604">CS604: Cloud Architecture</option>
+              <option value="EC601">EC601: Embedded IoT Systems</option>
+            </select>
+          </div>
+
+          <div>
+            <select
+              className="form-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="Submitted">Submitted</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Answered">Answered</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+          </div>
+
+          <button type="button" className="btn-secondary" onClick={loadDoubts}>Search</button>
+
+          <button type="button" className="btn-primary" onClick={() => setShowSubmitModal(true)}>
+            + Ask Academic Doubt
+          </button>
+        </div>
+      </div>
+
+      {/* Doubts Feed */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {doubts.length === 0 ? (
+          <div className="panel-card" style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+            No doubts match the selected subject or status filter.
+          </div>
+        ) : (
+          doubts.map((d) => (
+            <div key={d.id} className="panel-card">
+              <div className="panel-card-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span className="status-pill status-neutral">
+                    {d.subject_code}: {d.subject_name}
+                  </span>
+                  <span className={`status-pill ${getStatusBadge(d.status)}`}>
+                    {d.status}
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                    Submitted by: <strong>{d.student_name}</strong> ({d.usn}) | {d.created_at}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '12px', color: '#1e3a8a', fontWeight: 'bold' }}>
+                  Faculty: {d.faculty_name}
+                </div>
+              </div>
+
+              <div className="panel-card-body">
+                <h4 style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a', marginBottom: '6px' }}>
+                  {d.title}
+                </h4>
+
+                <p style={{ fontSize: '13px', color: '#334155', lineHeight: '1.5', marginBottom: '12px' }}>
+                  {d.question}
+                </p>
+
+                {d.attachment_file && (
+                  <div style={{ marginBottom: '12px' }}>
+                    <a
+                      href={`/uploads/${d.attachment_file}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-secondary"
+                      style={{ fontSize: '11px', padding: '4px 8px', textDecoration: 'none' }}
+                    >
+                      View Attached Supporting File
+                    </a>
+                  </div>
+                )}
+
+                {/* Conversation / Response Thread */}
+                {d.responses && d.responses.length > 0 && (
+                  <div style={{ marginTop: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '8px' }}>
+                      Faculty Explanations & Dialogue Thread ({d.responses.length}):
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {d.responses.map((resp) => (
+                        <div
+                          key={resp.id}
+                          style={{
+                            background: resp.responder_role === 'faculty' ? '#f0fdf4' : '#f8fafc',
+                            borderLeft: resp.responder_role === 'faculty' ? '3px solid #16a34a' : '3px solid #64748b',
+                            padding: '10px 12px',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>
+                            <strong>{resp.responder_name} ({resp.responder_role === 'faculty' ? 'Course Instructor' : 'Student'})</strong>
+                            <span>{resp.responded_at}</span>
+                          </div>
+                          <p style={{ fontSize: '13px', color: '#1e293b', margin: '0', lineHeight: '1.4' }}>
+                            {resp.response_text}
+                          </p>
+                          {resp.attachment_file && (
+                            <div style={{ marginTop: '6px' }}>
+                              <a
+                                href={`/uploads/${resp.attachment_file}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontSize: '11px', color: '#2563eb' }}
+                              >
+                                Download Response Attachment
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions Footer */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ padding: '6px 12px', fontSize: '12px' }}
+                    onClick={() => {
+                      setRespondingDoubt(d);
+                      setResponseText('');
+                      setResponseFile(null);
+                    }}
+                  >
+                    Reply to Doubt
+                  </button>
+
+                  {d.status !== 'Resolved' && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
+                      onClick={() => handleUpdateStatus(d.id, 'Resolved')}
+                    >
+                      Mark as Resolved
+                    </button>
+                  )}
+
+                  {(userRole === 'faculty' || userRole === 'admin') && d.status === 'Submitted' && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
+                      onClick={() => handleUpdateStatus(d.id, 'Under Review')}
+                    >
+                      Mark Under Review
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* MODAL: SUBMIT DOUBT */}
+      {showSubmitModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Submit Academic Doubt to Course Instructor</h3>
+              <button type="button" className="btn-secondary" onClick={() => setShowSubmitModal(false)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <form onSubmit={handleSubmitDoubt}>
+                <div className="form-group">
+                  <label>Select Course Subject</label>
+                  <select
+                    className="form-select"
+                    value={doubtForm.subject_code}
+                    onChange={(e) => {
+                      const sel = subjectsCatalog.find(s => s.code === e.target.value);
+                      setDoubtForm({
+                        ...doubtForm,
+                        subject_code: e.target.value,
+                        subject_name: sel ? sel.name : doubtForm.subject_name,
+                        faculty_name: sel ? sel.faculty : doubtForm.faculty_name
+                      });
+                    }}
+                    required
+                  >
+                    {subjectsCatalog.map(s => (
+                      <option key={s.code} value={s.code}>
+                        {s.code}: {s.name} (Faculty: {s.faculty})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Assigned Course Instructor</label>
+                  <input
+                    type="text" className="form-input" readOnly
+                    value={doubtForm.faculty_name}
+                    style={{ backgroundColor: '#f1f5f9' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Doubt Title / Concept Topic</label>
+                  <input
+                    type="text" className="form-input" placeholder="e.g. Quorum consensus partitioning question"
+                    value={doubtForm.title} onChange={(e) => setDoubtForm({ ...doubtForm, title: e.target.value })} required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Detailed Question Explanation</label>
+                  <textarea
+                    rows="4" className="form-textarea" placeholder="Detail the specific code segment, theorem, or homework step you need guidance with..."
+                    value={doubtForm.question} onChange={(e) => setDoubtForm({ ...doubtForm, question: e.target.value })} required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Supporting Image or Document (Optional: PDF, PNG, JPG, DOC)</label>
+                  <input
+                    type="file" className="form-input"
+                    onChange={(e) => setDoubtFile(e.target.files[0] || null)}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setShowSubmitModal(false)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading}>Submit to Faculty</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RESPOND TO DOUBT */}
+      {respondingDoubt && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="panel-card" style={{ width: '90%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="panel-card-header">
+              <h3 className="panel-card-title">Reply: {respondingDoubt.title}</h3>
+              <button type="button" className="btn-secondary" onClick={() => setRespondingDoubt(null)}>Close</button>
+            </div>
+            <div className="panel-card-body">
+              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '12px' }}>
+                <div>Course: <strong>{respondingDoubt.subject_code} - {respondingDoubt.subject_name}</strong></div>
+                <div>Original Question: <em>{respondingDoubt.question}</em></div>
+              </div>
+
+              <form onSubmit={handleSendResponse}>
+                <div className="form-group">
+                  <label>Your Explanation / Solution</label>
+                  <textarea
+                    rows="4" className="form-textarea" placeholder="Enter your detailed technical explanation, algorithmic derivation, or feedback..."
+                    value={responseText} onChange={(e) => setResponseText(e.target.value)} required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Attach Solution Document or Reference (Optional)</label>
+                  <input
+                    type="file" className="form-input"
+                    onChange={(e) => setResponseFile(e.target.files[0] || null)}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setRespondingDoubt(null)}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={loading || !responseText.trim()}>Post Response</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

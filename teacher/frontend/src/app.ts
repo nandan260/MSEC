@@ -2,6 +2,7 @@ import { icon } from './icons.js';
 import { seedData, saveAttendance, gradeSubmission, toCSV, atRisk, today, uid } from './model.js';
 import { storeFiles, getFile } from './files.js';
 import * as v from './views.js';
+import { layoutWorkspace } from './workspace.js';
 import type { AppState, AttendanceStatus, Filters } from './types.js';
 
 const { esc, button, badge, person, table, selectClasses, fmt, className, cls, empty } = v;
@@ -219,6 +220,7 @@ function render(): void {
     `<footer class="footer"><span>${icon(
       'cap'
     )}A little more organized. A lot more possibility.</span><span><i class="dot"></i>Demo workspace · Data saved in this browser</span></footer>`;
+  layoutWorkspace(el, route, routes[route]);
   document.querySelectorAll<HTMLElement>('[data-route]').forEach((a) => {
     a.classList.toggle('active', a.dataset.route === route);
     if (a.dataset.route === route && a.closest('details')) {

@@ -1,0 +1,17 @@
+services:
+  frontend:
+    build:
+      context: .
+      target: frontend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-4180}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      target: backend
+    restart: unless-stopped

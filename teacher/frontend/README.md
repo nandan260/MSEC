@@ -46,8 +46,20 @@ No live MSEC authentication, shared database, remote exam delivery, external mes
 
 `dist/model.js`: domain functions and sample data. `dist/views.js`: escaped UI templates. `dist/app.js`: routing, forms and mutations. `dist/files.js`: attachment storage. `dist/icons.js`: inline SVG icons. `dist/styles.css`: responsive design.
 
-## Screenshot-led design
+## Blender dashboard design
 
-Desktop now uses a centered gray canvas, rounded compact application frame, grouped/collapsible navigation, seven-day teaching-load chart and card carousel. The overview fits standard laptop screens; smaller displays stack panels. Navigation keeps all 17 modules available. Fonts and demo portraits ship locally. The primary chart reflects assigned weekly sessions, scheduled assessments and current pending evaluations; zero counts draw no bars.
+The overview uses a warm ivory workspace, Blender-rendered desk illustration,
+raised panels, a dimensional faculty pass and responsive teaching cards.
+The sidebar retains all 17 modules; the seven-day chart reflects actual assigned
+sessions, assessments and pending evaluations. Each route fits the viewport; long records scroll inside panels. The overview
+groups activity, insights and workspace shortcuts into keyboard-accessible tabs. Labels support text enlargement, keyboard focus stays visible,
+and reduced-motion preferences disable transitions.
 
-Run `node scripts/reference-layout-qa.mjs` and `node scripts/weekly-chart-qa.mjs` for geometry, sidebar naming, zero-value data bars and short-screen control checks. These run in `npm run qa`.
+Editable artwork and full dashboard Blender scenes live in `../design/blender/`.
+The full scene is a static visual mockup; browser controls and records stay live.
+
+Run `node scripts/reference-layout-qa.mjs` and `node scripts/weekly-chart-qa.mjs`
+for artwork, shortcuts, sidebar naming, responsive overflow, 200% text,
+keyboard focus, reduced motion, zero-value chart bars and short-screen controls.
+These run in `npm run qa`. Run `npm run qa:viewport` to verify all 17 routes
+at desktop, laptop, tablet, phone and short-screen sizes.

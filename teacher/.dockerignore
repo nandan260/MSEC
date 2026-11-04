@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/artifacts
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/.env
+**/.env.*
+backend/dist
+**/.openai
+**/docs

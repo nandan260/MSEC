@@ -218,9 +218,17 @@ export function overview(s: AppState): string {
   const safe = s.students.filter((x) => !atRisk(x)).length;
   const active = s.students.filter((x) => x.score >= 85).length;
   const due = s.assignments.filter((a) => a.status === 'Published').length;
-  return `<h1 class="sr-only">Teaching overview</h1>
+  return `<section class="desk-hero" aria-labelledby="overview-title">
+    <div class="desk-hero-copy"><span class="desk-eyebrow">${icon('sun')} Your teaching workspace</span>
+    <p class="desk-greeting">Welcome back, ${esc(s.profile.name)}.</p>
+    <h1 id="overview-title">Teaching overview</h1>
+    <p class="desk-intro">A clear desk. A fresh perspective.<br>More space for the work that matters.</p>
+    <div class="desk-hero-actions"><a class="btn primary" href="#timetable">${icon('calendar')} View timetable</a><a class="btn desk-secondary" href="#attendance">Take attendance ${icon('arrow')}</a></div>
+    </div><div class="desk-hero-scene" aria-hidden="true"><div class="desk-orbit"></div><img src="assets/teacher-desk-3d.png" width="1120" height="840" alt="" fetchpriority="high"><span class="desk-scene-label">A little more headspace.</span></div>
+  </section>
+  <div class="desk-section-heading"><div><h2>Your week at a glance</h2><p>Classes, progress and the next small step.</p></div><a class="text-link" href="#reports">View reports ${icon('arrow')}</a></div>
   <div class="finance-grid"><div class="finance-main">
-    <section class="performance-board"><div class="performance-graph"><div class="performance-title"><div><div class="headline-number">${s.classes.reduce(
+    <section class="performance-board" aria-label="Weekly teaching activity"><div class="performance-graph"><div class="performance-title"><div><div class="headline-number">${s.classes.reduce(
       (n, c) => n + c.days.length,
       0
     )}</div><p>Weekly teaching overview</p></div><a class="btn" href="#analytics">This semester ${icon(
