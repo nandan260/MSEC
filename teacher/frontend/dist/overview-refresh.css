@@ -1,0 +1,151 @@
+/* Calm paper surfaces; colour identifies a teaching activity, never replaces its label. */
+:root {
+  --overview-green: #356546;
+  --overview-amber: #815515;
+  --overview-coral: #98472f;
+  --overview-blue: #315e8b;
+  --overview-violet: #6a478e;
+}
+#app .brand { min-width: 0; gap: 10px; }
+#app .brand-mark {
+  display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 44px;
+  background: #fff; border: 1px solid #e2e6d9; border-radius: 12px;
+  box-shadow: 0 2px 4px #233e3110;
+}
+#app .brand-mark img { display: block; width: 30px; height: 30px; object-fit: contain; }
+#app .brand > span:last-child { min-width: 0; }
+#app .brand strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1.0625rem; }
+#app.sidebar-collapsed .brand-mark { display: grid; }
+#app.sidebar-collapsed .brand > span:last-child { display: none; }
+#app.sidebar-collapsed .brand { margin-inline: 0; }
+#app .sidebar-promo { box-shadow: none; }
+#app .sidebar-promo > .icon { color: var(--overview-violet); background: #eee6f6; }
+#app .nav-link[href="#ai"] > .icon,
+#app .nav-group:has(a[href="#materials"]) > summary > .icon:first-child { color: var(--overview-violet); }
+
+#app .content[data-page="overview"] { gap: 16px; padding: 24px; }
+#app .content[data-page="overview"] .desk-hero { box-shadow: none; border: 1px solid #dfe5d2; }
+#app .overview-section { gap: 24px; }
+#app .overview-group-today { grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr); }
+#app .overview-section .panel,
+#app .overview-section .performance-board { box-shadow: 0 2px 6px #233e3106; border-color: #e2e6d9; border-radius: 18px; }
+#app .overview-section .panel { padding: 24px; }
+#app .overview-section .panel-header { margin-bottom: 16px; }
+#app .overview-section .panel-header h2 { font-size: 1rem; }
+#app .overview-section .panel-header p { margin-top: 8px; }
+#app .workspace-tabs { background: transparent; gap: 8px; padding: 0; }
+#app .workspace-tabs button { min-height: 44px; padding: 10px 24px; position: relative; }
+#app .workspace-tabs button[aria-selected="true"] { box-shadow: none; background: #e8eedf; }
+#app .workspace-tabs button[aria-selected="true"]::after {
+  content: ''; position: absolute; height: 3px; bottom: 0; left: 24px; right: 24px;
+  border-radius: 3px; background: var(--overview-green);
+}
+#app #overview-tab-insights[aria-selected="true"]::after { background: var(--overview-blue); }
+#app #overview-tab-workspace[aria-selected="true"]::after { background: var(--overview-violet); }
+#app .overview-group-today .performance-board { grid-template-columns: minmax(0, 1fr) 176px; }
+#app .performance-graph { padding: 24px; box-shadow: none; border-radius: 0; }
+#app .performance-title { margin-bottom: 12px; }
+#app .performance-title p { font-size: .8125rem; }
+#app .performance-title .btn { min-height: 44px; font-size: .75rem; }
+#app .week-legend { gap: 12px; margin: 0 0 12px; font-size: .75rem; color: #53604e; flex-wrap: wrap; }
+#app .week-legend i { width: 8px; height: 8px; border-radius: 2px; }
+#app .key-green { background: #64975b; }
+#app .key-yellow { background: #d59b36; }
+#app .key-orange { background: #d77957; }
+#app .week-chart-wrap { min-height: 120px; }
+#app .week-chart { min-height: 120px; overflow: hidden; }
+#app .week-chart text { fill: #53604e; font-size: 12px; }
+#app .week-column.is-today text { fill: #234c3b; font-weight: 750; text-decoration: underline; }
+#app .week-column:focus-visible .week-bar { stroke: #233e31; stroke-width: 2; }
+#app .metric-stack { background: #f8f9f2; padding: 24px 16px; gap: 16px; border-left: 1px solid #e2e6d9; }
+#app .metric-stack > div { display: grid; grid-template-columns: 32px minmax(0, 1fr); column-gap: 8px; align-content: center; align-items: center; }
+#app .metric-stack > div > span { font-size: .75rem; color: #53604e; line-height: 1.5; }
+#app .metric-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #e5eef8; color: var(--overview-blue); }
+#app .metric-icon .icon { width: 18px; height: 18px; }
+#app .metric-stack strong { grid-column: 2; font-size: 1.75rem; margin: 4px 0 0; font-variant-numeric: tabular-nums; letter-spacing: -.5px; color: var(--overview-blue); }
+#app .metric-stack small { grid-column: 1 / -1; }
+#app .metric-performance .metric-icon { background: #e7efdf; color: var(--overview-green); }
+#app .metric-performance strong { color: var(--overview-green); }
+#app .metric-pending .metric-icon { background: #f9e9e2; color: var(--overview-coral); }
+#app .metric-pending strong { color: var(--overview-coral); }
+#app .schedule-labels { font-size: .75rem; color: #53604e; margin-bottom: 8px; }
+#app .schedule-row { padding-block: 16px; gap: 12px; border-bottom: 1px solid #edf0e5; flex-wrap: nowrap; }
+#app .schedule-row > div > button:first-child { font-size: .8125rem; line-height: 1.5; color: #233e31; }
+#app .schedule-row small, #app .schedule-hour small { font-size: .75rem; color: #53604e; }
+#app .schedule-hour { font-size: .8125rem; min-width: 48px; font-variant-numeric: tabular-nums; color: #233e31; }
+#app .schedule-logo { width: 36px; height: 36px; border-radius: 10px; background: #e7efdf; color: var(--overview-green); }
+#app .schedule-logo.segment-1 { background: #e7efdf; color: var(--overview-green); }
+#app .schedule-logo.neutral { background: #fbefd7; color: var(--overview-amber); }
+#app .schedule-row .schedule-attendance {
+  display: inline-flex; min-height: 36px; padding: 6px 10px; margin-top: 8px;
+  border: 1px solid #bbcbb5; border-radius: 8px; background: #f8faf3;
+  font-size: .75rem; font-weight: 600; color: #234c3b; gap: 8px;
+}
+#app .schedule-row .schedule-attendance:hover { background: #e7efdf; text-decoration: underline; }
+#app .schedule-attendance .icon { width: 14px; height: 14px; }
+#app .upcoming-label { margin-top: 16px; padding-top: 16px; border-top: 0; }
+#app .upcoming-label .badge { color: var(--overview-amber); background: #fbefd7; font-size: .75rem; }
+#app .schedule-footer, #app .task-foot { margin-top: 16px; padding-top: 16px; border-top: 0; }
+#app .overview-section .text-link { color: #234c3b; text-decoration: underline; text-underline-offset: 3px; min-height: 44px; font-size: .75rem; }
+#app .overview-tasks .task-row { display: flex; width: 100%; padding: 8px 0; }
+#app .overview-tasks .task-row label { display: flex; align-items: center; min-height: 36px; font-size: .875rem; }
+#app .overview-tasks .task-row > button { width: 36px; height: 36px; }
+#app .overview-tasks .badge.gray { background: #f9e9e2; color: var(--overview-coral); font-size: .75rem; }
+#app .teaching-tip .text-link { color: var(--overview-violet); }
+
+/* Preserve the fixed workspace: shorter windows scroll within their cards. */
+@media (max-width: 1240px) and (min-width: 741px) {
+  #app .overview-section { gap: 16px; }
+  #app .overview-section .panel, #app .performance-graph { padding: 16px; }
+  #app .overview-group-today .performance-board { grid-template-columns: minmax(0, 1fr); }
+  #app .metric-stack { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-left: 0; border-top: 1px solid #e2e6d9; padding: 12px; gap: 12px; }
+  #app .metric-stack > div { grid-template-columns: minmax(0, 1fr); }
+  #app .metric-stack strong { grid-column: 1; }
+  #app .metric-icon { display: grid; }
+}
+@media (max-height: 800px) and (min-width: 741px) {
+  #app .content[data-page="overview"] { padding: 16px 24px; gap: 12px; }
+  #app .overview-section { gap: 16px; }
+  #app .overview-section .panel, #app .performance-graph { padding: 16px; }
+  #app .metric-stack { padding: 16px 12px; }
+}
+@media (max-width: 740px) {
+  #app .content[data-page="overview"] { padding: 12px; gap: 12px; }
+  #app .overview-section { gap: 16px; }
+  #app .overview-section .panel, #app .performance-graph { padding: 16px; }
+  #app .overview-group-today .performance-board { grid-template-columns: minmax(0, 1fr); }
+  #app .week-chart-wrap, #app .week-chart { min-height: 180px; }
+  #app .week-legend { font-size: .75rem; gap: 12px; }
+  #app .metric-stack { padding: 16px; gap: 12px; border-left: 0; }
+  #app .metric-stack > div { grid-template-columns: minmax(0, 1fr); align-content: start; row-gap: 8px; }
+  #app .metric-stack strong { grid-column: 1; font-size: 1.5rem; }
+  #app .metric-stack > div > span { font-size: .75rem; }
+  #app .desk-greeting { font-size: .75rem; }
+  #app .desk-hero-actions .btn { min-height: 44px; font-size: .75rem; padding-inline: 10px; }
+  #app .workspace-tabs button { min-height: 44px; padding-inline: 12px; }
+  #app .overview-section :is(button, .mini-icon, .icon-button) { min-height: 44px; }
+  #app .overview-section :is(.mini-icon, .icon-button) { min-width: 44px; }
+  #app .overview-tasks .task-row > button { width: 44px; height: 44px; flex-shrink: 0; }
+  #app .overview-tasks .task-row label { min-height: 44px; }
+  #app .schedule-row .schedule-attendance { min-height: 44px; }
+  #app .top-actions > .icon-button, #app .mobile-menu, #app .top-profile, #app .btn.header-create { min-width: 44px; min-height: 44px; }
+  #app .subnav .nav-link { min-height: 44px; }
+  #app .student-faces small, #app .quick-actions > *, #app .overview-section .section-note { font-size: .75rem; }
+}
+
+/* Supporting text retains a readable size on phones. */
+@media (max-width: 740px) {
+  #app .overview-section :is(.health-sub, .mini-value > span, .health-gauge > small, .pass-top > span, .pass-bottom small) { font-size: .75rem; }
+}
+
+/* Reserve header and footer space; only the task collection may shrink and scroll. */
+#app .overview-section .overview-tasks {
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+#app .overview-tasks > .panel-header,
+#app .overview-tasks > .task-foot { flex: 0 0 auto; }
+#app .overview-tasks > .task-list {
+  flex: 1 1 0; min-height: 0; overflow: auto;
+  scrollbar-width: thin; scrollbar-color: #9aaa8c #edf0e5;
+}
+#app .overview-tasks > .task-foot { margin-top: 8px; padding-top: 0; }

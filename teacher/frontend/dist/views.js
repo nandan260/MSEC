@@ -50,28 +50,30 @@ function weeklyChart(s) {
             review: i === day ? reviews : 0
         };
     });
-    const ceiling = Math.max(4, ...columns.map((c) => c.sessions + c.exams));
-    const scale = 180 / (ceiling + Math.max(1, reviews)), baseline = 30 + ceiling * scale;
-    return `<div class="week-legend"><span><i class="key-yellow"></i>Assessments</span><span><i class="key-green"></i>Classes</span><span><i class="key-orange"></i>To review</span></div><div class="week-chart-wrap"><svg class="week-chart" preserveAspectRatio="none" viewBox="0 0 560 270" role="img" aria-label="Weekly timetable: ${columns
+    // Text stays in CSS pixels; only the nested bar graphics use a scaled viewBox.
+    // A shared baseline and a scale that includes every series keep all stacks above zero.
+    const ceiling = Math.max(4, ...columns.map((c) => c.sessions + c.exams + c.review));
+    const scale = 172 / ceiling, baseline = 190;
+    return `<div class="week-legend"><span><i class="key-yellow"></i>Assessments</span><span><i class="key-green"></i>Classes</span><span><i class="key-orange"></i>To review</span></div><div class="week-chart-wrap"><svg class="week-chart" role="img" aria-label="Weekly timetable: ${columns
         .map((c) => `${c.day} ${c.sessions} classes`)
-        .join(', ')}. ${reviews} submissions waiting for review."><defs>${[
-        ['green', '#a9d76b', '#c2e695'],
-        ['yellow', '#f2ef62', '#fffbac'],
-        ['orange', '#ffbb69', '#ffdda5']
-    ]
-        .map(([name, a, b]) => `<pattern id="week-${name}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="5" height="5" fill="${a}"/><rect width="2" height="5" fill="${b}"/></pattern>`)
-        .join('')}</defs>${Array.from({ length: 5 }, (_, i) => Math.round((i * ceiling) / 4))
-        .map((v) => `<line x1="31" x2="550" y1="${baseline - v * scale}" y2="${baseline - v * scale}" stroke="#e8e9e5"/><text x="8" y="${baseline - v * scale + 4}">${v}</text>`)
-        .join('')}<line x1="31" x2="550" y1="245" y2="245" stroke="#e8e9e5"/>${columns
-        .map((c, i) => {
-        const x = 42 + i * 73, w = 57, active = i === day;
-        const h = c.sessions * scale;
-        const eh = c.exams * scale;
-        return `<g class="week-column" data-day="${i}" tabindex="0" aria-label="${c.day}: ${c.sessions} classes, ${c.exams} assessments, ${c.review} to review"><title>${c.day}: ${c.sessions} classes · ${c.exams} assessments${active ? ' · ' + c.review + ' submissions to review' : ''}</title><rect x="${x}" y="${baseline - h - 4}" width="${w}" height="${h}" rx="5" fill="${active ? 'url(#week-green)' : '#f1f2f0'}"/>${eh
-            ? `<rect x="${x}" y="${baseline - h - eh - 8}" width="${w}" height="${eh}" rx="4" fill="${active ? 'url(#week-yellow)' : '#f1f2f0'}"/>`
-            : ''}<rect x="${x}" y="${baseline + 4}" width="${w}" height="${c.review * scale}" rx="5" fill="url(#week-orange)"/><text x="${x + w / 2}" y="263" text-anchor="middle">${c.day}</text></g>`;
-    })
-        .join('')}</svg><div class="week-tooltip"><strong>${columns[day].day}, ${fmt(today())}</strong><span><i class="dot"></i>Classes <b>${columns[day].sessions}</b></span><span><i class="dot yellow"></i>Assessments <b>${columns[day].exams}</b></span><span><i class="dot orange"></i>To review <b>${reviews}</b></span></div></div>`;
+        .join(', ')}. ${reviews} submissions waiting for review."><defs>${[['green', '#64975b'], ['yellow', '#d59b36'], ['orange', '#d77957']].map(([name, color]) => `<pattern id="week-${name}" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="${color}"/></pattern>`).join('')}</defs>${Array.from({ length: 5 }, (_, i) => Math.ceil((i * ceiling) / 4))
+        .map((v) => `<line x1="${31 / 560 * 100}%" x2="${550 / 560 * 100}%" y1="${(baseline - v * scale) / 224 * 100}%" y2="${(baseline - v * scale) / 224 * 100}%" stroke="#e8e9e5"/><text x="8" y="${(baseline - v * scale) / 224 * 100}%" dy="4">${v}</text>`)
+        .join('')}${columns.map((c, i) => {
+        const x = 42 + i * 73, w = 48, active = i === day;
+        let top = baseline;
+        const bars = [
+            { count: c.sessions, series: 'classes', color: '#64975b' },
+            { count: c.exams, series: 'assessments', color: '#d59b36' },
+            { count: c.review, series: 'review', color: '#d77957' }
+        ].map(({ count, series, color }) => {
+            if (!count)
+                return '';
+            const height = count * scale;
+            top -= height;
+            return `<rect class="week-bar week-bar-${series}" x="${x}" y="${top}" width="${w}" height="${height}" rx="3" fill="${color}"/>`;
+        }).join('');
+        return `<g class="week-column${active ? ' is-today' : ''}" data-day="${i}" tabindex="0" aria-label="${c.day}: ${c.sessions} classes, ${c.exams} assessments, ${c.review} to review"><title>${c.day}: ${c.sessions} classes · ${c.exams} assessments${active ? ' · ' + c.review + ' submissions to review' : ''}</title><svg width="100%" height="100%" viewBox="0 0 560 224" preserveAspectRatio="none" aria-hidden="true">${active ? `<path class="week-today-highlight" d="M${x - 6} 12h${w + 12}v208h-${w + 12}z" fill="#edf2e3"/>` : ''}${bars}</svg><text x="${(x + w / 2) / 560 * 100}%" y="${212 / 224 * 100}%" text-anchor="middle">${c.day}</text></g>`;
+    }).join('')}</svg><div class="week-tooltip"><strong>${columns[day].day}, ${fmt(today())}</strong><span><i class="dot"></i>Classes <b>${columns[day].sessions}</b></span><span><i class="dot yellow"></i>Assessments <b>${columns[day].exams}</b></span><span><i class="dot orange"></i>To review <b>${reviews}</b></span></div></div>`;
 }
 function stat(label, value, ico, color, note, tag) {
     const colorMap = {
@@ -118,7 +120,7 @@ export function overview(s) {
   </section>
   <div class="desk-section-heading"><div><h2>Your week at a glance</h2><p>Classes, progress and the next small step.</p></div><a class="text-link" href="#reports">View reports ${icon('arrow')}</a></div>
   <div class="finance-grid"><div class="finance-main">
-    <section class="performance-board" aria-label="Weekly teaching activity"><div class="performance-graph"><div class="performance-title"><div><div class="headline-number">${s.classes.reduce((n, c) => n + c.days.length, 0)}</div><p>Weekly teaching overview</p></div><a class="btn" href="#analytics">This semester ${icon('down')}</a></div>${weeklyChart(s)}</div><div class="metric-stack"><div><span>Total students</span><strong>${s.students.length}</strong><small><b>${s.classes.length} classes</b> this semester</small></div><div><span>Class performance</span><strong>${avg}%</strong><small><b>${s.classes.length} subjects</b> this semester</small></div><div><span>Pending tasks</span><strong>${pending
+    <section class="performance-board" aria-label="Weekly teaching activity"><div class="performance-graph"><div class="performance-title"><div><div class="headline-number">${s.classes.reduce((n, c) => n + c.days.length, 0)}</div><p>Weekly teaching overview</p></div><a class="btn" href="#analytics">This semester ${icon('down')}</a></div>${weeklyChart(s)}</div><div class="metric-stack"><div class="metric-students"><i class="metric-icon" aria-hidden="true">${icon('users')}</i><span>Total students</span><strong>${s.students.length}</strong><small><b>${s.classes.length} classes</b> this semester</small></div><div class="metric-performance"><i class="metric-icon" aria-hidden="true">${icon('trend')}</i><span>Class performance</span><strong>${avg}%</strong><small><b>${s.classes.length} subjects</b> this semester</small></div><div class="metric-pending"><i class="metric-icon" aria-hidden="true">${icon('clipboard')}</i><span>Pending tasks</span><strong>${pending
         .toString()
         .padStart(2, '0')}</strong><small class="orange-text"><b>${s.submissions.filter((x) => x.marks === null).length} submissions</b> need your feedback</small></div></div></section>
     <div class="overview-banners"><section class="panel attendance-goal"><div class="panel-header"><div><h2>Class attendance</h2><p>Overall attendance · current term</p></div><a class="icon-button" href="#attendance" aria-label="Open attendance">${icon('clipboard')}</a></div><div class="hatched-progress"><i style="width:${attendance}%"></i></div><div class="goal-caption"><strong>${attendance}% <span>average attendance</span></strong><span>100%</span></div></section><section class="panel teaching-tip"><div><h2>A little help. A lot more headspace.</h2><p>Build your next lesson with teaching templates.</p><a class="text-link" href="#ai">Explore assistant ${icon('chevron')}</a></div><div class="block-pattern" aria-hidden="true">${Array.from({ length: 12 }, (_, i) => `<i class="block-${i % 4}"></i>`).join('')}</div></section></div>
@@ -134,9 +136,9 @@ export function overview(s) {
         const part = Math.min(18, Math.max(0, (safe / s.students.length) * 100 - i * 20));
         return `<path d="M25 110a85 85 0 0 1 170 0" pathLength="100" fill="none" stroke="${i === 0 ? '#e5e94f' : i === 1 ? '#bddd6c' : 'url(#gauge-hatch)'}" stroke-width="25" stroke-dasharray="${part} 100" stroke-dashoffset="${-i * 20}"/>`;
     }).join('')}</svg><strong>${Math.round((safe / s.students.length) * 100)}%</strong><small>Students on track</small></div><p class="section-note">Score ≥60% and attendance ≥75%.<br>${link('View student progress', 'progress')}</p></section>
-    <section class="panel overview-tasks"><div class="panel-header"><div><h2>Goal tracker</h2><p>Teaching tasks</p></div><button class="mini-icon" data-action="new-task" aria-label="Add task">${icon('plus')}</button></div>${s.tasks
+    <section class="panel overview-tasks"><div class="panel-header"><div><h2>Goal tracker</h2><p>Teaching tasks</p></div><button class="mini-icon" data-action="new-task" aria-label="Add task">${icon('plus')}</button></div><div class="task-list">${s.tasks
         .map((t) => `<div class="task-row ${t.done ? 'done' : ''}"><input id="task-${t.id}" type="checkbox" data-task="${t.id}" ${t.done ? 'checked' : ''}><label for="task-${t.id}">${esc(t.text)}<span class="task-progress"><i style="width:${t.done ? 100 : 0}%" class="${t.done ? 'complete' : 'pending'}"></i></span><span class="task-sub">${t.done ? 'Completed' : 'Not started'}</span></label><button type="button" data-action="open-task" data-id="${t.id}" aria-label="Open related page">${icon('chevron')}</button></div>`)
-        .join('')}<div class="task-foot">${badge(due + ' active assignments', 'gray')}${link('View all', 'assignments')}</div></section></div>
+        .join('')}</div><div class="task-foot">${badge(due + ' active assignments', 'gray')}${link('View all', 'assignments')}</div></section></div>
   </div><aside class="finance-aside"><section class="panel teacher-panel"><div class="panel-header"><div><h2>My workspace</h2><p>Teach. Connect. Inspire.</p></div><a class="mini-icon" href="#profile" aria-label="Edit teacher profile">${icon('settings')}</a></div><div class="pass-carousel"><div class="teacher-pass"><div class="pass-top"><span>FACULTY MEMBER</span>${icon('cap')}</div><div class="pass-decoration" aria-hidden="true">${icon('cap')}</div><div class="pass-id">MSEC <span>2026 — 27</span></div><div class="pass-bottom"><div><strong>${esc(s.profile.name)}</strong><small>${esc(s.profile.department)}</small></div><span class="pass-chip">${icon('grid')}</span></div></div><div class="secondary-pass" aria-hidden="true"><span>Academic ID</span><strong>MSEC</strong><small>2026–27</small>${icon('cap')}</div></div><div class="quick-actions">${[
         ['attendance', 'clipboard', 'Attendance'],
         ['new-assignment', 'file', 'Assignment'],

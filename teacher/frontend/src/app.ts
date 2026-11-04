@@ -153,9 +153,7 @@ function buildNavigation(): string {
 function shell(): void {
   const app = document.querySelector('#app');
   if (!app) return;
-  app.innerHTML = `<div class="menu-overlay" data-action="close-menu"></div><aside class="sidebar"><a class="brand" href="#overview"><span class="brand-mark">${icon(
-    'cap'
-  )}</span><span><strong>Teacher Desk<span style="color:#70a68b">.</span></strong><small>MORE SPACE TO TEACH</small></span></a><div class="workspace"><span>${icon(
+  app.innerHTML = `<div class="menu-overlay" data-action="close-menu"></div><aside class="sidebar"><a class="brand" href="#overview"><span class="brand-mark"><img src="favicon.svg" alt="" width="30" height="30"></span><span><strong>Teacher Desk<span style="color:#70a68b">.</span></strong><small>MORE SPACE TO TEACH</small></span></a><div class="workspace"><span>${icon(
     'cap'
   )}</span><span><strong>MSEC Bengaluru</strong><small>Academic year 2026–27</small></span></div><nav aria-label="Main navigation">${buildNavigation()}</nav><section class="sidebar-promo">${icon(
     'spark'

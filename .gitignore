@@ -27,8 +27,8 @@ wheels/
 
 # TypeScript / frontend build
 dist/
-!teacher/dist/
-!teacher/dist/**
+!teacher/frontend/dist/
+!teacher/frontend/dist/**
 .cache/
 artifacts/
 
