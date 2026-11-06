@@ -3,6 +3,7 @@ import { apiRequest } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
 import Sheet from './Sheet';
+import useTracked from './useTracked';
 import './library.css';
 
 const CATEGORIES = ['Computer Science', 'Mathematics & Statistics', 'Electronics & Communication', 'Information Science'];
@@ -26,8 +27,7 @@ export default function LibraryView({ userRole }) {
   const [stats, setStats] = useState({ total_titles: 0, total_copies: 0, available_copies: 0, issued_copies: 0 });
   const [myBooks, setMyBooks] = useState(EMPTY_MINE);
   const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState({ catalog: false, mine: false, history: false });
-  const [loadErrors, setLoadErrors] = useState({ catalog: null, mine: null, history: null });
+  const { isLoading, errors: loadErrors, track } = useTracked();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
@@ -49,26 +49,8 @@ export default function LibraryView({ userRole }) {
   const [returningRecord, setReturningRecord] = useState(null);
   const [returnRemarks, setReturnRemarks] = useState('Returned in good condition');
 
-  const ids = useRef({ catalog: 0, mine: 0, history: 0 });
   const searchRef = useRef('');
   searchRef.current = searchTerm;
-
-  // Each list has its own request id, so a late response from an older tab or filter is dropped.
-  const track = useCallback((key, request, apply) => {
-    const id = ++ids.current[key];
-    setLoading((l) => ({ ...l, [key]: true }));
-    setLoadErrors((l) => ({ ...l, [key]: null }));
-    return request
-      .then((res) => {
-        if (id === ids.current[key]) apply(res);
-      })
-      .catch((err) => {
-        if (id === ids.current[key]) setLoadErrors((l) => ({ ...l, [key]: err }));
-      })
-      .finally(() => {
-        if (id === ids.current[key]) setLoading((l) => ({ ...l, [key]: false }));
-      });
-  }, []);
 
   const loadCatalog = useCallback(() => {
     let url = '/library/books?';
@@ -103,15 +85,6 @@ export default function LibraryView({ userRole }) {
   useEffect(() => {
     if (activeTab === 'history') loadHistory();
   }, [activeTab, loadHistory]);
-  useEffect(() => {
-    const live = ids.current;
-    return () => {
-      live.catalog += 1;
-      live.mine += 1;
-      live.history += 1;
-    };
-  }, []);
-
   const begin = () => {
     setMsg('');
     setError('');
@@ -312,9 +285,9 @@ export default function LibraryView({ userRole }) {
           </form>
 
           <h2 className="section-title">Indexed Academic Books</h2>
-          {!loading.catalog && !loadErrors.catalog && <p className="library__count">Showing {books.length} volumes</p>}
+          {!isLoading('catalog') && !loadErrors.catalog && <p className="library__count">Showing {books.length} volumes</p>}
           {errorFor('catalog', loadCatalog)}
-          {loading.catalog ? (
+          {isLoading('catalog') ? (
             <div className="empty-state">Searching catalog...</div>
           ) : loadErrors.catalog ? null : (
             <DataCards
@@ -418,7 +391,7 @@ export default function LibraryView({ userRole }) {
           <h2 className="section-title">Currently Borrowed Volumes</h2>
           <p className="library__hint">Borrower USN: 1MS21CS084</p>
           {errorFor('mine', loadMyBooks)}
-          {loading.mine ? (
+          {isLoading('mine') ? (
             <div className="empty-state">Loading your loans...</div>
           ) : loadErrors.mine ? null : (
             <DataCards
@@ -464,7 +437,7 @@ export default function LibraryView({ userRole }) {
         <>
           <h2 className="section-title">Borrowing History &amp; Clearance Ledger</h2>
           {errorFor('history', loadHistory)}
-          {loading.history ? (
+          {isLoading('history') ? (
             <div className="empty-state">Loading history...</div>
           ) : loadErrors.history ? null : (
             <DataCards
@@ -529,7 +502,7 @@ export default function LibraryView({ userRole }) {
           <h2 className="section-title">Active Circulation Returns</h2>
           <p className="library__hint">Late fines are calculated at Rs 2.00/day when a record is cleared.</p>
           {errorFor('mine', loadMyBooks)}
-          {loading.mine ? (
+          {isLoading('mine') ? (
             <div className="empty-state">Loading loans...</div>
           ) : loadErrors.mine ? null : (
             <DataCards

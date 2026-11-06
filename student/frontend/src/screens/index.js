@@ -11,11 +11,11 @@ import GpaCalculatorView from './GpaCalculatorScreen';
 import PerformanceAnalyticsView from './PerformanceAnalyticsScreen';
 import EventsView from './EventsScreen';
 import LibraryView from './LibraryScreen';
+import CampusServicesView from './ServicesScreen';
 import {
   StudentProfileView,
   PlacementsView,
   ProjectsView,
-  CampusServicesView,
   NotificationsView,
   FacultyDoubtPortalView,
 } from '../components/Modules/ModuleViews';
