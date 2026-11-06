@@ -18,6 +18,8 @@ const ALLOW_SCROLL_X = ['.scroll-x'];
 // Selector that proves a special id rendered (ids not listed here must show
 // the TopBar title equal to SCREENS[id].label).
 const READY = { auth: '[data-qa="auth-screen"]' };
+// Input types whose font size is checked (plus textarea and select).
+const TEXT_TYPES = ['text', 'email', 'password', 'search', 'tel', 'url', 'number'];
 const TITLE_SELECTOR = '.topbar__title';
 // ------------------------------------
 
@@ -27,7 +29,7 @@ mkdirSync(OUT, { recursive: true });
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SCREENS);
 
 // Runs in the page. Returns overflow + small-font findings.
-function measure({ width, minFont, allow }) {
+function measure({ width, minFont, allow, textTypes }) {
   const sel = (el) => {
     let s = el.tagName.toLowerCase();
     if (el.id) s += '#' + el.id;
@@ -78,11 +80,11 @@ function measure({ width, minFont, allow }) {
     small(p, parseFloat(getComputedStyle(p).fontSize), '');
   }
   for (const el of document.querySelectorAll('input, textarea, select')) {
-    if (el.type === 'hidden') continue;
+    if (el.tagName === 'INPUT' && !textTypes.includes(el.type)) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0 || hiddenChain(el)) continue;
     small(el, parseFloat(getComputedStyle(el).fontSize), 'control ');
-    if (el.getAttribute('placeholder')) {
+    if (el.getAttribute('placeholder') && !el.value) {
       small(el, parseFloat(getComputedStyle(el, '::placeholder').fontSize), 'placeholder ');
     }
   }
@@ -91,16 +93,21 @@ function measure({ width, minFont, allow }) {
 
 async function runScreen(page, id, state) {
   const problems = [];
+  const step = () => { if (state.aborted) throw new Error('aborted'); };
   if (id !== 'auth' && !SCREENS[id]) throw new Error(`unknown screen id "${id}"`);
+  step();
   await page.goto(id === 'auth' ? `${BASE}/?screen=auth` : BASE, { waitUntil: 'load', timeout: SCREEN_TIMEOUT_MS });
   if (id !== 'auth') {
+    step();
     await page.waitForFunction(() => !!window.__msecNav, null, { timeout: SCREEN_TIMEOUT_MS });
     // Let the initial dashboard load finish so its errors are not blamed on this screen.
     await page.waitForLoadState('networkidle', { timeout: SCREEN_TIMEOUT_MS }).catch(() => {});
+    step();
     state.errors = [];
     await page.evaluate((i) => window.__msecNav.navigate(i), id);
   }
   await page.waitForLoadState('networkidle', { timeout: SCREEN_TIMEOUT_MS }).catch(() => {});
+  step();
   await page.waitForTimeout(300);
   // Safety net: drop any splash overlay still in the DOM.
   await page.evaluate(() => document.getElementById('msec-sp-root')?.remove());
@@ -121,7 +128,9 @@ async function runScreen(page, id, state) {
     }
   }
 
-  const m = await page.evaluate(measure, { width: WIDTH, minFont: MIN_FONT_PX, allow: ALLOW_SCROLL_X });
+  step();
+  const m = await page.evaluate(measure, { width: WIDTH, minFont: MIN_FONT_PX, allow: ALLOW_SCROLL_X, textTypes: TEXT_TYPES });
+  step();
   await page.screenshot({ path: `${OUT}${id}.png`, fullPage: true });
   if (m.scrollWidth > WIDTH) {
     problems.push(m.widest
@@ -132,8 +141,13 @@ async function runScreen(page, id, state) {
   if (m.small.length) {
     problems.push(`font <${MIN_FONT_PX}px: ${m.small.length} item(s); first 5: ${m.small.slice(0, 5).join(' | ')}`);
   }
-  let errs = [...new Set(state.errors)];
-  if (errs.some((e) => e.startsWith('HTTP '))) errs = errs.filter((e) => !e.includes('Failed to load resource'));
+  // Chrome logs one generic "Failed to load resource" per failed request. Drop one per recorded
+  // HTTP entry (those name the URL); any extra ones are other failed loads and are kept.
+  let httpLeft = state.errors.filter((e) => e.startsWith('HTTP ')).length;
+  const errs = [...new Set(state.errors.filter((e) => {
+    if (httpLeft > 0 && e.startsWith('console.error: Failed to load resource')) { httpLeft--; return false; }
+    return true;
+  }))];
   if (errs.length) problems.push(`errors (${errs.length}): ${errs.slice(0, 4).join(' | ')}`);
   return problems;
 }
@@ -150,19 +164,17 @@ try {
   await ctx.addInitScript(() => {
     try { sessionStorage.setItem('msec-splash-seen', '1'); } catch { /* ignore */ }
   });
-  const page = await ctx.newPage();
-  const state = { errors: [] };
-  page.on('console', (m) => { if (m.type() === 'error') state.errors.push('console.error: ' + m.text().slice(0, 200)); });
-  page.on('pageerror', (e) => state.errors.push('pageerror: ' + String(e.message || e).slice(0, 200)));
-  page.on('response', (r) => {
-    const u = r.url();
-    if (r.status() >= 400 && /\/(api|uploads)(\/|\?|$)/.test(new URL(u).pathname)) {
-      state.errors.push(`HTTP ${r.status()} ${u}`);
-    }
-  });
-
   for (const id of ids) {
-    state.errors = [];
+    const state = { errors: [], aborted: false };
+    const page = await ctx.newPage();
+    page.on('console', (m) => { if (m.type() === 'error') state.errors.push('console.error: ' + m.text().slice(0, 200)); });
+    page.on('pageerror', (e) => state.errors.push('pageerror: ' + String(e.message || e).slice(0, 200)));
+    page.on('response', (r) => {
+      const u = r.url();
+      if (r.status() >= 400 && /\/(api|uploads)(\/|\?|$)/.test(new URL(u).pathname)) {
+        state.errors.push(`HTTP ${r.status()} ${u}`);
+      }
+    });
     let problems;
     let timer;
     try {
@@ -174,6 +186,8 @@ try {
       problems = ['script: ' + String(e.message || e).split('\n')[0]];
     } finally {
       clearTimeout(timer);
+      state.aborted = true;
+      await page.close().catch(() => {});
     }
     total++;
     if (problems.length) failedCount++;
