@@ -9,7 +9,6 @@
   --text-secondary: #4b5563;
   --text-muted: #6b7280;
 
-  --primary-hover: #172554;
   --primary-light: #eff6ff;
 
   --success: #15803d;
@@ -111,7 +110,7 @@ body {
 }
 
 .btn-primary:hover {
-  background-color: var(--primary-hover);
+  background-color: var(--primary-deep);
 }
 
 .btn-secondary {

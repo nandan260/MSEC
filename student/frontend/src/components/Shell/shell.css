@@ -19,7 +19,7 @@
   font-family: var(--font-head);
   font-size: 18px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--primary);
 }
 .topbar__btn,
 .topbar__avatar {
