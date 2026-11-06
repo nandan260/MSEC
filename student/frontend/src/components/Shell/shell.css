@@ -1,0 +1,100 @@
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: var(--safe-top) var(--pad) 0;
+  height: calc(56px + var(--safe-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-sizing: border-box;
+}
+.topbar__logo { flex: none; width: 32px; height: 32px; }
+.topbar__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.topbar__btn,
+.topbar__avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.topbar__avatar {
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.app-main { padding-bottom: calc(64px + var(--safe-bottom) + var(--pad)); }
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  height: calc(64px + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  box-sizing: border-box;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+.tabbar__tab {
+  flex: 1;
+  margin: 4px 2px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+}
+.tabbar__tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tabbar__tab.is-active { color: var(--primary); font-weight: 600; background: var(--primary-tint); border-radius: var(--radius-ctl); }
+
+.more { display: flex; flex-direction: column; gap: var(--pad); }
+.more__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.more__row svg:first-child { color: var(--primary); }
+.more__row svg:last-child:not(:first-child) { color: var(--muted); }
+.more__label { flex: 1; min-width: 0; }
+.more__row--danger,
+.more__row--danger svg:first-child { color: var(--bad); }

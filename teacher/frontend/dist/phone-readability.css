@@ -1,0 +1,145 @@
+/* Phone text floor. Desktop typography and the fixed workspace remain unchanged. */
+@media (max-width: 740px) {
+  /* Navigation, metadata, table records and supporting copy. */
+  #app :is(
+    small, .nav-count, .nav-label, .subnav .nav-link,
+    .workspace strong, .sidebar-foot strong, .breadcrumbs, .key,
+    .global-search input, .top-profile #top-name, .eyebrow, .subtitle,
+    .btn:not(.header-create), .text-link, .stat-top, .stat-bottom,
+    .stat-bottom b, .panel-header p, .count, .legend,
+    .chart-legend > small, .chart-summary, .chart-summary strong,
+    .class-tile p, .class-meta, .class-footer, .badge,
+    .datebox, .datebox b, .agenda-time, .agenda-card h3, .agenda-card p,
+    .ai-tag, .ai-card p, .task-row, .task-sub,
+    table, th, td, .person strong, .score, .trend-up, .trend-down,
+    .attendance-status button, .info, .form-group label, .field-note,
+    .time-head, .time-label, .time-cell h4, .time-cell p, .file-link,
+    .ai-option, .notice-list p, .section-note, .progress-line,
+    .progress-line b, .tab, .switch, .footer,
+    .goal-caption, .goal-caption strong span,
+    .teaching-tip p, .subject-list button, .subject-list button > b,
+    .health-sub, .mini-value > span, .pass-top, .pass-id > span,
+    .quick-actions > a, .quick-actions > button,
+    .student-shortcut, .secondary-pass > span
+  ) {
+    font-size: 12px;
+  }
+
+  /* These are the only supporting text sizes set inline in the views. */
+  #app .item-card p[style*="font-size:10px"],
+  #app .output-placeholder p[style*="font-size:11px"] {
+    font-size: 12px !important;
+  }
+
+  #app .nav-count {
+    min-width: 24px;
+    padding: 3px 6px;
+    border-radius: 999px;
+    line-height: 1.25;
+  }
+
+  /* The top-profile avatar uses a portrait with intentionally hidden initials. */
+  #app .avatar:not(.top-profile .avatar):not(.big-avatar) {
+    font-size: 12px;
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+
+  /* Keep wide records inside their panel, including longer labels at 12px. */
+  #app .table-wrap {
+    max-width: 100%;
+    min-width: 0;
+    overflow: auto;
+  }
+
+  /* Attendance keeps its controls and summary fixed; only the roster scrolls. */
+  #app .content[data-page="attendance"] .workspace-content {
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+  #app .content[data-page="attendance"] .workspace-content > .panel {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: 10px;
+  }
+  #app .content[data-page="attendance"] .workspace-content > .section-note {
+    flex: 0 0 auto;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  #app .content[data-page="attendance"] .table-wrap {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  #app .content[data-page="attendance"] table {
+    display: block;
+    width: 100%;
+    white-space: normal;
+  }
+  #app .content[data-page="attendance"] thead { display: none; }
+  #app .content[data-page="attendance"] tbody {
+    display: grid;
+    gap: 10px;
+  }
+  #app .content[data-page="attendance"] tbody tr {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  #app .content[data-page="attendance"] td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+  /* person() already renders the roll number beneath the student's name. */
+  #app .content[data-page="attendance"] td:nth-child(2) { display: none; }
+  #app .content[data-page="attendance"] .person > span:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  #app .content[data-page="attendance"] .attendance-status {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+  #app .content[data-page="attendance"] .attendance-status button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 2px;
+    font-size: 12px;
+  }
+  #app .content[data-page="attendance"] :is(.btn, .toolbar select, .toolbar input) {
+    min-height: 44px;
+  }
+
+  /* The plot may scale; HTML axis labels retain their actual CSS pixel size.
+     Match the existing SVG's 560:200, xMidYMid meet geometry (205px high). */
+  #app .analytics-chart { position: relative; min-width: 0; }
+  #app .analytics-chart .chart text { display: none; }
+  #app .phone-chart-labels {
+    display: block;
+    position: absolute;
+    width: 100%;
+    max-width: 574px;
+    aspect-ratio: 560 / 200;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    color: #6d7564;
+    font-size: 12px;
+    line-height: 1;
+  }
+  #app .phone-chart-labels > span { position: absolute; white-space: nowrap; }
+  #app .phone-chart-y { left: calc(2 / 560 * 100%); transform: translateY(-50%); }
+  #app .phone-chart-x { transform: translate(-50%, -50%); }
+}
