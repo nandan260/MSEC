@@ -13,9 +13,9 @@ import EventsView from './EventsScreen';
 import LibraryView from './LibraryScreen';
 import CampusServicesView from './ServicesScreen';
 import PlacementsView from './PlacementsScreen';
+import ProjectsView from './ProjectsScreen';
 import {
   StudentProfileView,
-  ProjectsView,
   NotificationsView,
   FacultyDoubtPortalView,
 } from '../components/Modules/ModuleViews';

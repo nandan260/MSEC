@@ -1,0 +1,16 @@
+/* The legacy index.css `*` rule forces a system font on every element, so one
+   root-level rule restores the theme body font; headings override below. */
+.projects, .projects * { font-family: var(--font-body); }
+.projects .data-card-title, .projects .section-title { font-family: var(--font-head); }
+
+.projects .section-title { margin: 8px 0 0; }
+.projects .data-card-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.projects .data-card-meta .btn { min-height: 44px; }
+.projects .pill { white-space: normal; }
+.projects__form { display: flex; flex-direction: column; gap: 12px; }
+.projects__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.projects__tech { display: flex; flex-wrap: wrap; gap: 4px; }
+.projects__slots { color: var(--warn-ink); font-weight: 600; }
+.projects__full { color: var(--good-ink); font-weight: 600; }
+.projects__score { color: var(--primary); font-weight: 700; }
+.projects__note { margin: 0; font-size: 14px; color: var(--muted); }

@@ -3,7 +3,7 @@ import { apiRequest } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
 import Sheet from './Sheet';
-import useTracked from './useTracked';
+import useTracked, { loadingOf } from './useTracked';
 import './library.css';
 
 const CATEGORIES = ['Computer Science', 'Mathematics & Statistics', 'Electronics & Communication', 'Information Science'];
@@ -27,7 +27,8 @@ export default function LibraryView({ userRole }) {
   const [stats, setStats] = useState({ total_titles: 0, total_copies: 0, available_copies: 0, issued_copies: 0 });
   const [myBooks, setMyBooks] = useState(EMPTY_MINE);
   const [history, setHistory] = useState([]);
-  const { isLoading, errors: loadErrors, track } = useTracked();
+  const { loading, errors: loadErrors, track } = useTracked();
+  const isLoading = loadingOf(loading);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');

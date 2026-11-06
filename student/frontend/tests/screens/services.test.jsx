@@ -20,7 +20,7 @@ const routes = [
     id: 1, route_number: 'R1', start_point: 'Yelahanka', end_point: 'Campus', bus_number: 'KA-01-1234', status: 'On Time',
     current_demo_location: 'Near Hebbal Flyover', demo_speed_kmh: 32, driver_name: 'Suresh', driver_phone: '98450 11111',
     stops: [
-      { stop_number: 1, stop_name: 'Yelahanka', morning_time: '07:00', evening_time: '17:30', status: 'Passed' },
+      { stop_number: 1, stop_name: 'Yelahanka', morning_time: '07:00', evening_time: '17:30', status: 'Passed', time: '07:05 AM' },
       { stop_number: 2, stop_name: 'Hebbal Flyover', morning_time: '07:20', evening_time: '17:10', status: 'Current' },
     ],
   },
@@ -53,8 +53,9 @@ describe('CampusServicesScreen', () => {
     expect(await screen.findByText('R1 - Yelahanka to Campus')).toBeInTheDocument();
     expect(screen.getByText(/Demo only/)).toBeInTheDocument();
     expect(screen.getByText('32 km/h')).toBeInTheDocument();
-    expect(screen.getByText('#2 Hebbal Flyover')).toBeInTheDocument();
+    expect(screen.getByText('Hebbal Flyover')).toBeInTheDocument();
     expect(screen.getByText('Bus Currently Here')).toBeInTheDocument();
+    expect(screen.getByText('07:05 AM')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'R2: Jayanagar to Campus' }));
     expect(screen.getByText('R2 - Jayanagar to Campus')).toBeInTheDocument();
     expect(document.querySelector('table')).toBeNull();

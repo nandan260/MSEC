@@ -3,7 +3,7 @@ import { apiRequest } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
 import Sheet from './Sheet';
-import useTracked from './useTracked';
+import useTracked, { loadingOf } from './useTracked';
 import { CAMPUS_BUILDINGS } from './campusBuildings';
 import './services.css';
 
@@ -21,7 +21,7 @@ const newReportForm = () => ({
   contact_phone: '+91 98765 43210',
   claim_instructions: 'Contact reporter directly or check with department office.'
 });
-const stopTone = (status) => (status === 'Passed' ? '' : status === 'Current' ? 'pill--good' : 'pill--warn');
+const stopTone = (status) => (status === 'Passed' ? '' : String(status).startsWith('Current') ? 'pill--good' : 'pill--warn');
 
 export default function CampusServicesView({ userRole }) {
   const [activeTab, setActiveTab] = useState('bus'); // 'bus', 'map', 'canteen', 'lost_found', 'facilities'
@@ -30,7 +30,8 @@ export default function CampusServicesView({ userRole }) {
   const [error, setError] = useState('');
   const [dialogError, setDialogError] = useState('');
   const [dialogNote, setDialogNote] = useState('');
-  const { isLoading, errors, track } = useTracked();
+  const { loading, errors, track } = useTracked();
+  const isLoading = loadingOf(loading);
 
   // 1. Bus Tracking State
   const [busRoutes, setBusRoutes] = useState([]);
@@ -332,9 +333,9 @@ export default function CampusServicesView({ userRole }) {
                   <h2 className="section-title">Stops &amp; Estimated Schedule</h2>
                   <DataCards
                     rows={currentRoute.stops || []}
-                    keyOf={(stop) => stop.stop_number}
+                    keyOf={(stop, i) => stop.stop_number ?? i}
                     empty="No stops listed for this route."
-                    title={(stop) => `#${stop.stop_number} ${stop.stop_name}`}
+                    title={(stop) => stop.stop_name}
                     value={(stop) => <span className={`pill ${stopTone(stop.status)}`}>{stop.status}</span>}
                     meta={[
                       {
@@ -344,6 +345,7 @@ export default function CampusServicesView({ userRole }) {
                             <span className="pill pill--good">Bus Currently Here</span>
                           ) : null,
                       },
+                      { label: 'Time', render: (stop) => stop.time },
                       { label: 'Morning pickup', render: (stop) => stop.morning_time },
                       { label: 'Evening departure', render: (stop) => stop.evening_time },
                     ]}

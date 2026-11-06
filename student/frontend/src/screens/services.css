@@ -42,3 +42,4 @@
 .services__info dt { font-size: 12px; color: var(--muted); }
 .services__info dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
 .services__flag { color: var(--info-ink); font-weight: 600; }
+.services__details .card-row .pill { white-space: nowrap; }

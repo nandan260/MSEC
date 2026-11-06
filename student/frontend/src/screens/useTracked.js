@@ -3,6 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 // Guarded loads for screens that fetch several lists. Each key has its own request id,
 // so a late response from an older tab or filter is dropped, and loading/error state
 // is set at the start of every load.
+// A key that has never loaded counts as loading, so screens never flash an empty state first.
+export const loadingOf = (loading) => (key) => loading[key] !== false;
+
 export default function useTracked() {
   const ids = useRef({});
   const [loading, setLoading] = useState({});
@@ -33,7 +36,5 @@ export default function useTracked() {
     };
   }, []);
 
-  // A key that has never loaded counts as loading, so screens never flash an empty state first.
-  const isLoading = (key) => loading[key] !== false;
-  return { isLoading, errors, track };
+  return { loading, errors, track };
 }

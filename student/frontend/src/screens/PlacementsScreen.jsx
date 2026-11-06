@@ -3,7 +3,7 @@ import { apiRequest, apiUrl, openExternal } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
 import Sheet from './Sheet';
-import useTracked from './useTracked';
+import useTracked, { loadingOf } from './useTracked';
 import './placements.css';
 
 const EMPTY_DRIVE = {
@@ -45,7 +45,8 @@ export default function PlacementsView({ userRole }) {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [dialogError, setDialogError] = useState('');
-  const { isLoading, errors, track } = useTracked();
+  const { loading, errors, track } = useTracked();
+  const isLoading = loadingOf(loading);
 
   // Dialogs & forms
   const [selectedDriveForApply, setSelectedDriveForApply] = useState(null);
