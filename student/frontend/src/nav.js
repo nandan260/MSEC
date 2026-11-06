@@ -22,10 +22,10 @@ export const SCREENS = {
   faculty_mentor: { label: 'Faculty Mentor', icon: 'users' },
   fees: { label: 'Fees Management', icon: 'receipt' },
   assistant: { label: 'Ask AI', icon: 'sparkle' },
-  more: { label: 'More', icon: 'menu' },
+  more: { label: 'More', icon: 'grid' },
 };
 
-export const TABS = ['dashboard', 'attendance', 'academics', 'timetable', 'assistant', 'more'];
+export const TABS = ['dashboard', 'attendance', 'assistant', 'academics', 'timetable', 'more'];
 
 export const MORE_GROUPS = [
   { title: 'Study', ids: ['assignments', 'notes', 'examinations', 'gpa_calc', 'attendance_calc', 'analytics'] },

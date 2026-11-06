@@ -5,7 +5,7 @@ import MoreScreen from './components/Shell/MoreScreen';
 import './components/Shell/shell.css';
 import AuthScreen from './screens/AuthScreen';
 import SCREEN_COMPONENTS from './screens/index.js';
-import { SCREENS, tabFor, pushScreen, popScreen } from './nav';
+import { SCREENS, TABS, tabFor, pushScreen, popScreen } from './nav';
 import { clearAuth } from './api';
 
 const STUDENT_PROFILE = {
@@ -75,15 +75,21 @@ export default function App() {
     return <Screen userRole={role} currentUser={currentUser} onNavigate={navigate} />;
   };
 
+  const isTab = TABS.includes(activeId);
+  const MONTH = { month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' };
+  const headerProps = activeId === 'dashboard'
+    ? { variant: 'home', user: currentUser, unread: false,
+        onBell: () => navigate('notifications'), onAvatar: () => navigate('profile') }
+    : {
+        variant: activeId === 'assistant' ? 'ai' : 'page',
+        title: SCREENS[activeId] ? SCREENS[activeId].label : 'Dashboard',
+        kicker: activeId === 'timetable' ? new Date().toLocaleDateString('en-GB', MONTH) : undefined,
+        onBack: isTab ? undefined : goBack,
+      };
+
   return (
     <>
-      <TopBar
-        title={SCREENS[activeId] ? SCREENS[activeId].label : 'Dashboard'}
-        user={currentUser}
-        unread={false}
-        onBell={() => navigate('notifications')}
-        onAvatar={() => navigate('profile')}
-      />
+      <TopBar {...headerProps} />
       <main className="page app-main">{renderActiveView()}</main>
       <BottomTabs active={tabFor(activeId)} onSelect={navigate} />
     </>

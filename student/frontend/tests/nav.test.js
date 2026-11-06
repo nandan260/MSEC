@@ -20,7 +20,7 @@ describe('nav model', () => {
   });
 
   it('TABS is the bottom tab list', () => {
-    expect(TABS).toEqual(['dashboard', 'attendance', 'academics', 'timetable', 'assistant', 'more']);
+    expect(TABS).toEqual(['dashboard', 'attendance', 'assistant', 'academics', 'timetable', 'more']);
   });
 
   it('MORE_GROUPS matches the spec groups', () => {
