@@ -22,25 +22,25 @@ const summary = {
 };
 
 describe('DashboardScreen', () => {
-  it('renders hero, stat tiles and data cards', async () => {
+  it('renders attendance summary, exams, assignments and notices', async () => {
     apiRequest.mockResolvedValueOnce(summary);
     render(<DashboardHome onNavigate={() => {}} />);
-    expect(await screen.findByText('Alex Kumar')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Student summary for Alex Kumar' })).toBeInTheDocument();
     expect(screen.getByText('88.4%')).toBeInTheDocument();
     expect(screen.getByText('9.68')).toBeInTheDocument();
     expect(screen.getByText('9.36')).toBeInTheDocument();
-    expect(screen.getByText('Eligible for Exams')).toHaveClass('pill--good');
-    expect(screen.getByText('CS601 · Compilers')).toBeInTheDocument();
-    expect(screen.getByText('CS602: Lab 3')).toBeInTheDocument();
+    expect(screen.getByText('Eligible for exams')).toHaveClass('pill--good');
+    expect(screen.getByText('Compilers')).toBeInTheDocument();
+    expect(screen.getByText('Lab 3')).toBeInTheDocument();
     expect(screen.getByText('Holiday')).toBeInTheDocument();
   });
 
-  it('navigates via View all and submits an assignment', async () => {
+  it('navigates via See all and submits an assignment', async () => {
     apiRequest.mockResolvedValueOnce(summary);
     const onNavigate = vi.fn();
     render(<DashboardHome onNavigate={onNavigate} />);
-    await screen.findByText('Alex Kumar');
-    fireEvent.click(screen.getAllByRole('button', { name: 'View all' })[0]);
+    await screen.findByRole('region', { name: 'Student summary for Alex Kumar' });
+    fireEvent.click(screen.getAllByRole('button', { name: 'See all' })[0]);
     expect(onNavigate).toHaveBeenCalledWith('examinations');
     apiRequest.mockResolvedValueOnce({}).mockResolvedValueOnce(summary);
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
@@ -53,7 +53,7 @@ describe('DashboardScreen', () => {
     render(<DashboardHome onNavigate={() => {}} />);
     expect(await screen.findByText("Can't reach the server")).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('Alex Kumar')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Student summary for Alex Kumar' })).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledTimes(2);
   });
 });

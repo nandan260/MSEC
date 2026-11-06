@@ -1,0 +1,70 @@
+/* Responsive layout for web and the Capacitor app on tablets.
+   < 768px: phone layout (unchanged).
+   768-1023px: tablet, wider column, 2-column card grids.
+   >= 1024px: desktop web, ~1180px column, 2-3 column grids. The floating bottom bar stays. */
+
+@media (min-width: 768px) {
+  #root { max-width: 860px; }
+  .screen-head { padding-left: 32px; padding-right: 32px; }
+  .app-main { padding-left: 32px; padding-right: 32px; }
+
+  /* Bar and composer stay phone-sized, centred. */
+  .tabbar { left: calc((100% - 520px) / 2); right: calc((100% - 520px) / 2); }
+  .ai-composer { left: calc((100% - 720px) / 2); right: calc((100% - 720px) / 2); }
+
+  /* Generic content grids used by most screens. */
+  .data-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sheet { max-width: 560px; margin: auto; border-radius: 24px; }
+  .sheet-scrim { align-items: center; }
+
+  /* Home: hero + exams side by side, lists below in two columns. */
+  .dashboard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .dashboard > .dashboard__hero { grid-column: 1 / -1; }
+  .dashboard > section:nth-child(2) { grid-column: 1 / -1; }
+  .dashboard__exams { margin: 0; padding: 0 0 8px; flex-wrap: wrap; overflow: visible; }
+  .exam-preview { flex: 1 1 220px; }
+
+  /* Attendance and academics: summary card next to the list. */
+  .attendance, .academics { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: start; }
+  .attendance__hero, .academics__overview { position: sticky; top: 16px; }
+
+  /* Timetable: day strip full width, classes in two columns. */
+  .timetable__timeline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+
+  /* More: groups in two columns. */
+  .more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .more > .more__profile { grid-column: 1 / -1; }
+
+  /* Ask AI: readable line length. */
+  .ai { max-width: 760px; margin-inline: auto; }
+  .screen-head--ai { max-width: 760px; margin-inline: auto; box-sizing: content-box; }
+  .ai-bubble--user { max-width: 70%; }
+  .ai-bubble--bot { max-width: 80%; }
+}
+
+@media (min-width: 1024px) {
+  #root { max-width: 1180px; }
+  .screen-head { padding-left: 40px; padding-right: 40px; }
+  .app-main { padding-left: 40px; padding-right: 40px; }
+  .screen-head__title { font-size: 34px; }
+
+  .data-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  /* Home: hero | exams on the first row, due soon | notices below. */
+  .dashboard { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; }
+  .dashboard > .dashboard__hero { grid-column: auto; }
+  .dashboard > section:nth-child(2) { grid-column: auto; }
+  .dashboard__exams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .attendance, .academics { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 28px; }
+  .timetable__timeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .more { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .more > .more__profile { grid-column: 1 / -1; max-width: 560px; }
+}
+
+/* Hover affordances only where a mouse exists. */
+@media (hover: hover) and (pointer: fine) {
+  .exam-preview:hover, .more__row:hover, .card:hover { box-shadow: 0 2px 4px #1a15230d, 0 14px 32px #4e24781a; }
+  .more__row:hover { background: var(--bg); }
+}

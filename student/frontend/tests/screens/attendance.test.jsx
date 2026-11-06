@@ -37,12 +37,13 @@ describe('AttendanceScreen', () => {
   it('renders summary and one card per course with tone pills', async () => {
     apiRequest.mockResolvedValueOnce(attendance);
     render(<AttendanceView userRole="student" />);
-    expect(await screen.findByText('CS601: Compilers')).toBeInTheDocument();
-    expect(screen.getByText('Eligible for Exams')).toHaveClass('pill--good');
-    expect(screen.getByText('91.7%', { selector: '.pill' })).toHaveClass('pill--good');
-    expect(screen.getByText('60%')).toHaveClass('pill--bad');
-    expect(screen.getByText('42 / 48 hrs')).toBeInTheDocument();
-    expect(screen.getByText('Need 12 consecutive')).toBeInTheDocument();
+    expect(await screen.findByText('Compilers')).toBeInTheDocument();
+    expect(screen.getByText(/is below 75%/)).toHaveTextContent('Networks is below 75%');
+    expect(screen.getByText('91.7%', { selector: '.subject-attendance__percent' })).toHaveClass('ink-good');
+    expect(screen.getByText('60%')).toHaveClass('ink-bad');
+    expect(screen.getByText('CS601 · 42/48 (+2 OD)')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Networks', { selector: '.reference-list__text > strong' }));
+    expect(screen.getByText('Need 12 consecutive classes')).toBeVisible();
     expect(screen.queryByText('Log Session Attendance')).toBeNull();
   });
 
@@ -51,7 +52,7 @@ describe('AttendanceScreen', () => {
     render(<AttendanceView userRole="student" />);
     expect(await screen.findByText("Can't reach the server")).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('CS601: Compilers')).toBeInTheDocument();
+    expect(await screen.findByText('Compilers')).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledTimes(2);
   });
 });

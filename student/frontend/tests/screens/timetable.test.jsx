@@ -36,10 +36,16 @@ beforeEach(() => {
 const setDate = (iso) => vi.useFakeTimers({ toFake: ['Date'], now: new Date(iso) });
 
 describe('TimetableScreen', () => {
+  it('restores the saved weekly view rather than requesting an uncached day', async () => {
+    render(<TimetableView userRole="student" initialView="weekly" />);
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    expect(apiRequest).toHaveBeenCalledWith('/timetable?view=weekly');
+    expect(apiRequest).not.toHaveBeenCalledWith(expect.stringContaining('view=daily'));
+  });
   it('defaults to today (Wednesday 2026-11-04)', async () => {
     setDate('2026-11-04T10:00:00');
     render(<TimetableView userRole="student" />);
-    expect(await screen.findByText('CS603: Cloud')).toBeInTheDocument();
+    expect(await screen.findByText('Cloud')).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith('/timetable?view=daily&day=3');
     expect(screen.getByRole('button', { name: 'Wed' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('LH-303')).toBeInTheDocument();
@@ -49,18 +55,18 @@ describe('TimetableScreen', () => {
   it('defaults to Monday on Sunday', async () => {
     setDate('2026-11-08T10:00:00');
     render(<TimetableView userRole="student" />);
-    expect(await screen.findByText('CS601: Compilers')).toBeInTheDocument();
+    expect(await screen.findByText('Compilers')).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith('/timetable?view=daily&day=1');
-    expect(screen.getAllByRole('button', { name: /^(Mon|Tue|Wed|Thu|Fri|Sat)$/ }).map((t) => t.textContent)).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+    expect(screen.getAllByRole('button', { name: /^(Mon|Tue|Wed|Thu|Fri|Sat)$/ }).map((t) => t.getAttribute('aria-label'))).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   });
 
   it('picking a chip filters the lectures', async () => {
     setDate('2026-11-04T10:00:00');
     render(<TimetableView userRole="student" />);
-    await screen.findByText('CS603: Cloud');
+    await screen.findByText('Cloud');
     fireEvent.click(screen.getByRole('button', { name: 'Thu' }));
-    expect(await screen.findByText('CS604: Security')).toBeInTheDocument();
-    expect(screen.queryByText('CS603: Cloud')).toBeNull();
+    expect(await screen.findByText('Security')).toBeInTheDocument();
+    expect(screen.queryByText('Cloud')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Sat' }));
     expect(await screen.findByText('No classes scheduled.')).toBeInTheDocument();
   });
@@ -68,7 +74,7 @@ describe('TimetableScreen', () => {
   it('Week view toggle shows the grid inside scroll-x', async () => {
     setDate('2026-11-04T10:00:00');
     render(<TimetableView userRole="student" />);
-    await screen.findByText('CS603: Cloud');
+    await screen.findByText('Cloud');
     fireEvent.click(screen.getByRole('button', { name: 'Week view' }));
     const grid = await screen.findByRole('table');
     expect(grid.closest('.scroll-x')).not.toBeNull();
@@ -85,14 +91,14 @@ describe('TimetableScreen', () => {
     render(<TimetableView userRole="student" />);
     expect(await screen.findByText("Can't reach the server")).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('CS603: Cloud')).toBeInTheDocument();
+    expect(await screen.findByText('Cloud')).toBeInTheDocument();
   });
 
   it('admin can add and delete entries', async () => {
     setDate('2026-11-04T10:00:00');
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<TimetableView userRole="admin" />);
-    await screen.findByText('CS603: Cloud');
+    await screen.findByText('Cloud');
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(apiRequest).toHaveBeenCalledWith('/timetable/3', { method: 'DELETE' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Add Entry' }));
@@ -115,9 +121,9 @@ describe('TimetableScreen', () => {
       ],
     });
     render(<TimetableView userRole="student" />);
-    await screen.findByText('CS608: Morning');
-    const titles = screen.getAllByText(/^CS60[78]:/).map((n) => n.textContent);
-    expect(titles).toEqual(['CS608: Morning', 'CS607: Afternoon']);
+    await screen.findByText('Morning');
+    const titles = screen.getAllByText(/^(Morning|Afternoon)$/).map((n) => n.textContent);
+    expect(titles).toEqual(['Morning', 'Afternoon']);
   });
 
   it('defaults to Saturday and marks the Sat chip active, scrolling it into view', async () => {
@@ -141,14 +147,14 @@ describe('TimetableScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thu' }));
     fireEvent.click(screen.getByRole('button', { name: 'Fri' }));
     pending['/timetable?view=daily&day=5']({ schedule: [slot(5, 5, 'CS605', 'Friday Class')] });
-    expect(await screen.findByText('CS605: Friday Class')).toBeInTheDocument();
+    expect(await screen.findByText('Friday Class')).toBeInTheDocument();
     pending['/timetable?view=daily&day=4']({ schedule: [slot(4, 4, 'CS604', 'Security')] });
     pending['/timetable?view=daily&day=3']({ schedule: [slot(3, 3, 'CS603', 'Cloud')] });
     await Promise.resolve();
     await Promise.resolve();
-    expect(screen.queryByText('CS604: Security')).toBeNull();
-    expect(screen.queryByText('CS603: Cloud')).toBeNull();
-    expect(screen.getByText('CS605: Friday Class')).toBeInTheDocument();
+    expect(screen.queryByText('Security')).toBeNull();
+    expect(screen.queryByText('Cloud')).toBeNull();
+    expect(screen.getByText('Friday Class')).toBeInTheDocument();
   });
 
   it('sorts 24-hour times without AM/PM correctly', async () => {
@@ -161,14 +167,14 @@ describe('TimetableScreen', () => {
       ],
     });
     render(<TimetableView userRole="student" />);
-    await screen.findByText('CS608: Early');
-    expect(screen.getAllByText(/^CS60[789]:/).map((n) => n.textContent)).toEqual(['CS608: Early', 'CS609: Noon', 'CS607: Late']);
+    await screen.findByText('Early');
+    expect(screen.getAllByText(/^(Early|Noon|Late)$/).map((n) => n.textContent)).toEqual(['Early', 'Noon', 'Late']);
   });
 
   it('Escape closes the dialog and focus starts in the first field', async () => {
     setDate('2026-11-04T10:00:00');
     render(<TimetableView userRole="admin" />);
-    await screen.findByText('CS603: Cloud');
+    await screen.findByText('Cloud');
     fireEvent.click(screen.getByRole('button', { name: '+ Add Entry' }));
     expect(screen.getByLabelText('Day of Week')).toHaveFocus();
     fireEvent.keyDown(document, { key: 'Escape' });

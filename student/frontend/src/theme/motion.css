@@ -1,0 +1,95 @@
+/* App-wide motion. Transform/opacity only; everything is off under prefers-reduced-motion. */
+:root {
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: cubic-bezier(.34, 1.36, .64, 1);
+  --dur-screen: .34s;
+}
+
+@keyframes screen-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes slide-in-right { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes slide-in-left { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+@keyframes tab-label-in { from { opacity: 0; max-width: 0; } to { opacity: 1; max-width: 140px; } }
+@keyframes grow-x { from { transform: scaleX(0); } }
+@keyframes grow-y { from { transform: scaleY(0); } }
+@keyframes ring-draw { from { stroke-dasharray: 0 100; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes typing { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+
+/* Screen change. The container only fades (a transform here would break position:fixed children
+   such as the Ask AI composer); its children carry the movement. */
+.screen-anim { animation: screen-fade var(--dur-screen) var(--ease-out) both; }
+.screen-head.screen-anim { animation-name: screen-fade; }
+.screen-anim--tab > * > *:not(.ai-composer):not(.sheet-scrim) { animation: rise-in .42s var(--ease-out) both; }
+.screen-anim--push > * > *:not(.ai-composer):not(.sheet-scrim) { animation: slide-in-right .36s var(--ease-out) both; }
+.screen-anim--pop > * > *:not(.ai-composer):not(.sheet-scrim) { animation: slide-in-left .36s var(--ease-out) both; }
+.screen-anim > * > *:nth-child(2) { animation-delay: .04s; }
+.screen-anim > * > *:nth-child(3) { animation-delay: .08s; }
+.screen-anim > * > *:nth-child(4) { animation-delay: .12s; }
+.screen-anim > * > *:nth-child(5) { animation-delay: .16s; }
+.screen-anim > * > *:nth-child(6) { animation-delay: .2s; }
+.screen-anim > * > *:nth-child(n+7) { animation-delay: .24s; }
+.screen-head .screen-head__title { animation: rise-in .38s var(--ease-out) both; }
+
+/* Data visuals grow in. */
+.attendance-ring__fill { animation: ring-draw .9s var(--ease-out) .1s both; transition: stroke-dasharray .6s var(--ease-out); }
+.subject-attendance__track > span,
+.ai-stat__fill,
+.analytics__fill { transform-origin: left center; animation: grow-x .8s var(--ease-out) .15s both; }
+.academics__bar { transform-origin: bottom center; animation: grow-y .7s var(--ease-out) both; transition: background-color .25s ease; }
+.academics__bar-column:nth-child(2) .academics__bar { animation-delay: .05s; }
+.academics__bar-column:nth-child(3) .academics__bar { animation-delay: .1s; }
+.academics__bar-column:nth-child(4) .academics__bar { animation-delay: .15s; }
+.academics__bar-column:nth-child(5) .academics__bar { animation-delay: .2s; }
+.academics__bar-column:nth-child(6) .academics__bar { animation-delay: .25s; }
+.academics__bar-column:nth-child(n+7) .academics__bar { animation-delay: .3s; }
+
+/* Touch feedback. */
+button, .btn, [role="button"] {
+  transition-property: transform, background-color, border-color, color, box-shadow, opacity;
+  transition-duration: .18s;
+  transition-timing-function: var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+button:active:not(:disabled), .btn:active, [role="button"]:active { transform: scale(.96); }
+.tabbar__tab:active:not(:disabled) { transform: scale(.9); }
+
+/* Ask AI. */
+.ai-bubble { animation: pop-in .32s var(--ease-out) both; }
+.ai-bubble--user { transform-origin: bottom right; }
+.ai-bubble--bot { transform-origin: bottom left; }
+.ai-chip { animation: rise-in .4s var(--ease-out) both; }
+.ai-chip:nth-child(2) { animation-delay: .05s; }
+.ai-chip:nth-child(3) { animation-delay: .1s; }
+.ai-chip:nth-child(4) { animation-delay: .15s; }
+.ai-chip:nth-child(5) { animation-delay: .2s; }
+.ai-typing::after {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  margin-left: 6px;
+  border-radius: 3px;
+  background: currentColor;
+  animation: typing 1s ease-in-out infinite;
+}
+.ai-banner { animation: pop-in .28s var(--ease-out) both; }
+
+/* Sheets and dialogs. */
+.sheet-scrim { animation: screen-fade .24s ease both; }
+.sheet { animation: sheet-up .38s var(--ease-out) both; }
+
+/* Smooth selection changes (day pills, chips, rows). */
+.timetable__day, .day-pill, .ai-chip, .more__row, .card { transition: background-color .25s ease, color .25s ease, box-shadow .25s ease, transform .18s var(--ease-out); }
+
+html { scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

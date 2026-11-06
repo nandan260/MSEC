@@ -1,3 +1,4 @@
+import { savedResponse, saveResponse, clearSavedResponses, recordOwner, reportRecordSource, beginRecordRequest } from './offline-cache';
 // API Communication Helper
 const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 
@@ -51,11 +52,15 @@ export function getUser() {
 }
 
 export function clearAuth() {
+  clearSavedResponses();
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_user');
 }
 
 export async function apiRequest(endpoint, options = {}) {
+  const read = !options.method || options.method.toUpperCase() === 'GET';
+  const requestOwner = recordOwner();
+  if (read) beginRecordRequest(endpoint);
   const token = getToken();
   const headers = {
     'Content-Type': 'application/json',
@@ -70,7 +75,14 @@ export async function apiRequest(endpoint, options = {}) {
       headers
     });
   } catch (e) {
-    if (e instanceof TypeError) throw new NetworkError();
+    if (e instanceof TypeError) {
+      const saved = read && requestOwner === recordOwner() && savedResponse(endpoint);
+      if (saved) {
+        reportRecordSource(endpoint, true, saved.savedAt);
+        return saved.data;
+      }
+      throw new NetworkError();
+    }
     throw e;
   }
 
@@ -80,5 +92,11 @@ export async function apiRequest(endpoint, options = {}) {
     throw new Error(data.error || `HTTP error ${response.status}`);
   }
 
+  if (read) {
+    if (requestOwner === recordOwner()) {
+      saveResponse(endpoint, data);
+      reportRecordSource(endpoint, false, Date.now());
+    }
+  } else clearSavedResponses();
   return data;
 }

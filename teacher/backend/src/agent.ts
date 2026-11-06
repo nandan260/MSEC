@@ -36,6 +36,9 @@ export async function runAgent({
   deduplicateTool,
   repairInstructions,
   fatalToolErrors = false,
+  partialOnBudget = false,
+  modelCallTimeoutMs = 120000,
+  connectionErrorStatus = 502,
 }: {
   systemPrompt: string;
   history: Obj[];
@@ -51,6 +54,9 @@ export async function runAgent({
   deduplicateTool?: string;
   repairInstructions?: string;
   fatalToolErrors?: boolean;
+  partialOnBudget?: boolean;
+  modelCallTimeoutMs?: number;
+  connectionErrorStatus?: number;
 }) {
   const cfg = configuration(env);
   if (!cfg.configured)
@@ -74,32 +80,49 @@ export async function runAgent({
   });
   const graph = new StateGraph(State)
     .addNode("model", async () => {
-      if (++turns > 7)
+      if (++turns > (partialOnBudget ? toolBudget + 2 : 7))
         throw new ApiError(
           502,
           "Assistant exceeded its tool budget. Try a narrower request.",
         );
-      const r = await fetch(`${cfg.base}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(env.AI_API_KEY
-            ? { authorization: `Bearer ${env.AI_API_KEY}` }
-            : {}),
-        },
-        body: JSON.stringify({
-          model: cfg.model,
-          messages,
-          tools,
-          tool_choice: forceFinal ? "none" : "auto",
-          temperature: 0.3,
-          max_tokens: Math.min(
-            32000,
-            Math.max(1000, Number(env.AI_MAX_TOKENS) || 8000),
-          ),
-        }),
-        signal: controller.signal,
-      });
+      let r: Response;
+      try {
+        r = await fetch(`${cfg.base}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...(env.AI_API_KEY
+              ? { authorization: `Bearer ${env.AI_API_KEY}` }
+              : {}),
+          },
+          body: JSON.stringify({
+            model: cfg.model,
+            messages,
+            tools,
+            tool_choice: forceFinal ? "none" : "auto",
+            temperature: 0.3,
+            max_tokens: Math.min(
+              32000,
+              Math.max(1000, Number(env.AI_MAX_TOKENS) || 8000),
+            ),
+          }),
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(modelCallTimeoutMs),
+          ]),
+        });
+      } catch (err) {
+        const timedOut =
+          controller.signal.aborted ||
+          (err instanceof Error &&
+            ["TimeoutError", "AbortError"].includes(err.name));
+        throw new ApiError(
+          timedOut ? 502 : connectionErrorStatus,
+          timedOut
+            ? "Model request timed out. Try again."
+            : "Model connection failed. Check AI_BASE_URL, AI_MODEL and provider availability.",
+        );
+      }
       if (!r.ok)
         throw new ApiError(
           502,
@@ -123,6 +146,15 @@ export async function runAgent({
       pending = m.tool_calls ?? [];
       if (!Array.isArray(pending) || pending.length > 8)
         throw new ApiError(502, "Model returned too many tool calls.");
+      if (pending.length && partialOnBudget && toolCount >= toolBudget) {
+        output.message =
+          typeof m.content === "string" &&
+          m.content.trim() &&
+          m.content.length <= 40000
+            ? m.content
+            : "I reached the tool budget. Please ask a narrower question to continue with the available results.";
+        return { done: true };
+      }
       if (pending.length) {
         messages.push({
           role: "assistant",
@@ -145,6 +177,17 @@ export async function runAgent({
     })
     .addNode("tools", async () => {
       for (const call of pending) {
+        if (partialOnBudget && toolCount >= toolBudget) {
+          messages.push({
+            role: "tool",
+            tool_call_id: call.id,
+            content: JSON.stringify({
+              error:
+                "Tool budget exhausted. Use only the results already available.",
+            }),
+          });
+          continue;
+        }
         if (++toolCount > toolBudget)
           throw new ApiError(
             502,
@@ -198,6 +241,12 @@ export async function runAgent({
           tool_call_id: call.id,
           content: JSON.stringify(result).slice(0, 100000),
         });
+      }
+      if (partialOnBudget && toolCount >= toolBudget) {
+        const warning =
+          "Assistant reached its tool budget. This answer may be partial.";
+        if (!output.warnings.includes(warning)) output.warnings.push(warning);
+        forceFinal = true;
       }
       return { done: false };
     })
