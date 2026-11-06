@@ -1,6 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, cleanup, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { signIn } from './signed-in.js';
+
+beforeEach(() => signIn());
 
 afterEach(cleanup);
 
@@ -54,7 +57,7 @@ describe('MoreScreen', () => {
     }
     fireEvent.click(screen.getByRole('button', { name: /Library/ }));
     expect(onOpen).toHaveBeenCalledWith('library');
-    fireEvent.click(screen.getByRole('button', { name: /Log out/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
     expect(onLogout).toHaveBeenCalled();
   });
 });
@@ -92,7 +95,7 @@ describe('App shell', () => {
     render(<App />);
     const tabs = screen.getByRole('navigation', { name: 'Primary' });
     fireEvent.click(within(tabs).getByRole('button', { name: 'More' }));
-    fireEvent.click(screen.getByRole('button', { name: /Log out/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
     expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
     let exit;
     act(() => { exit = window.__msecNav.goBack(); });

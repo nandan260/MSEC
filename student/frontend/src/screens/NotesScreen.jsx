@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { apiRequest, apiUrl, openExternal } from '../api';
+import { apiRequest, apiUrl, openDownload } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
 import Sheet from './Sheet';
@@ -62,7 +62,7 @@ export default function NotesView({ userRole }) {
   };
 
   const handleDownload = (id) => {
-    openExternal(apiUrl(`/api/notes/${id}/download`));
+    openDownload(`/api/notes/${id}/download`);
   };
 
   const handleUploadSubmit = async (e) => {

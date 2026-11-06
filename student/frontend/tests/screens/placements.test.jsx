@@ -10,10 +10,10 @@ afterEach(() => {
 
 vi.mock('../../src/api', async () => {
   class NetworkError extends Error {}
-  return { apiRequest: vi.fn(), apiUrl: (p) => p, openExternal: vi.fn(), NetworkError };
+  return { apiRequest: vi.fn(), apiUrl: (p) => p, openExternal: vi.fn(), openDownload: vi.fn(), NetworkError };
 });
 
-import { apiRequest, openExternal, NetworkError } from '../../src/api';
+import { apiRequest, openExternal, openDownload, NetworkError } from '../../src/api';
 import PlacementsView from '../../src/screens/PlacementsScreen.jsx';
 
 const drives = [
@@ -26,6 +26,7 @@ const resume = { full_name: 'Alex Kumar', headline: 'Backend dev', email: 'a@x.e
 beforeEach(() => {
   apiRequest.mockReset();
   openExternal.mockReset();
+  openDownload.mockReset();
   apiRequest.mockImplementation(async (url, opts) => {
     if (opts?.method) return { message: 'Saved' };
     if (url.startsWith('/placements/drives')) return { drives: url.includes('type=internship') ? [drives[1]] : drives };
@@ -113,14 +114,14 @@ describe('PlacementsScreen', () => {
     expect(JSON.parse(call[1].body)).toMatchObject({ company_name: 'Zeta', job_title: 'Dev', job_type: 'Full-time', ctc_or_stipend: '10 LPA', location: 'Bangalore', min_cgpa: 7.5, eligible_branches: 'CSE, ISE, ECE', deadline_date: '2026-12-10', drive_date: '2026-12-20' });
   });
 
-  it('resume vault: download uses openExternal(apiUrl); upload posts multipart via fetch', async () => {
+  it('resume vault: download uses openDownload; upload posts multipart via fetch', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ message: 'Uploaded' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(<PlacementsView userRole="student" />);
     await screen.findByText('Acme Corp');
     fireEvent.click(screen.getByRole('tab', { name: 'Resume Vault' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Download Resume' }));
-    expect(openExternal).toHaveBeenCalledWith('/api/placements/resumes/8/download');
+    expect(openDownload).toHaveBeenCalledWith('/api/placements/resumes/8/download');
     fireEvent.change(screen.getByLabelText(/Select Document/), { target: { files: [new File(['x'], 'r.pdf')] } });
     fireEvent.submit(screen.getByLabelText('Resume Version Title').closest('form'));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());

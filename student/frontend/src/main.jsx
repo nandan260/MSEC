@@ -5,6 +5,9 @@ import './theme/components.css'
 import './theme/motion.css'
 import './index.css'
 import App from './App.jsx'
+import { installFetchAuth } from './api'
+
+installFetchAuth()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -3,7 +3,7 @@ import { SCREENS, MORE_GROUPS } from '../../nav';
 import { Icon } from './icons';
 import { initials } from './TopBar';
 
-export default function MoreScreen({ onOpen, onLogout, user }) {
+export default function MoreScreen({ onOpen, onLogout, onLogoutAll, user }) {
   return (
     <div className="more">
       {user && <button type="button" className="more__profile" onClick={() => onOpen('profile')}>
@@ -22,11 +22,26 @@ export default function MoreScreen({ onOpen, onLogout, user }) {
               <Icon name="chevron" size={18} />
             </button>
           ))}
-          {group.title === 'Account' && (
-            <button type="button" className="more__row more__row--danger" onClick={onLogout}>
-              <span className="reference-icon reference-icon--accent"><Icon name="logout" size={18} /></span>
-              <span className="more__label">Log out</span>
+          {group.title === 'Account' && user?.role === 'admin' && (
+            <button type="button" className="more__row" onClick={() => onOpen('admin')}>
+              <span className="reference-icon"><Icon name="users" size={18} /></span>
+              <span className="more__label">Admin: Roster</span>
+              <Icon name="chevron" size={18} />
             </button>
+          )}
+          {group.title === 'Account' && (
+            <>
+              <button type="button" className="more__row more__row--danger" onClick={onLogout}>
+                <span className="reference-icon reference-icon--accent"><Icon name="logout" size={18} /></span>
+                <span className="more__label">Log out</span>
+              </button>
+              {onLogoutAll && (
+                <button type="button" className="more__row more__row--danger" onClick={onLogoutAll}>
+                  <span className="reference-icon reference-icon--accent"><Icon name="logout" size={18} /></span>
+                  <span className="more__label">Log out everywhere</span>
+                </button>
+              )}
+            </>
           )}
           </div>
         </section>

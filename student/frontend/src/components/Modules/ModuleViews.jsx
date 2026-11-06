@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest, apiUrl, openExternal } from '../../api';
+import PasswordSection from '../PasswordSection';
 
 // ==========================================================
 // 9. STUDENT PROFILE AND DIGITAL ID MODULE
@@ -545,6 +546,7 @@ export function StudentProfileView({ userRole }) {
           )}
         </div>
       )}
+      <PasswordSection />
     </div>
   );
 }

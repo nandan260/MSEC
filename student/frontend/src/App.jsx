@@ -6,22 +6,17 @@ import './components/Shell/shell.css';
 import AuthScreen from './screens/AuthScreen';
 import SCREEN_COMPONENTS from './screens/index.js';
 import { SCREENS, TABS, tabFor, pushScreen, popScreen } from './nav';
-import { clearAuth, getUser } from './api';
+import { clearAuth, getToken, getUser, setUser, UNAUTHORIZED_EVENT } from './api';
+import { authApi, GOOGLE_ERRORS, saveSession } from './auth-api';
+import { useAuthReturn } from './useAuthReturn';
 import { useOnline } from './useOnline';
 import { NotFoundScreen, OfflineScreen, OFFLINE_ENDPOINTS } from './screens/MobileStates';
 import './screens/mobile-reference.css';
 import './theme/responsive.css';
 
-const STUDENT_PROFILE = {
-  name: 'Alex Kumar',
-  identifier: '1MS21CS084',
-  role: 'student',
-  department: 'Computer Science & Engineering',
-  semester: 6
-};
-
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(() => getUser() || STUDENT_PROFILE);
+  const [currentUser, setCurrentUser] = useState(() => (getToken() ? getUser() : null));
+  const [authError, setAuthError] = useState('');
   const [stack, setStack] = useState(['dashboard']);
   const online = useOnline();
   const [showSaved, setShowSaved] = useState(false);
@@ -56,11 +51,43 @@ export default function App() {
     return () => { delete window.__msecNav; };
   }, [navigate, goBack]);
 
-  const handleLogout = () => {
+  // Confirm the stored session and refresh the user; an ended session fires UNAUTHORIZED_EVENT.
+  useEffect(() => {
+    if (!getToken()) return;
+    authApi.me().then(({ user }) => { setUser(user); setCurrentUser(user); }).catch(() => {});
+  }, []);
+
+  // Session expired or revoked mid-use: show sign-in, keep the screen stack so we return to it.
+  useEffect(() => {
+    const ended = () => {
+      setAuthError('Your session ended. Sign in again to continue.');
+      setCurrentUser(null);
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, ended);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, ended);
+  }, []);
+
+  useAuthReturn(async ({ code, error }) => {
+    if (error) { setAuthError(GOOGLE_ERRORS[error] || GOOGLE_ERRORS.google_failed); return; }
+    try {
+      setCurrentUser(saveSession(await authApi.exchangeGoogle(code)));
+      setAuthError('');
+    } catch (err) {
+      setAuthError(err.message || GOOGLE_ERRORS.google_failed);
+    }
+  });
+
+  const signOut = () => {
     clearAuth();
     stackRef.current = ['dashboard'];
     setStack(['dashboard']);
+    setAuthError('');
     setCurrentUser(null);
+  };
+  const handleLogout = signOut;
+  const handleLogoutAll = async () => {
+    try { await authApi.logoutAll(); } catch { /* signing out locally regardless */ }
+    signOut();
   };
 
   // QA-only hook: ?screen=auth renders the auth screen. Excluded from the APK (mode android).
@@ -68,9 +95,9 @@ export default function App() {
     && new URLSearchParams(window.location.search).get('screen') === 'auth';
 
   if (!currentUser || forceAuth) {
-    return <AuthScreen onLoginSuccess={(user) => {
+    return <AuthScreen key={authError} initialError={authError} onLoginSuccess={(user) => {
+      setAuthError('');
       setCurrentUser(user);
-      setStack(['dashboard']);
       if (forceAuth) window.history.replaceState(null, '', window.location.pathname);
     }} />;
   }
@@ -83,7 +110,7 @@ export default function App() {
 
   const renderActiveView = () => {
     if (activeId === 'more') {
-      return <MoreScreen user={currentUser} onOpen={navigate} onLogout={handleLogout} />;
+      return <MoreScreen user={currentUser} onOpen={navigate} onLogout={handleLogout} onLogoutAll={handleLogoutAll} />;
     }
     const Screen = SCREEN_COMPONENTS[activeId] || SCREEN_COMPONENTS.dashboard;
     if (activeId === 'dashboard') {

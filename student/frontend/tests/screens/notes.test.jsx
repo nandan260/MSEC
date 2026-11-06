@@ -9,10 +9,10 @@ afterEach(() => {
 
 vi.mock('../../src/api', async () => {
   class NetworkError extends Error {}
-  return { apiRequest: vi.fn(), apiUrl: (p) => p, openExternal: vi.fn(), NetworkError };
+  return { apiRequest: vi.fn(), apiUrl: (p) => p, openExternal: vi.fn(), openDownload: vi.fn(), NetworkError };
 });
 
-import { apiRequest, openExternal, NetworkError } from '../../src/api';
+import { apiRequest, openExternal, openDownload, NetworkError } from '../../src/api';
 import NotesView from '../../src/screens/NotesScreen.jsx';
 
 const mats = [
@@ -23,18 +23,19 @@ const mats = [
 beforeEach(() => {
   apiRequest.mockReset();
   openExternal.mockReset();
+  openDownload.mockReset();
   apiRequest.mockResolvedValue({ materials: mats });
 });
 
 describe('NotesScreen', () => {
-  it('renders material cards and downloads through openExternal', async () => {
+  it('renders material cards and downloads through openDownload', async () => {
     render(<NotesView userRole="student" />);
     expect(await screen.findByText('Raft Slides')).toBeInTheDocument();
     expect(screen.getByText('2 Documents Available')).toBeInTheDocument();
     expect(screen.getByText('Dr. Iyer')).toBeInTheDocument();
     expect(document.querySelector('table')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
-    expect(openExternal).toHaveBeenCalledWith('/api/notes/5/download');
+    expect(openDownload).toHaveBeenCalledWith('/api/notes/5/download');
     expect(screen.queryByRole('button', { name: '+ Upload Study Material' })).toBeNull();
   });
 

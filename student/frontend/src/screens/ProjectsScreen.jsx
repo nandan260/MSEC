@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { apiRequest, apiUrl, openExternal } from '../api';
+import { apiRequest, apiUrl, openDownload } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
 import Sheet from './Sheet';
@@ -259,7 +259,7 @@ export default function ProjectsView({ userRole }) {
                       <a href={p.github_url} target="_blank" rel="noreferrer" className="btn">GitHub Repo</a>
                     )}
                     {p.document_file && (
-                      <button type="button" className="btn" onClick={() => openExternal(apiUrl(`/api/projects/${p.id}/document/download`))}>
+                      <button type="button" className="btn" onClick={() => openDownload(`/api/projects/${p.id}/document/download`)}>
                         Architecture PDF
                       </button>
                     )}

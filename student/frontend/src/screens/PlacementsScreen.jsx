@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { apiRequest, apiUrl, openExternal } from '../api';
+import { apiRequest, apiUrl, openExternal, openDownload } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
 import Sheet from './Sheet';
@@ -395,7 +395,7 @@ export default function PlacementsView({ userRole }) {
                 {
                   label: 'Action',
                   render: (r) => (
-                    <button type="button" className="btn" onClick={() => openExternal(apiUrl(`/api/placements/resumes/${r.id}/download`))}>
+                    <button type="button" className="btn" onClick={() => openDownload(`/api/placements/resumes/${r.id}/download`)}>
                       Download Resume
                     </button>
                   ),

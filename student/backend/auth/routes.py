@@ -7,7 +7,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from database import get_db
 from . import email as mail
 from . import google, otp, ratelimit
-from .tokens import issue_token
+from .tokens import issue_download_token, issue_token
 from .users import normalize_email, public_user, roster_user
 
 # A real hash so unknown emails cost the same time as wrong passwords.
@@ -39,6 +39,15 @@ def me():
     user = public_user(conn, row)
     conn.close()
     return jsonify({'user': user})
+
+
+@bp.post('/download-token')
+def download_token():
+    """Short-lived token for links opened outside fetch (new tab, system browser)."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (g.user['id'],)).fetchone()
+    conn.close()
+    return jsonify({'token': issue_download_token(row)})
 
 
 @bp.post('/logout-all')

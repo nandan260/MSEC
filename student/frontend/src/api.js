@@ -51,6 +51,48 @@ export function getUser() {
   }
 }
 
+export const UNAUTHORIZED_EVENT = 'msec:unauthorized';
+
+function isApiUrl(url) {
+  const api = apiUrl('/api/');
+  return typeof url === 'string' && (url.startsWith(api) || url.startsWith('/api/'));
+}
+
+function isAuthEndpoint(url) {
+  return /\/api\/auth\/(login|code|password\/reset|google|config)/.test(url);
+}
+
+// A 401 on a signed-in request means the session ended (expired, revoked, disabled).
+function sessionEnded(url, hadToken) {
+  if (!hadToken || isAuthEndpoint(url)) return;
+  clearAuth();
+  window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+}
+
+// Screens that call fetch() directly still get the bearer token and 401 handling.
+export function installFetchAuth() {
+  if (typeof window === 'undefined' || window.__msecFetchAuth) return;
+  const original = window.fetch.bind(window);
+  window.__msecFetchAuth = true;
+  window.fetch = async (input, init = {}) => {
+    const url = typeof input === 'string' ? input : input?.url;
+    if (!isApiUrl(url)) return original(input, init);
+    const token = getToken();
+    const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
+    if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+    const response = await original(input, { ...init, headers });
+    if (response.status === 401) sessionEnded(url, !!token);
+    return response;
+  };
+}
+
+// Links opened outside fetch (new tab, system browser) carry a 5-minute download-only token.
+export async function openDownload(path) {
+  const { token } = await apiRequest('/auth/download-token', { method: 'POST' });
+  const url = apiUrl(path);
+  await openExternal(`${url}${url.includes('?') ? '&' : '?'}dl=${encodeURIComponent(token)}`);
+}
+
 export function clearAuth() {
   clearSavedResponses();
   localStorage.removeItem('auth_token');
@@ -89,7 +131,11 @@ export async function apiRequest(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || `HTTP error ${response.status}`);
+    if (response.status === 401) sessionEnded('/api' + endpoint, !!token);
+    const error = new Error(data.error || `HTTP error ${response.status}`);
+    error.status = response.status;
+    error.code = data.code;
+    throw error;
   }
 
   if (read) {

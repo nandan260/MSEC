@@ -1,6 +1,9 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { signIn } from './signed-in.js';
+
+beforeEach(() => signIn());
 import App from '../src/App.jsx';
 
 vi.mock('../src/screens/index.js', () => ({ default: { dashboard: () => <div>Home records</div>, assistant: () => <div>Assistant conversation</div> } }));

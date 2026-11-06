@@ -101,11 +101,13 @@ def bearer_token():
     return ''
 
 
-def load_session():
-    """Resolve g.user from the bearer token. Returns the user row or None."""
+def load_session(endpoint=''):
+    """Resolve g.user from the bearer token, or from ?dl= on download endpoints. Returns the user row or None."""
     conn = get_db()
     try:
         row = verify_token(conn, bearer_token())
+        if not row and 'download' in endpoint and request.method == 'GET' and request.args.get('dl'):
+            row = verify_token(conn, request.args['dl'], scope='download')
     finally:
         conn.close()
     g.user = dict(row) if row else None
@@ -121,7 +123,7 @@ def guard():
         return None
     if not request.path.startswith('/api/') and endpoint:
         return None
-    if not load_session():
+    if not load_session(endpoint):
         return jsonify({'error': 'Sign in to continue.'}), 401
     allowed = roles_for(endpoint, request.method)
     if allowed and g.user['role'] not in allowed:

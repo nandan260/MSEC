@@ -29,6 +29,16 @@ def issue_token(user_row, remember=False, now=None):
     return jwt.encode(payload, secret(), algorithm=ALGORITHM)
 
 
+DOWNLOAD_TTL = 5 * 60
+
+
+def issue_download_token(user_row, now=None):
+    now = int(now or time.time())
+    payload = {'sub': str(user_row['id']), 'role': user_row['role'], 'tv': int(user_row['token_version'] or 0),
+               'iat': now, 'exp': now + DOWNLOAD_TTL, 'scope': 'download'}
+    return jwt.encode(payload, secret(), algorithm=ALGORITHM)
+
+
 def decode_token(token):
     try:
         return jwt.decode(token, secret(), algorithms=[ALGORITHM], options={'require': ['sub', 'exp', 'iat']})
@@ -36,10 +46,10 @@ def decode_token(token):
         return None
 
 
-def verify_token(conn, token):
-    """Return the active user row the token belongs to, or None."""
+def verify_token(conn, token, scope=None):
+    """Return the active user row the token belongs to, or None. Session tokens have no scope."""
     claims = decode_token(token or '')
-    if not claims:
+    if not claims or claims.get('scope') != scope:
         return None
     try:
         uid = int(claims['sub'])

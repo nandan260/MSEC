@@ -10,10 +10,10 @@ afterEach(() => {
 
 vi.mock('../../src/api', async () => {
   class NetworkError extends Error {}
-  return { apiRequest: vi.fn(), apiUrl: (p) => p, openExternal: vi.fn(), NetworkError };
+  return { apiRequest: vi.fn(), apiUrl: (p) => p, openExternal: vi.fn(), openDownload: vi.fn(), NetworkError };
 });
 
-import { apiRequest, openExternal, NetworkError } from '../../src/api';
+import { apiRequest, openExternal, openDownload, NetworkError } from '../../src/api';
 import ProjectsView from '../../src/screens/ProjectsScreen.jsx';
 
 const projects = [
@@ -24,6 +24,7 @@ const projects = [
 beforeEach(() => {
   apiRequest.mockReset();
   openExternal.mockReset();
+  openDownload.mockReset();
   apiRequest.mockImplementation(async (url, opts) => {
     if (opts?.method) return { message: 'Saved' };
     if (url.includes('category=Research')) return { projects: [projects[1]] };
@@ -45,10 +46,10 @@ describe('ProjectsScreen', () => {
     expect(document.querySelector('table')).toBeNull();
   });
 
-  it('document download uses openExternal(apiUrl)', async () => {
+  it('document download uses openDownload', async () => {
     render(<ProjectsView userRole="student" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Architecture PDF' }));
-    expect(openExternal).toHaveBeenCalledWith('/api/projects/1/document/download');
+    expect(openDownload).toHaveBeenCalledWith('/api/projects/1/document/download');
   });
 
   it('category filter requests the filtered list and ignores a stale response', async () => {

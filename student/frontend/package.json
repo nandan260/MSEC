@@ -12,6 +12,7 @@
     "qa": "node qa/screens.mjs"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
     "@capacitor/browser": "^8.0.5",
     "@capacitor/core": "^8.6.0",
     "@fontsource/inter": "^5.3.0",

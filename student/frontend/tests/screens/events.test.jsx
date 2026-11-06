@@ -10,10 +10,10 @@ afterEach(() => {
 
 vi.mock('../../src/api', async () => {
   class NetworkError extends Error {}
-  return { apiRequest: vi.fn(), apiUrl: (p) => p, openExternal: vi.fn(), NetworkError };
+  return { apiRequest: vi.fn(), apiUrl: (p) => p, openExternal: vi.fn(), openDownload: vi.fn(), NetworkError };
 });
 
-import { apiRequest, openExternal, NetworkError } from '../../src/api';
+import { apiRequest, openExternal, openDownload, NetworkError } from '../../src/api';
 import EventsView from '../../src/screens/EventsScreen.jsx';
 
 const events = [
@@ -28,6 +28,7 @@ const regs = [
 beforeEach(() => {
   apiRequest.mockReset();
   openExternal.mockReset();
+  openDownload.mockReset();
   apiRequest.mockImplementation(async (url, opts) => {
     if (opts?.method) return { message: 'Done' };
     if (url.startsWith('/events/my-registrations')) return { registrations: regs };
@@ -77,14 +78,14 @@ describe('EventsScreen', () => {
     expect(screen.queryByText('Hack Night')).toBeNull();
   });
 
-  it('my passes: certificate download uses openExternal(apiUrl)', async () => {
+  it('my passes: certificate download uses openDownload', async () => {
     render(<EventsView userRole="student" />);
     await screen.findByText('Hack Night');
     fireEvent.click(screen.getByRole('tab', { name: 'My Passes' }));
     expect(await screen.findByText('2 Registrations on File')).toBeInTheDocument();
     expect(screen.getByText('Certificate Pending Attendance')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Download Certificate (PDF)' }));
-    expect(openExternal).toHaveBeenCalledWith('/api/events/certificates/31/download');
+    expect(openDownload).toHaveBeenCalledWith('/api/events/certificates/31/download');
   });
 
   it('shows ErrorCard and retry refetches', async () => {

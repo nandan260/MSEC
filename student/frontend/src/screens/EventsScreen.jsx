@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { apiRequest, apiUrl, openExternal } from '../api';
+import { apiRequest, apiUrl, openExternal, openDownload } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
 import Sheet from './Sheet';
@@ -300,7 +300,7 @@ export default function EventsView({ userRole }) {
                       <button
                         type="button"
                         className="btn"
-                        onClick={() => openExternal(apiUrl(`/api/events/certificates/${reg.reg_id}/download`))}
+                        onClick={() => openDownload(`/api/events/certificates/${reg.reg_id}/download`)}
                       >
                         Download Certificate (PDF)
                       </button>

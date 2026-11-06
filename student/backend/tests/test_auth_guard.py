@@ -77,3 +77,16 @@ def test_student_cannot_call_admin_route(client):
     assert client.get('/api/fees/admin/overview', headers=auth(ALEX)).status_code == 403
     assert client.get('/api/fees/admin/overview', headers=auth(FACULTY)).status_code == 403
     assert client.get('/api/fees/admin/overview', headers=auth(ADMIN)).status_code == 200
+
+
+def test_download_token_only_for_downloads(client):
+    r = client.post('/api/auth/download-token', headers=auth(ALEX))
+    assert r.status_code == 200
+    dl = r.get_json()['token']
+    # Accepted on a download endpoint via ?dl=
+    assert client.get('/api/notes/1/download', query_string={'dl': dl}).status_code != 401
+    # Rejected anywhere else, and as a bearer token
+    assert client.get('/api/dashboard/summary', query_string={'dl': dl}).status_code == 401
+    assert client.get('/api/notes/1/download', headers={'Authorization': f'Bearer {dl}'}).status_code == 401
+    # Session tokens are not accepted in the query string
+    assert client.get('/api/notes/1/download', query_string={'dl': token_for(ALEX)}).status_code == 401
