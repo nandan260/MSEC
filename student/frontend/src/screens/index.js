@@ -1,0 +1,48 @@
+// Screen id -> component. Re-exports the current module files until each screen moves.
+import DashboardHome from '../components/Dashboard/DashboardHome';
+import {
+  AcademicPerformanceView,
+  AttendanceView,
+  AttendanceCalculatorView,
+  TimetableView,
+  AssignmentsView,
+  NotesView,
+  ExaminationsView,
+  GpaCalculatorView,
+  StudentProfileView,
+  PlacementsView,
+  ProjectsView,
+  EventsView,
+  LibraryView,
+  CampusServicesView,
+  NotificationsView,
+  PerformanceAnalyticsView,
+  FacultyDoubtPortalView,
+} from '../components/Modules/ModuleViews';
+import FacultyMentorView from '../components/Modules/FacultyMentorView';
+import FeesManagementView from '../components/Modules/FeesManagementView';
+
+const SCREEN_COMPONENTS = {
+  dashboard: DashboardHome,
+  academics: AcademicPerformanceView,
+  attendance: AttendanceView,
+  attendance_calc: AttendanceCalculatorView,
+  timetable: TimetableView,
+  assignments: AssignmentsView,
+  notes: NotesView,
+  examinations: ExaminationsView,
+  gpa_calc: GpaCalculatorView,
+  profile: StudentProfileView,
+  placements: PlacementsView,
+  projects: ProjectsView,
+  events: EventsView,
+  library: LibraryView,
+  services: CampusServicesView,
+  notifications: NotificationsView,
+  analytics: PerformanceAnalyticsView,
+  doubts: FacultyDoubtPortalView,
+  faculty_mentor: FacultyMentorView,
+  fees: FeesManagementView,
+};
+
+export default SCREEN_COMPONENTS;
