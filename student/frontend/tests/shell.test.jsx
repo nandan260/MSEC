@@ -12,6 +12,7 @@ vi.mock('../src/screens/index.js', () => {
 
 import BottomTabs from '../src/components/Shell/BottomTabs.jsx';
 import MoreScreen from '../src/components/Shell/MoreScreen.jsx';
+import TopBar from '../src/components/Shell/TopBar.jsx';
 import App from '../src/App.jsx';
 
 describe('BottomTabs', () => {
@@ -76,5 +77,14 @@ describe('App shell', () => {
     let exit;
     act(() => { exit = window.__msecNav.goBack(); });
     expect(exit).toBe(true);
+  });
+});
+
+describe('TopBar', () => {
+  it('shows the notification dot only when unread is true', () => {
+    const { rerender } = render(<TopBar title="Home" />);
+    expect(screen.queryByTestId('notif-dot')).toBeNull();
+    rerender(<TopBar title="Home" unread />);
+    expect(screen.getByTestId('notif-dot')).toBeInTheDocument();
   });
 });

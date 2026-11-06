@@ -80,6 +80,7 @@ export default function App() {
       <TopBar
         title={SCREENS[activeId] ? SCREENS[activeId].label : 'Dashboard'}
         user={currentUser}
+        unread={false}
         onBell={() => navigate('notifications')}
         onAvatar={() => navigate('profile')}
       />

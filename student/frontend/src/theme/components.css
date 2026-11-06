@@ -25,12 +25,12 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--ink); }
 .list-row:last-child { border-bottom: 0; }
 
 .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; line-height: 1; padding: 4px 8px; border-radius: 999px; color: var(--muted); background: var(--surface-2); white-space: nowrap; }
-.pill--good { color: var(--good); background: var(--good-tint); }
-.pill--warn { color: var(--warn); background: var(--warn-tint); }
-.pill--bad { color: var(--bad); background: var(--bad-tint); }
+.pill--good { color: var(--good-ink); background: var(--good-tint); }
+.pill--warn { color: var(--warn-ink); background: var(--warn-tint); }
+.pill--bad { color: var(--bad-ink); background: var(--bad-tint); }
 .pill--accent { color: var(--accent-deep); background: var(--accent-tint); }
 .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); box-sizing: content-box; }
-.pill--info { color: var(--info); background: var(--info-tint); }
+.pill--info { color: var(--info-ink); background: var(--info-tint); }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 16px; border-radius: var(--radius-ctl); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-family: var(--font-body); font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; }
 .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -38,8 +38,8 @@ h1, h2, h3, h4 { font-family: var(--font-head); color: var(--ink); }
 .btn-primary { color: var(--primary-ink); border-color: var(--primary); background: var(--primary); box-shadow: none; font-weight: 600; }
 .btn-primary:hover { background: var(--primary-deep); border-color: var(--primary-deep); }
 .btn-primary:active { background: var(--primary-deep); }
-.btn-accent { color: var(--primary-ink); border-color: var(--accent); background: var(--accent); font-weight: 600; }
-.btn-accent:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+.btn-accent { color: var(--primary-ink); border-color: var(--accent-deep); background: var(--accent-deep); font-weight: 600; }
+.btn-accent:hover { background: var(--accent-press); border-color: var(--accent-press); }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--primary); }
 
 .field { display: flex; flex-direction: column; gap: 8px; }

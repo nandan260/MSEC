@@ -7,13 +7,14 @@ function initials(user) {
   return letters || 'S';
 }
 
-export default function TopBar({ title, onBell, onAvatar, user }) {
+export default function TopBar({ title, onBell, onAvatar, user, unread = false }) {
   return (
     <header className="topbar">
       <img className="topbar__logo" src="/favicon.svg" width="32" height="32" alt="MSEC" />
       <h1 className="topbar__title truncate">{title}</h1>
       <button type="button" className="topbar__btn" aria-label="Notifications" onClick={onBell}>
         <Icon name="bell" size={22} />
+        {unread && <span className="notif-dot" data-testid="notif-dot" aria-hidden="true" />}
       </button>
       <button type="button" className="topbar__avatar" aria-label="Profile" onClick={onAvatar}>
         {initials(user)}

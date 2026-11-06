@@ -8,7 +8,7 @@
 .auth-screen__tab { flex: 1; min-height: 44px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-family: var(--font-body); font-size: 14px; font-weight: 500; cursor: pointer; }
 .auth-screen__tab.is-active { background: var(--primary-tint); color: var(--primary); font-weight: 600; }
 .auth-screen__tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.auth-screen__error { padding: 12px; border-radius: var(--radius-ctl); background: var(--bad-tint); color: var(--bad); font-size: 14px; }
+.auth-screen__error { padding: 12px; border-radius: var(--radius-ctl); background: var(--bad-tint); color: var(--bad-ink); font-size: 14px; }
 .auth-screen__form { display: flex; flex-direction: column; gap: 16px; }
 .auth-screen__form .field input, .auth-screen__form .field select { width: 100%; box-sizing: border-box; }
 .auth-screen .btn.btn-primary.auth-screen__submit { width: 100%; box-sizing: border-box; padding: 9px 16px; border: 1px solid var(--primary); border-radius: var(--radius-ctl); font-size: 14px; font-weight: 600; color: var(--primary-ink); }

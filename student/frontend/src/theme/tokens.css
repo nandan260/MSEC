@@ -22,6 +22,7 @@
   --accent: #F30137;        /* color-accent: alert badge, notification dot */
   --accent-deep: #C4012C;
   --accent-tint: #FDE2E7;
+  --accent-press: #9E0122;
   --good: #1C8A5C;
   --good-tint: #E8F5EF;
   --warn: #D98B16;
@@ -30,6 +31,11 @@
   --bad-tint: #FDE2E7;
   --info: #2563A6;
   --info-tint: #EAF1F9;
+  /* Text variants of the status hues: >= 4.5:1 on their tint and on --surface. */
+  --good-ink: #13694A;
+  --warn-ink: #8A5300;
+  --bad-ink: #B01E3E;
+  --info-ink: #1F5490;
 
   --radius-card: 16px;
   --radius-ctl: 12px;
