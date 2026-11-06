@@ -1,0 +1,50 @@
+@import '@fontsource/manrope/600.css';
+@import '@fontsource/manrope/700.css';
+@import '@fontsource/manrope/800.css';
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/500.css';
+@import '@fontsource/dm-sans/700.css';
+
+/* Values read from the live Teacher dashboard at 390px (computed styles). */
+:root {
+  --bg: #f4f3ed;            /* body background */
+  --surface: #fffef9;       /* panel/card background */
+  --surface-2: #f8f9f2;    /* metric-stack inner surface */
+  --ink: #233e31;           /* body text */
+  --muted: #626e60;
+  --line: #e2e6d9;          /* card border */
+  --primary: #234c3b;       /* btn.primary border/end of gradient */
+  --primary-2: #3a624c;     /* btn.primary gradient start */
+  --primary-deep: #163729;  /* btn.primary bottom edge */
+  --primary-ink: #ffffff;
+  --primary-tint: #edf2e3;  /* mint */
+  --good: #356546;
+  --good-tint: #e7efdf;
+  --warn: #815515;
+  --warn-tint: #fbefd7;
+  --bad: #98472f;
+  --bad-tint: #f9e9e2;
+  --info: #315e8b;
+  --info-tint: #e5eef8;
+
+  --radius-card: 16px;
+  --radius-ctl: 12px;
+  --pad: 16px;
+  --shadow: 0 2px 6px rgba(35, 62, 49, 0.06);
+
+  --font-head: 'Manrope', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+h1, h2, h3, h4 { font-family: var(--font-head); color: var(--ink); }
