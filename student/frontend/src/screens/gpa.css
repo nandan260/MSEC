@@ -35,3 +35,7 @@
 .gpa__scale { display: flex; flex-direction: column; gap: 12px; }
 .gpa__scale summary { min-height: 44px; display: flex; align-items: center; font-size: 14px; font-weight: 600; cursor: pointer; }
 .gpa__need { font-size: 14px; color: var(--ink); }
+.gpa__pair--stack { grid-template-columns: minmax(0, 1fr); }
+.gpa__sticky { flex-wrap: wrap; }
+.gpa__sticky .gpa__msg { flex: 1 1 100%; }
+.gpa__sticky .btn { flex: 1 1 0; }

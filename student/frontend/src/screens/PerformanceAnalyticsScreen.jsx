@@ -7,10 +7,10 @@ import { attendanceTone } from './shared';
 import './analytics.css';
 
 // Chart geometry. The viewBox is about as wide as a phone card, so the 12px labels render at 12px.
-const CHART_W = 300;
+const CHART_W = 280;
 const CHART_H = 220;
 const PAD_L = 40;
-const PAD_R = 20;
+const PAD_R = 18;
 const PAD_T = 28;
 const PAD_B = 36;
 const MIN_Y = 7.0;
@@ -140,9 +140,10 @@ export default function PerformanceAnalyticsView() {
           })}
 
           {/* X-Axis Semester Labels */}
+          <text x={PAD_L - 8} y={CHART_H - 12} textAnchor="end">Sem</text>
           {sgpaList.map((s, idx) => (
             <text key={idx} className="analytics__x" x={getX(idx)} y={CHART_H - 12} textAnchor="middle">
-              {s.semester}
+              {String(s.semester).replace(/^Sem\s*/i, '')}
             </text>
           ))}
 
@@ -154,10 +155,13 @@ export default function PerformanceAnalyticsView() {
             const x = getX(idx);
             const ySgpa = getY(s.sgpa);
             const yCgpa = getY(s.cgpa);
+            // Label sits on the side away from the CGPA marker, kept inside the plot band.
+            const below = s.cgpa > s.sgpa;
+            const yLabel = below ? Math.min(ySgpa + 18, CHART_H - PAD_B + 12) : Math.max(ySgpa - 8, 12);
             return (
               <g key={idx}>
                 <circle className="analytics__dot--sgpa" cx={x} cy={ySgpa} r="4.5" />
-                <text className="analytics__val" x={x} y={ySgpa - 8} textAnchor="middle">
+                <text className="analytics__val" x={x} y={yLabel} textAnchor="middle">
                   {s.sgpa.toFixed(2)}
                 </text>
                 <rect className="analytics__dot--cgpa" x={x - 3.5} y={yCgpa - 3.5} width="7" height="7" />

@@ -262,7 +262,7 @@ export default function GpaCalculatorView() {
   return (
     <div className="page gpa" data-qa="gpa-screen">
       {message && <div className="pill pill--good gpa__msg" role="status">{message}</div>}
-      {error && <div className="pill pill--bad gpa__msg" role="alert">{error}</div>}
+      {error && activeTab !== 'sgpa' && <div className="pill pill--bad gpa__msg" role="alert">{error}</div>}
       {historyError && <ErrorCard error={historyError} onRetry={fetchHistory} />}
 
       {/* Top Metrics Row */}
@@ -343,7 +343,7 @@ export default function GpaCalculatorView() {
                   onChange={(e) => updateCourse(i, 'name', e.target.value)}
                 />
               </div>
-              <div className="gpa__pair">
+              <div className="gpa__pair gpa__pair--stack">
                 <div className="field">
                   <label htmlFor={`gpa-credits-${i}`}>Credits</label>
                   <input
@@ -379,7 +379,8 @@ export default function GpaCalculatorView() {
           <button type="button" className="btn" onClick={addCourseRow}>+ Add Subject</button>
           {gradeScale}
 
-          <div className="sticky-actions">
+          <div className="sticky-actions gpa__sticky">
+            {error && <div className="pill pill--bad gpa__msg" role="alert">{error}</div>}
             <button type="button" className="btn btn-primary" onClick={handleComputeSgpa} disabled={loading}>
               {loading ? 'Computing...' : 'Calculate SGPA'}
             </button>

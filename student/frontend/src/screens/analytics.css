@@ -20,7 +20,7 @@
 
 .analytics__chart-card { display: flex; flex-direction: column; gap: 12px; }
 .analytics__legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
-.analytics__legend li { display: flex; align-items: center; gap: 6px; }
+.analytics__legend li { display: flex; align-items: center; gap: 8px; }
 .analytics__swatch { width: 16px; height: 4px; border-radius: 2px; }
 .analytics__swatch--sgpa { background: var(--info); }
 .analytics__swatch--cgpa { background: var(--primary); }
@@ -34,7 +34,7 @@
 .analytics__dot--sgpa { fill: var(--info); stroke: var(--surface); stroke-width: 2; }
 .analytics__dot--cgpa { fill: var(--primary); }
 .analytics__svg .analytics__x { fill: var(--ink); font-weight: 700; }
-.analytics__svg .analytics__val { fill: var(--ink); font-weight: 700; }
+.analytics__svg .analytics__val { fill: var(--ink); font-weight: 700; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 
 .analytics__bars { display: flex; flex-direction: column; gap: 16px; }
 .analytics__bar-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
