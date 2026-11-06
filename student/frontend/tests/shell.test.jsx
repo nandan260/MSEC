@@ -58,4 +58,23 @@ describe('App shell', () => {
     act(() => { exit = window.__msecNav.goBack(); });
     expect(exit).toBe(true);
   });
+
+  it('bell opens Notifications and avatar opens Profile', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Notifications');
+    fireEvent.click(screen.getByRole('button', { name: 'Profile' }));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Student Profile');
+  });
+
+  it('logout resets history so back exits', () => {
+    render(<App />);
+    const tabs = screen.getByRole('navigation', { name: 'Primary' });
+    fireEvent.click(within(tabs).getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('button', { name: /Log out/ }));
+    expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
+    let exit;
+    act(() => { exit = window.__msecNav.goBack(); });
+    expect(exit).toBe(true);
+  });
 });

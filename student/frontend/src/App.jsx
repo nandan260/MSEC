@@ -44,6 +44,8 @@ export default function App() {
 
   const handleLogout = () => {
     clearAuth();
+    stackRef.current = ['dashboard'];
+    setStack(['dashboard']);
     setCurrentUser(null);
   };
 
