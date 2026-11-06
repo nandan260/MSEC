@@ -24,9 +24,11 @@ export async function assistantRequest(path, body) {
   }
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(
+    const error = new Error(
       data.error || `AI request failed (HTTP ${response.status}).`,
     );
+    error.status = response.status;
+    throw error;
   }
   return path === "export" ? response.blob() : response.json();
 }

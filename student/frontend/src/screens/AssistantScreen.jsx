@@ -1,252 +1,160 @@
-import React, { useEffect, useRef, useState } from "react";
-import { assistantRequest, downloadCard } from "../assistant-api";
-import { SCREENS } from "../nav";
-import "./assistant.css";
+import React, { useEffect, useRef, useState } from 'react';
+import { assistantRequest } from '../assistant-api';
+import { SCREENS } from '../nav';
+import { Icon } from '../components/Shell/icons';
+import { AssistantCard } from './assistant/Cards';
+import { useOnline } from '../useOnline';
+import './assistant.css';
 
-const SUGGESTIONS = [
-  "What's my timetable today?",
-  "Upcoming exams",
-  "Which notes for CS602?",
-  "Make attendance report PDF",
-  "Explain Paxos as slides",
+export const SUGGESTIONS = [
+  "What's due this week?",
+  'SGPA needed for 9.5',
+  'Summarise ML notes',
+  "Today's timetable",
+  'Make attendance report PDF',
 ];
 
-function AssistantCard({ card }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function download(format) {
-    setBusy(true);
-    setError("");
-    try {
-      await downloadCard(card, format);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <section className="assistant-card" aria-label={card.title}>
-      <h3>{card.title}</h3>
-      {card.kind === "study" && (
-        <>
-          <p>{card.summary}</p>
-          {card.sections.map((section, index) => (
-            <div key={index}>
-              <h4>{section.title}</h4>
-              <p>{section.body}</p>
-            </div>
-          ))}
-          <details>
-            <summary>Slides ({card.slides.length})</summary>
-            {card.slides.map((slide, index) => (
-              <div key={index}>
-                <h4>{slide.title}</h4>
-                <ul>
-                  {slide.bullets.map((bullet, i) => (
-                    <li key={i}>{bullet}</li>
-                  ))}
-                </ul>
-                {slide.notes && <p>{slide.notes}</p>}
-              </div>
-            ))}
-          </details>
-          {card.quiz?.map((quiz, index) => (
-            <details key={index}>
-              <summary>{quiz.question}</summary>
-              <p>{quiz.answer}</p>
-            </details>
-          ))}
-        </>
-      )}
-      {card.kind === "report" && (
-        <div
-          className="assistant-table"
-          tabIndex={0}
-          role="region"
-          aria-label={`${card.title} records`}
-        >
-          <table>
-            <thead>
-              <tr>
-                {card.columns.map((column) => (
-                  <th key={column}>{column}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {card.rows.map((row, index) => (
-                <tr key={index}>
-                  {card.columns.map((column) => (
-                    <td key={column}>{row[column]}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!card.rows.length && <p>No records supplied.</p>}
-        </div>
-      )}
-      <div className="assistant-buttons">
-        {["pptx", "pdf"].map((format) => (
-          <button
-            type="button"
-            key={format}
-            disabled={busy}
-            onClick={() => download(format)}
-          >
-            Download {format.toUpperCase()}
-          </button>
-        ))}
-      </div>
-      {error && <p role="alert">{error}</p>}
-    </section>
-  );
+const MAX_MESSAGES = 30;
+const SETUP = 'Assistant not set up. Start OmniRoute.';
+
+// Last <=30 messages, starting on a user turn.
+function window30(history) {
+  const slice = history.slice(-MAX_MESSAGES);
+  return slice[0] && slice[0].role === 'assistant' ? slice.slice(1) : slice;
+}
+
+function errorText(err) {
+  if (err && err.status === 503) return SETUP;
+  if (err && err.status === 502) return "AI didn't respond.";
+  return (err && err.message) || 'Something went wrong.';
+}
+
+function validActions(actions) {
+  return (actions || []).filter((a) => a && a.type === 'navigate' && a.screen !== 'more' && Object.hasOwn(SCREENS, a.screen));
 }
 
 export default function AssistantScreen({ onNavigate }) {
-  const [status, setStatus] = useState(null);
+  const online = useOnline();
+  const [configured, setConfigured] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [input, setInput] = useState('');
+  const [pending, setPending] = useState(null);
+  const [error, setError] = useState(null);
   const end = useRef(null);
+
   useEffect(() => {
-    let active = true;
-    assistantRequest("status")
-      .then((value) => {
-        if (active) setStatus(value);
-      })
-      .catch((err) => {
-        if (active) setError(err.message);
-      });
-    return () => {
-      active = false;
-    };
+    let live = true;
+    assistantRequest('status')
+      .then((s) => { if (live) setConfigured(!!(s && s.configured)); })
+      .catch(() => { if (live) setConfigured(null); });
+    return () => { live = false; };
   }, []);
+
   useEffect(() => {
-    end.current?.scrollIntoView?.({ block: "nearest" });
-  }, [messages, busy]);
-  async function send(event) {
-    event.preventDefault();
-    if (busy || !input.trim()) return;
-    const userMessage = { role: "user", content: input.trim() };
-    const history = [...messages, userMessage]
-      .slice(-29)
-      .map(({ role, content }) => ({ role, content: content.slice(0, 30000) }));
-    setBusy(true);
-    setError("");
+    end.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [messages, pending]);
+
+  async function send(text) {
+    const content = text.trim();
+    if (!content || pending || !online) return;
+    const userMessage = { role: 'user', content };
+    const history = window30([...messages, userMessage].map(({ role, content: c }) => ({ role, content: c })));
+    setPending(content);
+    setError(null);
+    setInput(content);
     try {
-      const result = await assistantRequest("chat", {
-        messages: history,
-        currentScreen: "assistant",
-      });
-      setMessages((previous) => [
-        ...previous,
-        userMessage,
-        { role: "assistant", content: result.message, ...result },
-      ]);
-      setInput("");
+      const result = await assistantRequest('chat', { messages: history, currentScreen: 'assistant' });
+      setMessages((prev) => [...prev, userMessage, {
+        role: 'assistant',
+        content: result.message || '',
+        actions: validActions(result.actions),
+        cards: Array.isArray(result.cards) ? result.cards : [],
+        trace: Array.isArray(result.trace) ? result.trace : [],
+        warnings: Array.isArray(result.warnings) ? result.warnings : [],
+      }]);
+      setInput('');
     } catch (err) {
-      setError(err.message);
+      setError({ text: errorText(err), retry: err && err.status === 502, content });
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   }
+
+  const empty = !messages.length && !pending;
+  const disabled = !online || !!pending;
+
   return (
-    <div className="student-assistant">
-      <div
-        className="assistant-transcript"
-        role="log"
-        aria-label="AI conversation"
-        aria-live="polite"
-      >
-        <p className="assistant-intro">
-          Ask about your college records, find an app screen, or study a topic.
-        </p>
-        {status?.configured === false && (
-          <p role="status">
-            AI is not configured. Ask your administrator to configure the AI
-            server. Your draft stays here.
-          </p>
-        )}
-        {status?.configured && (
-          <p className="assistant-meta">Connected · {status.model}</p>
-        )}
-        {!messages.length && (
-          <div className="assistant-suggestions">
-            {SUGGESTIONS.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                onClick={() => setInput(prompt)}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        )}
-        {messages.map((message, index) => (
-          <article
-            key={index}
-            className={`assistant-message assistant-message--${message.role}`}
-          >
-            <strong>{message.role === "user" ? "You" : "Ask AI"}</strong>
-            <p>{message.content}</p>
-            {!!message.trace?.length && (
-              <p className="assistant-meta">
-                Tools: {message.trace.join(", ")}
-              </p>
-            )}
-            {message.warnings?.map((warning, i) => (
-              <p key={i} className="assistant-warning">
-                {warning}
-              </p>
-            ))}
-            <div className="assistant-buttons">
-              {message.actions
-                ?.filter(
-                  (action) =>
-                    action.type === "navigate" &&
-                    action.screen !== "more" &&
-                    Object.hasOwn(SCREENS, action.screen),
-                )
-                .map((action, i) => (
-                  <button
-                    type="button"
-                    key={i}
-                    onClick={() => onNavigate?.(action.screen)}
-                  >
-                    {action.label}
+    <div className="ai">
+      <div className="ai__log" role="log" aria-label="AI conversation" aria-live="polite">
+        {configured === false && <p className="ai-banner" role="status">{SETUP}</p>}
+
+        {messages.map((m, i) => (m.role === 'user' ? (
+          <p key={i} className="ai-bubble ai-bubble--user">{m.content}</p>
+        ) : (
+          <article key={i} className="ai-bubble ai-bubble--bot">
+            {m.content && <p className="ai-text">{m.content}</p>}
+            {m.cards.map((card, j) => <AssistantCard key={j} card={card} offline={!online} />)}
+            {!!m.actions.length && (
+              <div className="ai-actions">
+                {m.actions.map((a, j) => (
+                  <button key={j} type="button" className="ai-btn ai-btn--nav" onClick={() => onNavigate?.(a.screen)}>
+                    {a.label}
                   </button>
                 ))}
-            </div>
-            {message.cards?.map((card, i) => (
-              <AssistantCard key={i} card={card} />
-            ))}
+              </div>
+            )}
+            {m.warnings.map((w, j) => <p key={j} className="ai-warn">{w}</p>)}
+            {!!m.trace.length && <p className="ai-trace">Checked: {m.trace.join(', ')}</p>}
           </article>
-        ))}
-        {busy && <p role="status">Thinking…</p>}
+        )))}
+
+        {pending && (
+          <>
+            <p className="ai-bubble ai-bubble--user">{pending}</p>
+            <p className="ai-bubble ai-bubble--bot ai-typing" role="status">Thinking…</p>
+          </>
+        )}
+
+        {error && (
+          <div className="ai-banner ai-banner--error" role="alert">
+            <span>{error.text}</span>
+            {error.retry && (
+              <button type="button" className="ai-btn" onClick={() => send(error.content)}>Retry</button>
+            )}
+          </div>
+        )}
+
+        {empty && (
+          <div className="ai-try">
+            <div className="ai-try__label" id="ai-try-label">Try asking</div>
+            <div className="ai-try__chips" role="group" aria-labelledby="ai-try-label">
+              {SUGGESTIONS.map((q) => (
+                <button key={q} type="button" className="ai-chip" disabled={disabled} onClick={() => send(q)}>{q}</button>
+              ))}
+            </div>
+          </div>
+        )}
         <div ref={end} />
       </div>
-      <form className="assistant-composer" onSubmit={send}>
-        {error && <p role="alert">{error}</p>}
-        <label htmlFor="assistant-input">Message Ask AI</label>
-        <textarea
-          id="assistant-input"
-          rows={2}
-          maxLength={30000}
-          value={input}
-          disabled={busy}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="Ask a question…"
-        />
-        <button
-          type="submit"
-          disabled={busy || !input.trim() || status?.configured === false}
-        >
-          {busy ? "Thinking…" : "Send"}
-        </button>
+
+      <form className="ai-composer" onSubmit={(e) => { e.preventDefault(); send(input); }}>
+        {!online && <p className="ai-offline">You're offline. Ask AI needs a connection.</p>}
+        <div className="ai-composer__box">
+          <label htmlFor="ai-input" className="visually-hidden">Message Ask AI</label>
+          <input
+            id="ai-input"
+            className="ai-composer__input"
+            maxLength={4000}
+            value={input}
+            disabled={disabled}
+            autoComplete="off"
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask anything…"
+          />
+          <button type="submit" className="ai-send" aria-label="Send" disabled={disabled || !input.trim()}>
+            <Icon name="send" size={20} stroke={2.2} />
+          </button>
+        </div>
       </form>
     </div>
   );
