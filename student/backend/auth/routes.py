@@ -1,12 +1,12 @@
 """Auth blueprint: /api/auth/*."""
 import os
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, jsonify, redirect, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import get_db
 from . import email as mail
-from . import otp, ratelimit
+from . import google, otp, ratelimit
 from .tokens import issue_token
 from .users import normalize_email, public_user, roster_user
 
@@ -67,7 +67,6 @@ def too_many(seconds):
 
 
 def google_enabled():
-    from . import google
     return google.google_enabled()
 
 
@@ -199,5 +198,76 @@ def set_password():
         conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(new_password), row['id']))
         conn.commit()
         return jsonify({'message': 'Password saved.'})
+    finally:
+        conn.close()
+
+
+def _cookie_kwargs():
+    return {
+        'httponly': True,
+        'samesite': 'Lax',
+        'secure': google.public_origin().startswith('https:'),
+        'path': google.COOKIE_PATH,
+    }
+
+
+@bp.get('/google/start')
+def google_start():
+    if not google.google_enabled():
+        return jsonify({'error': 'Google sign-in is not available right now.'}), 503
+    platform = 'android' if request.args.get('platform') == 'android' else 'web'
+    remember = request.args.get('remember') in ('1', 'true')
+    conn = get_db()
+    try:
+        url, browser = google.new_flow(conn, platform, remember)
+    finally:
+        conn.close()
+    resp = redirect(url, code=302)
+    resp.set_cookie(google.COOKIE, browser, max_age=google.FLOW_TTL, **_cookie_kwargs())
+    return resp
+
+
+@bp.get('/google/callback')
+def google_callback():
+    state = request.args.get('state', '')
+    conn = get_db()
+    try:
+        platform = google.flow_platform(conn, state)
+        flow = google.consume_flow(conn, state, request.cookies.get(google.COOKIE, ''))
+        if not flow:
+            target = google.return_url(platform, error='google_failed')
+        elif request.args.get('error'):
+            target = google.return_url(flow['platform'], error='google_cancelled')
+        elif not request.args.get('code'):
+            target = google.return_url(flow['platform'], error='google_failed')
+        else:
+            try:
+                token = google.exchange_code(request.args['code'], flow['code_verifier'])
+                payload = google.verify_id_token(token)
+                user = google.roster_user_for(conn, payload, flow)
+                code = google.issue_exchange(conn, flow, user['id'])
+                target = google.return_url(flow['platform'], code=code)
+            except google.GoogleError as exc:
+                target = google.return_url(flow['platform'], error=exc.reason)
+    finally:
+        conn.close()
+    resp = redirect(target, code=302)
+    resp.delete_cookie(google.COOKIE, **{k: v for k, v in _cookie_kwargs().items() if k in ('path', 'secure', 'samesite', 'httponly')})
+    return resp
+
+
+@bp.post('/google/exchange')
+def google_exchange():
+    code = body().get('code') or ''
+    conn = get_db()
+    try:
+        redeemed = google.redeem_exchange(conn, code)
+        row = None
+        if redeemed:
+            uid, remember = redeemed
+            row = conn.execute("SELECT * FROM users WHERE id = ? AND active = 1", (uid,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Google sign-in expired. Try again.'}), 401
+        return session_response(conn, row, remember)
     finally:
         conn.close()
