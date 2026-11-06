@@ -16,6 +16,7 @@
   --primary: #234c3b;       /* btn.primary border/end of gradient */
   --primary-2: #3a624c;     /* btn.primary gradient start */
   --primary-deep: #163729;  /* btn.primary bottom edge */
+  --primary-shadow: rgba(35, 76, 59, 0.1);
   --primary-ink: #ffffff;
   --primary-tint: #edf2e3;  /* mint */
   --good: #356546;
@@ -30,7 +31,7 @@
   --radius-card: 16px;
   --radius-ctl: 12px;
   --pad: 16px;
-  --shadow: 0 2px 6px rgba(35, 62, 49, 0.06);
+  --shadow: 0 2px 6px rgba(35, 62, 49, 0.024);
 
   --font-head: 'Manrope', system-ui, sans-serif;
   --font-body: 'DM Sans', system-ui, sans-serif;
@@ -38,13 +39,3 @@
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
 }
-
-html, body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 14px;
-  line-height: 1.45;
-  -webkit-text-size-adjust: 100%;
-}
-h1, h2, h3, h4 { font-family: var(--font-head); color: var(--ink); }
