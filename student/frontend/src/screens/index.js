@@ -10,11 +10,11 @@ import ExaminationsView from './ExaminationsScreen';
 import GpaCalculatorView from './GpaCalculatorScreen';
 import PerformanceAnalyticsView from './PerformanceAnalyticsScreen';
 import EventsView from './EventsScreen';
+import LibraryView from './LibraryScreen';
 import {
   StudentProfileView,
   PlacementsView,
   ProjectsView,
-  LibraryView,
   CampusServicesView,
   NotificationsView,
   FacultyDoubtPortalView,
