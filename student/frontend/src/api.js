@@ -1,5 +1,31 @@
 // API Communication Helper
-const API_BASE = '/api';
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+
+export class NetworkError extends Error {
+  constructor(message = 'Cannot reach the server. Check your connection and try again.') {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
+export function apiUrl(path) {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE}${path}`;
+}
+
+export function isNative() {
+  return !!(typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.());
+}
+
+export async function openExternal(url) {
+  if (isNative()) {
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url });
+  } else {
+    window.open(url, '_blank');
+  }
+}
 
 export function setToken(token) {
   if (token) localStorage.setItem('auth_token', token);
@@ -37,10 +63,16 @@ export async function apiRequest(endpoint, options = {}) {
     ...(options.headers || {})
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers
-  });
+  let response;
+  try {
+    response = await fetch(apiUrl('/api' + endpoint), {
+      ...options,
+      headers
+    });
+  } catch (e) {
+    if (e instanceof TypeError) throw new NetworkError();
+    throw e;
+  }
 
   const data = await response.json().catch(() => ({}));
 

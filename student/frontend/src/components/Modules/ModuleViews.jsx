@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiRequest } from '../../api';
+import { apiRequest, apiUrl, openExternal } from '../../api';
 
 // ==========================================================
 // 1. ACADEMIC PERFORMANCE MODULE
@@ -938,7 +938,7 @@ export function AssignmentsView({ userRole }) {
     formData.append('student_name', 'Alex Kumar');
 
     try {
-      const res = await fetch(`/api/assignments/${uploadModalAssignment.id}/upload`, {
+      const res = await fetch(apiUrl(`/api/assignments/${uploadModalAssignment.id}/upload`), {
         method: 'POST',
         body: formData
       });
@@ -1278,7 +1278,7 @@ export function NotesView({ userRole }) {
   };
 
   const handleDownload = (id) => {
-    window.location.href = `/api/notes/${id}/download`;
+    openExternal(apiUrl(`/api/notes/${id}/download`));
   };
 
   const handleUploadSubmit = async (e) => {
@@ -1297,7 +1297,7 @@ export function NotesView({ userRole }) {
     formData.append('file', uploadFile);
 
     try {
-      const res = await fetch('/api/notes/upload', { method: 'POST', body: formData });
+      const res = await fetch(apiUrl('/api/notes/upload'), { method: 'POST', body: formData });
       const data = await res.json();
       alert(data.message);
       setShowUploadModal(false);
@@ -2557,7 +2557,7 @@ export function StudentProfileView({ userRole }) {
 
     try {
       setLoading(true);
-      const res = await fetch('/api/profile/photo', {
+      const res = await fetch(apiUrl('/api/profile/photo'), {
         method: 'POST',
         body: formData
       });
@@ -2610,7 +2610,7 @@ export function StudentProfileView({ userRole }) {
       <div className="panel-card" style={{ marginBottom: '16px' }}>
         <div className="panel-card-body" style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div className="id-photo-box" style={{ width: '90px', height: '100px' }}>
-            <img src={profile.photo_url || '/uploads/profiles/default_student.png'} alt={profile.name} />
+            <img src={apiUrl(profile.photo_url || '/uploads/profiles/default_student.png')} alt={profile.name} />
           </div>
 
           <div style={{ flex: 1, minWidth: '240px' }}>
@@ -2868,7 +2868,7 @@ export function StudentProfileView({ userRole }) {
               <div className="id-card-body">
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'center', marginBottom: '12px' }}>
                   <div className="id-photo-box">
-                    <img src={digitalId.digital_id.photo_url || '/uploads/profiles/default_student.png'} alt={digitalId.digital_id.name} />
+                    <img src={apiUrl(digitalId.digital_id.photo_url || '/uploads/profiles/default_student.png')} alt={digitalId.digital_id.name} />
                   </div>
 
                   <div style={{ flex: 1 }}>
@@ -3182,7 +3182,7 @@ export function PlacementsView({ userRole }) {
     setError('');
     try {
       setLoading(true);
-      const res = await fetch('/api/placements/resumes/upload', {
+      const res = await fetch(apiUrl('/api/placements/resumes/upload'), {
         method: 'POST',
         body: formData
       });
@@ -3486,13 +3486,12 @@ export function PlacementsView({ userRole }) {
                       File: {r.file_name} | Uploaded: {r.uploaded_at}
                     </div>
                   </div>
-                  <a
-                    href={`/api/placements/resumes/${r.id}/download`}
+                  <button type="button" onClick={() => openExternal(apiUrl(`/api/placements/resumes/${r.id}/download`))}
                     className="btn-secondary"
                     style={{ textDecoration: 'none', padding: '6px 12px', fontSize: '12px' }}
                   >
                     Download Resume
-                  </a>
+                  </button>
                 </div>
               ))}
             </div>
@@ -3931,7 +3930,7 @@ export function ProjectsView({ userRole }) {
 
     try {
       setLoading(true);
-      const res = await fetch('/api/projects', {
+      const res = await fetch(apiUrl('/api/projects'), {
         method: 'POST',
         body: formData
       });
@@ -4121,12 +4120,11 @@ export function ProjectsView({ userRole }) {
                     </a>
                   )}
                   {p.document_file && (
-                    <a
-                      href={`/api/projects/${p.id}/document/download`}
+                    <button type="button" onClick={() => openExternal(apiUrl(`/api/projects/${p.id}/document/download`))}
                       className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', textDecoration: 'none' }}
                     >
                       Architecture PDF
-                    </a>
+                    </button>
                   )}
                 </div>
 
@@ -4492,7 +4490,7 @@ export function EventsView({ userRole }) {
     setError('');
     try {
       setLoading(true);
-      const res = await fetch(`/api/events/${certEventId}/certificate/upload`, {
+      const res = await fetch(apiUrl(`/api/events/${certEventId}/certificate/upload`), {
         method: 'POST',
         body: formData
       });
@@ -4687,13 +4685,12 @@ export function EventsView({ userRole }) {
                       </td>
                       <td>
                         {reg.certificate_issued ? (
-                          <a
-                            href={`/api/events/certificates/${reg.reg_id}/download`}
+                          <button type="button" onClick={() => openExternal(apiUrl(`/api/events/certificates/${reg.reg_id}/download`))}
                             className="btn-secondary"
                             style={{ textDecoration: 'none', padding: '4px 10px', fontSize: '11px', color: '#15803d', fontWeight: 600 }}
                           >
                             Download Certificate (PDF)
-                          </a>
+                          </button>
                         ) : (
                           <span style={{ fontSize: '11px', color: '#64748b' }}>
                             Certificate Pending Attendance
@@ -8370,7 +8367,7 @@ export function FacultyDoubtPortalView({ userRole }) {
         formData.append('attachment', doubtFile);
       }
 
-      const res = await fetch('/api/doubts', {
+      const res = await fetch(apiUrl('/api/doubts'), {
         method: 'POST',
         body: formData
       });
@@ -8409,7 +8406,7 @@ export function FacultyDoubtPortalView({ userRole }) {
         formData.append('attachment', responseFile);
       }
 
-      const res = await fetch(`/api/doubts/${respondingDoubt.id}/respond`, {
+      const res = await fetch(apiUrl(`/api/doubts/${respondingDoubt.id}/respond`), {
         method: 'POST',
         body: formData
       });
@@ -8582,15 +8579,12 @@ export function FacultyDoubtPortalView({ userRole }) {
 
                 {d.attachment_file && (
                   <div style={{ marginBottom: '12px' }}>
-                    <a
-                      href={`/uploads/${d.attachment_file}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button type="button" onClick={() => openExternal(apiUrl(`/uploads/${d.attachment_file}`))}
                       className="btn-secondary"
                       style={{ fontSize: '11px', padding: '4px 8px', textDecoration: 'none' }}
                     >
                       View Attached Supporting File
-                    </a>
+                    </button>
                   </div>
                 )}
 
@@ -8621,14 +8615,11 @@ export function FacultyDoubtPortalView({ userRole }) {
                           </p>
                           {resp.attachment_file && (
                             <div style={{ marginTop: '6px' }}>
-                              <a
-                                href={`/uploads/${resp.attachment_file}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ fontSize: '11px', color: '#2563eb' }}
+                              <button type="button" onClick={() => openExternal(apiUrl(`/uploads/${resp.attachment_file}`))}
+                                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '11px', color: '#2563eb' }}
                               >
                                 Download Response Attachment
-                              </a>
+                              </button>
                             </div>
                           )}
                         </div>

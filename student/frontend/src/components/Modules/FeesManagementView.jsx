@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { apiUrl } from '../../api';
 
-const BASE = 'http://localhost:5000/api';
+const BASE = apiUrl('/api');
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 function fmt(n) {
