@@ -56,15 +56,15 @@ function weeklyChart(s) {
     const scale = 172 / ceiling, baseline = 190;
     return `<div class="week-legend"><span><i class="key-yellow"></i>Assessments</span><span><i class="key-green"></i>Classes</span><span><i class="key-orange"></i>To review</span></div><div class="week-chart-wrap"><svg class="week-chart" role="img" aria-label="Weekly timetable: ${columns
         .map((c) => `${c.day} ${c.sessions} classes`)
-        .join(', ')}. ${reviews} submissions waiting for review."><defs>${[['green', '#64975b'], ['yellow', '#d59b36'], ['orange', '#d77957']].map(([name, color]) => `<pattern id="week-${name}" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="${color}"/></pattern>`).join('')}</defs>${Array.from({ length: 5 }, (_, i) => Math.ceil((i * ceiling) / 4))
-        .map((v) => `<line x1="${31 / 560 * 100}%" x2="${550 / 560 * 100}%" y1="${(baseline - v * scale) / 224 * 100}%" y2="${(baseline - v * scale) / 224 * 100}%" stroke="#e8e9e5"/><text x="8" y="${(baseline - v * scale) / 224 * 100}%" dy="4">${v}</text>`)
+        .join(', ')}. ${reviews} submissions waiting for review."><defs>${[['green', 'var(--color-primary)'], ['yellow', 'var(--color-warning)'], ['orange', 'var(--color-accent)']].map(([name, color]) => `<pattern id="week-${name}" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="${color}"/></pattern>`).join('')}</defs>${Array.from({ length: 5 }, (_, i) => Math.ceil((i * ceiling) / 4))
+        .map((v) => `<line x1="${31 / 560 * 100}%" x2="${550 / 560 * 100}%" y1="${(baseline - v * scale) / 224 * 100}%" y2="${(baseline - v * scale) / 224 * 100}%" stroke="var(--color-border)"/><text x="8" y="${(baseline - v * scale) / 224 * 100}%" dy="4">${v}</text>`)
         .join('')}${columns.map((c, i) => {
         const x = 42 + i * 73, w = 48, active = i === day;
         let top = baseline;
         const bars = [
-            { count: c.sessions, series: 'classes', color: '#64975b' },
-            { count: c.exams, series: 'assessments', color: '#d59b36' },
-            { count: c.review, series: 'review', color: '#d77957' }
+            { count: c.sessions, series: 'classes', color: 'var(--color-primary)' },
+            { count: c.exams, series: 'assessments', color: 'var(--color-warning)' },
+            { count: c.review, series: 'review', color: 'var(--color-accent)' }
         ].map(({ count, series, color }) => {
             if (!count)
                 return '';
@@ -72,29 +72,29 @@ function weeklyChart(s) {
             top -= height;
             return `<rect class="week-bar week-bar-${series}" x="${x}" y="${top}" width="${w}" height="${height}" rx="3" fill="${color}"/>`;
         }).join('');
-        return `<g class="week-column${active ? ' is-today' : ''}" data-day="${i}" tabindex="0" aria-label="${c.day}: ${c.sessions} classes, ${c.exams} assessments, ${c.review} to review"><title>${c.day}: ${c.sessions} classes · ${c.exams} assessments${active ? ' · ' + c.review + ' submissions to review' : ''}</title><svg width="100%" height="100%" viewBox="0 0 560 224" preserveAspectRatio="none" aria-hidden="true">${active ? `<path class="week-today-highlight" d="M${x - 6} 12h${w + 12}v208h-${w + 12}z" fill="#edf2e3"/>` : ''}${bars}</svg><text x="${(x + w / 2) / 560 * 100}%" y="${212 / 224 * 100}%" text-anchor="middle">${c.day}</text></g>`;
+        return `<g class="week-column${active ? ' is-today' : ''}" data-day="${i}" tabindex="0" aria-label="${c.day}: ${c.sessions} classes, ${c.exams} assessments, ${c.review} to review"><title>${c.day}: ${c.sessions} classes · ${c.exams} assessments${active ? ' · ' + c.review + ' submissions to review' : ''}</title><svg width="100%" height="100%" viewBox="0 0 560 224" preserveAspectRatio="none" aria-hidden="true">${active ? `<path class="week-today-highlight" d="M${x - 6} 12h${w + 12}v208h-${w + 12}z" fill="var(--color-primary-light)"/>` : ''}${bars}</svg><text x="${(x + w / 2) / 560 * 100}%" y="${212 / 224 * 100}%" text-anchor="middle">${c.day}</text></g>`;
     }).join('')}</svg><div class="week-tooltip"><strong>${columns[day].day}, ${fmt(today())}</strong><span><i class="dot"></i>Classes <b>${columns[day].sessions}</b></span><span><i class="dot yellow"></i>Assessments <b>${columns[day].exams}</b></span><span><i class="dot orange"></i>To review <b>${reviews}</b></span></div></div>`;
 }
 function stat(label, value, ico, color, note, tag) {
     const colorMap = {
-        teal: '#9dbfb1',
-        purple: '#c2b9dc',
-        orange: '#e5c29f',
-        blue: '#afc5e0'
+        teal: 'var(--color-primary)',
+        purple: 'var(--color-primary)',
+        orange: 'var(--color-warning)',
+        blue: 'var(--color-info)'
     };
-    return `<article class="stat"><div class="stat-top">${label}<span class="stat-icon ${color}">${icon(ico)}</span></div><div class="stat-number">${value}</div><div class="stat-bottom">${tag ? `<b>${tag}</b>` : ''}<span>${note}</span></div><svg class="sparkline" viewBox="0 0 75 30" fill="none" aria-hidden="true"><path d="M1 25 9 21 17 23 26 14 34 17 42 10 51 13 60 5 73 2" stroke="${colorMap[color] || '#9dbfb1'}" stroke-width="1.7"/></svg></article>`;
+    return `<article class="stat"><div class="stat-top">${label}<span class="stat-icon ${color}">${icon(ico)}</span></div><div class="stat-number">${value}</div><div class="stat-bottom">${tag ? `<b>${tag}</b>` : ''}<span>${note}</span></div><svg class="sparkline" viewBox="0 0 75 30" fill="none" aria-hidden="true"><path d="M1 25 9 21 17 23 26 14 34 17 42 10 51 13 60 5 73 2" stroke="${colorMap[color] || 'var(--color-primary)'}" stroke-width="1.7"/></svg></article>`;
 }
 export function chart(s) {
     const vals = s.classes.map((c) => mean(s.students.filter((x) => x.classId === c.id).map((x) => x.score)));
     const ats = s.classes.map((c) => mean(s.students.filter((x) => x.classId === c.id).map((x) => x.attendance)));
-    return `<div class="chart-legend"><small>Current class averages</small><div class="legend"><span><i class="dot"></i>Academic score</span><span><i class="dot light"></i>Attendance</span></div></div><div class="analytics-chart"><svg class="chart" viewBox="0 0 560 200" role="img" aria-label="Class academic score and attendance comparison"><defs><pattern id="bar-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="5" height="5" fill="#a7d664"/><rect width="2" height="5" fill="#bce58a"/></pattern></defs>${[
+    return `<div class="chart-legend"><small>Current class averages</small><div class="legend"><span><i class="dot"></i>Academic score</span><span><i class="dot light"></i>Attendance</span></div></div><div class="analytics-chart"><svg class="chart" viewBox="0 0 560 200" role="img" aria-label="Class academic score and attendance comparison"><defs><pattern id="bar-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="5" height="5" fill="var(--color-primary)"/><rect width="2" height="5" fill="var(--color-primary-light)"/></pattern></defs>${[
         0, 25, 50, 75, 100
     ]
         .map((v) => `<line class="chart-grid" x1="34" x2="552" y1="${170 - v * 1.45}" y2="${170 - v * 1.45}"/><text x="2" y="${174 - v * 1.45}">${v}%</text>`)
         .join('')}${s.classes
         .map((c, i) => {
         const x = 76 + i * 128;
-        return `<rect x="${x}" y="${170 - vals[i] * 1.45}" width="25" height="${vals[i] * 1.45}" rx="4" fill="url(#bar-hatch)"/><rect x="${x + 31}" y="${170 - ats[i] * 1.45}" width="25" height="${ats[i] * 1.45}" rx="4" fill="#ededeb"/><text text-anchor="middle" x="${x + 28}" y="193">${c.code}</text>`;
+        return `<rect x="${x}" y="${170 - vals[i] * 1.45}" width="25" height="${vals[i] * 1.45}" rx="4" fill="url(#bar-hatch)"/><rect x="${x + 31}" y="${170 - ats[i] * 1.45}" width="25" height="${ats[i] * 1.45}" rx="4" fill="var(--color-primary-light)"/><text text-anchor="middle" x="${x + 28}" y="193">${c.code}</text>`;
     })
         .join('')}</svg><div class="phone-chart-labels" hidden aria-hidden="true">${[0, 25, 50, 75, 100]
         .map((v) => `<span class="phone-chart-y" style="top:${(170 - v * 1.45) / 200 * 100}%">${v}%</span>`)
@@ -136,9 +136,9 @@ export function overview(s) {
         return `<button type="button" data-action="class-detail" data-id="${c.id}"><i class="subject-dot segment-${i}"></i><span>${esc(c.subject)}</span><b>${n}</b></button>`;
     })
         .join('')}</div><p class="section-note">${s.classes.length} subjects. One connected workspace.</p></section>
-    <section class="panel health-card"><div class="panel-header"><div><h2>Learning health</h2><p>Students on track</p></div>${badge('This term', 'gray')}</div><div class="mini-value">${safe}<span> / ${s.students.length} students</span></div><p class="health-sub">${active} students scoring 85% or higher</p><div class="health-gauge"><svg viewBox="0 0 220 125" role="img" aria-label="${Math.round((safe / s.students.length) * 100)} percent of students on track"><defs><pattern id="gauge-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="5" height="5" fill="#a9d863"/><rect width="2" height="5" fill="#c0e68c"/></pattern></defs><path d="M25 110a85 85 0 0 1 170 0" pathLength="100" fill="none" stroke="#f0f1ee" stroke-width="25"/>${Array.from({ length: 5 }, (_, i) => {
+    <section class="panel health-card"><div class="panel-header"><div><h2>Learning health</h2><p>Students on track</p></div>${badge('This term', 'gray')}</div><div class="mini-value">${safe}<span> / ${s.students.length} students</span></div><p class="health-sub">${active} students scoring 85% or higher</p><div class="health-gauge"><svg viewBox="0 0 220 125" role="img" aria-label="${Math.round((safe / s.students.length) * 100)} percent of students on track"><defs><pattern id="gauge-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="5" height="5" fill="var(--color-primary)"/><rect width="2" height="5" fill="var(--color-primary-light)"/></pattern></defs><path d="M25 110a85 85 0 0 1 170 0" pathLength="100" fill="none" stroke="var(--color-border)" stroke-width="25"/>${Array.from({ length: 5 }, (_, i) => {
         const part = Math.min(18, Math.max(0, (safe / s.students.length) * 100 - i * 20));
-        return `<path d="M25 110a85 85 0 0 1 170 0" pathLength="100" fill="none" stroke="${i === 0 ? '#e5e94f' : i === 1 ? '#bddd6c' : 'url(#gauge-hatch)'}" stroke-width="25" stroke-dasharray="${part} 100" stroke-dashoffset="${-i * 20}"/>`;
+        return `<path d="M25 110a85 85 0 0 1 170 0" pathLength="100" fill="none" stroke="${i === 0 ? 'var(--color-warning)' : i === 1 ? 'var(--color-success)' : 'url(#gauge-hatch)'}" stroke-width="25" stroke-dasharray="${part} 100" stroke-dashoffset="${-i * 20}"/>`;
     }).join('')}</svg><strong>${Math.round((safe / s.students.length) * 100)}%</strong><small>Students on track</small></div><p class="section-note">Score ≥60% and attendance ≥75%.<br>${link('View student progress', 'progress')}</p></section>
     <section class="panel overview-tasks"><div class="panel-header"><div><h2>Goal tracker</h2><p>Teaching tasks</p></div><button class="mini-icon" data-action="new-task" aria-label="Add task">${icon('plus')}</button></div><div class="task-list">${s.tasks
         .map((t) => `<div class="task-row ${t.done ? 'done' : ''}"><input id="task-${t.id}" type="checkbox" data-task="${t.id}" ${t.done ? 'checked' : ''}><label for="task-${t.id}">${esc(t.text)}<span class="task-progress"><i style="width:${t.done ? 100 : 0}%" class="${t.done ? 'complete' : 'pending'}"></i></span><span class="task-sub">${t.done ? 'Completed' : 'Not started'}</span></label><button type="button" data-action="open-task" data-id="${t.id}" aria-label="Open related page">${icon('chevron')}</button></div>`)
@@ -303,7 +303,7 @@ export function announcements(s, f) {
         filters(s, f) +
         `<div class="card-grid">${rows.length
             ? rows
-                .map((a) => `<article class="item-card"><div class="item-top">${badge(className(s, a.classId))}<small style="color:#97a4a8">${fmt(a.date)}</small></div><h3>${esc(a.title)}</h3><p>${esc(a.body)}</p><div class="item-bottom"><small>${esc(s.profile.name)}</small><button class="text-link" data-action="announcement-detail" data-id="${a.id}">Read ${icon('arrow')}</button></div></article>`)
+                .map((a) => `<article class="item-card"><div class="item-top">${badge(className(s, a.classId))}<small style="color:var(--color-ink-muted)">${fmt(a.date)}</small></div><h3>${esc(a.title)}</h3><p>${esc(a.body)}</p><div class="item-bottom"><small>${esc(s.profile.name)}</small><button class="text-link" data-action="announcement-detail" data-id="${a.id}">Read ${icon('arrow')}</button></div></article>`)
                 .join('')
             : empty('No announcements found', 'Create a class update to get started.')}</div>`);
 }
@@ -317,7 +317,7 @@ export function doubts(s, f) {
             .map((x) => `<button class="tab ${(!f.status && x === 'all') || f.status === x ? 'active' : ''}" data-action="doubt-tab" data-id="${x}">${x === 'all' ? 'All questions' : x}</button>`)
             .join('')}</div><div class="card-grid">${rows.length
             ? rows
-                .map((d) => `<article class="item-card"><div class="item-top">${badge(d.status, d.status === 'Open' ? 'orange' : '')}<small style="color:#93a2a5">${esc(cls(s, d.classId)?.code)}</small></div><h3>${esc(d.title)}</h3><p>${esc(d.body)}</p><div class="item-bottom"><small>${esc(s.students.find((x) => x.id === d.studentId)?.name)}</small><button class="text-link" data-action="doubt-detail" data-id="${d.id}">${d.status === 'Open' ? 'Answer question' : 'View response'} ${icon('arrow')}</button></div></article>`)
+                .map((d) => `<article class="item-card"><div class="item-top">${badge(d.status, d.status === 'Open' ? 'orange' : '')}<small style="color:var(--color-ink-muted)">${esc(cls(s, d.classId)?.code)}</small></div><h3>${esc(d.title)}</h3><p>${esc(d.body)}</p><div class="item-bottom"><small>${esc(s.students.find((x) => x.id === d.studentId)?.name)}</small><button class="text-link" data-action="doubt-detail" data-id="${d.id}">${d.status === 'Open' ? 'Answer question' : 'View response'} ${icon('arrow')}</button></div></article>`)
                 .join('')
             : empty('No questions here', 'Try a different class or status.')}</div>`);
 }
