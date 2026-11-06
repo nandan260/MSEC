@@ -2,9 +2,9 @@
 import DashboardHome from './DashboardScreen';
 import AttendanceView from './AttendanceScreen';
 import AttendanceCalculatorView from './AttendanceCalculatorScreen';
+import AcademicPerformanceView from './AcademicsScreen';
+import TimetableView from './TimetableScreen';
 import {
-  AcademicPerformanceView,
-  TimetableView,
   AssignmentsView,
   NotesView,
   ExaminationsView,

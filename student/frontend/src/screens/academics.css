@@ -1,0 +1,20 @@
+/* The legacy index.css `*` rule forces a system font on every element, so one
+   root-level rule restores the theme body font; headings override below. */
+.academics, .academics * { font-family: var(--font-body); }
+.academics .data-card-title, .academics .section-title, .academics .stat-tile strong { font-family: var(--font-head); }
+
+.academics__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.academics__stat--lead { background: var(--primary-tint); }
+.academics__stat--lead strong { font-size: 28px; color: var(--primary); }
+.academics .section-title { margin: 8px 0 0; }
+.academics__note { margin: 0; font-size: 14px; color: var(--muted); }
+.academics .data-card-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.academics__total { font-family: var(--font-head); font-size: 16px; font-weight: 700; }
+.academics .data-card-meta .btn { min-height: 44px; }
+
+.academics__scrim { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; justify-content: center; padding: var(--pad); background: color-mix(in srgb, var(--ink) 50%, transparent); overflow-y: auto; }
+.academics__sheet { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 480px; margin: auto; }
+.academics__sheet .section-title { margin: 0; }
+.academics__sheet .pill { white-space: normal; align-self: flex-start; }
+.academics__actions { display: flex; gap: 8px; }
+.academics__actions .btn { flex: 1; }
