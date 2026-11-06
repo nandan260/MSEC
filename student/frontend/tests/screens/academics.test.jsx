@@ -83,4 +83,14 @@ describe('AcademicsScreen', () => {
     );
     expect(await screen.findByText('Marks updated')).toBeInTheDocument();
   });
+
+  it('Escape closes the edit dialog and focus starts in the first field', async () => {
+    apiRequest.mockResolvedValue(perf);
+    render(<AcademicPerformanceView userRole="admin" />);
+    await screen.findByText('CS601: Compilers');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit Marks' })[0]);
+    expect(within(screen.getByRole('dialog')).getByLabelText(/Internal/)).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 });

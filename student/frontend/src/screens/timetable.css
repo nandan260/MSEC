@@ -4,8 +4,8 @@
 .timetable .data-card-title, .timetable .section-title { font-family: var(--font-head); }
 
 .timetable__bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.timetable__chips { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
-.timetable__chip { flex: 0 0 auto; min-width: 56px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 500; cursor: pointer; }
+.timetable__chips { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.timetable__chip { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 8px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 500; cursor: pointer; }
 .timetable__chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .timetable__chip--on { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
 

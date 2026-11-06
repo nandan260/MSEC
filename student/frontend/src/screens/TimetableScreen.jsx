@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
@@ -16,7 +16,8 @@ const defaultDay = () => {
 const minutesOf = (t) => {
   const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(t || '');
   if (!m) return 0;
-  const h = (Number(m[1]) % 12) + (m[3] && m[3].toUpperCase() === 'PM' ? 12 : 0);
+  // Without AM/PM the hour is already 24-hour.
+  const h = m[3] ? (Number(m[1]) % 12) + (m[3].toUpperCase() === 'PM' ? 12 : 0) : Number(m[1]);
   return h * 60 + Number(m[2]);
 };
 const bySchedule = (a, b) => a.day_of_week - b.day_of_week || minutesOf(a.start_time) - minutesOf(b.start_time);
@@ -26,6 +27,10 @@ export default function TimetableView({ userRole }) {
   const [day, setDay] = useState(defaultDay);
   const [slots, setSlots] = useState([]);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const reqId = useRef(0);
+  const dialogRef = useRef(null);
+  const activeChip = useRef(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
   const [saveError, setSaveError] = useState('');
@@ -41,17 +46,46 @@ export default function TimetableView({ userRole }) {
 
   const isAdmin = userRole === 'admin';
 
+  // Each load gets an id; a response is applied only if no newer load (or unmount) happened.
   const loadTimetable = useCallback(() => {
     const url = viewType === 'weekly' ? '/timetable?view=weekly' : `/timetable?view=daily&day=${day}`;
+    const id = ++reqId.current;
     setError(null);
+    setSlots([]);
+    setLoading(true);
     return apiRequest(url)
-      .then((res) => setSlots([...(res.schedule || [])].sort(bySchedule)))
-      .catch((err) => setError(err));
+      .then((res) => {
+        if (id === reqId.current) setSlots([...(res.schedule || [])].sort(bySchedule));
+      })
+      .catch((err) => {
+        if (id === reqId.current) setError(err);
+      })
+      .finally(() => {
+        if (id === reqId.current) setLoading(false);
+      });
   }, [viewType, day]);
 
   useEffect(() => {
     loadTimetable();
+    return () => {
+      reqId.current += 1;
+    };
   }, [loadTimetable]);
+
+  useEffect(() => {
+    const el = activeChip.current;
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [day, viewType]);
+
+  useEffect(() => {
+    if (!showAddModal) return undefined;
+    dialogRef.current?.querySelector('input,select')?.focus();
+    const onKey = (e) => {
+      if (e.key === 'Escape') setShowAddModal(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showAddModal]);
 
   const handleSaveSlot = async (e) => {
     e.preventDefault();
@@ -133,13 +167,13 @@ export default function TimetableView({ userRole }) {
       </div>
 
       {!weekly && (
-        <div className="timetable__chips" role="tablist" aria-label="Day of week">
+        <div className="timetable__chips" role="group" aria-label="Day of week">
           {DAYS.map((name, i) => (
             <button
               key={name}
               type="button"
-              role="tab"
-              aria-selected={day === i + 1}
+              aria-pressed={day === i + 1}
+              ref={day === i + 1 ? activeChip : null}
               className={`timetable__chip${day === i + 1 ? ' timetable__chip--on' : ''}`}
               onClick={() => setDay(i + 1)}
             >
@@ -151,7 +185,7 @@ export default function TimetableView({ userRole }) {
 
       {error && <ErrorCard error={error} onRetry={loadTimetable} />}
 
-      {!error && weekly && (
+      {!error && !loading && weekly && (
         <div className="card scroll-x">
           <table className="timetable__grid">
             <thead>
@@ -195,7 +229,9 @@ export default function TimetableView({ userRole }) {
         </div>
       )}
 
-      {!error && !weekly && (
+      {!error && loading && <div className="empty-state">Loading timetable...</div>}
+
+      {!error && !loading && !weekly && (
         <DataCards
           rows={slots}
           keyOf={(s) => s.id}
@@ -221,7 +257,7 @@ export default function TimetableView({ userRole }) {
 
       {showAddModal && (
         <div className="timetable__scrim" role="dialog" aria-modal="true" aria-label={editingSlot ? 'Edit Timetable Entry' : 'Add New Timetable Entry'}>
-          <form className="card timetable__sheet" onSubmit={handleSaveSlot}>
+          <form ref={dialogRef} className="card timetable__sheet" onSubmit={handleSaveSlot}>
             <h2 className="section-title">{editingSlot ? 'Edit Timetable Entry' : 'Add New Timetable Entry'}</h2>
             {saveError && <div className="pill pill--bad" role="alert">{saveError}</div>}
             <div className="field">

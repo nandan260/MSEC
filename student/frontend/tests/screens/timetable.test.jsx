@@ -41,7 +41,7 @@ describe('TimetableScreen', () => {
     render(<TimetableView userRole="student" />);
     expect(await screen.findByText('CS603: Cloud')).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith('/timetable?view=daily&day=3');
-    expect(screen.getByRole('tab', { name: 'Wed' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('button', { name: 'Wed' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('LH-303')).toBeInTheDocument();
     expect(screen.getAllByText('Dr. Rao').length).toBe(1);
   });
@@ -51,17 +51,17 @@ describe('TimetableScreen', () => {
     render(<TimetableView userRole="student" />);
     expect(await screen.findByText('CS601: Compilers')).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith('/timetable?view=daily&day=1');
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+    expect(screen.getAllByRole('button', { name: /^(Mon|Tue|Wed|Thu|Fri|Sat)$/ }).map((t) => t.textContent)).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   });
 
   it('picking a chip filters the lectures', async () => {
     setDate('2026-11-04T10:00:00');
     render(<TimetableView userRole="student" />);
     await screen.findByText('CS603: Cloud');
-    fireEvent.click(screen.getByRole('tab', { name: 'Thu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thu' }));
     expect(await screen.findByText('CS604: Security')).toBeInTheDocument();
     expect(screen.queryByText('CS603: Cloud')).toBeNull();
-    fireEvent.click(screen.getByRole('tab', { name: 'Sat' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sat' }));
     expect(await screen.findByText('No classes scheduled.')).toBeInTheDocument();
   });
 
@@ -75,7 +75,7 @@ describe('TimetableScreen', () => {
     expect(within(grid).getByText('Monday')).toBeInTheDocument();
     expect(within(grid).getByText('Wednesday')).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith('/timetable?view=weekly');
-    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mon' })).toBeNull();
     expect(screen.queryByText('+ Add Entry')).toBeNull();
   });
 
@@ -118,5 +118,60 @@ describe('TimetableScreen', () => {
     await screen.findByText('CS608: Morning');
     const titles = screen.getAllByText(/^CS60[78]:/).map((n) => n.textContent);
     expect(titles).toEqual(['CS608: Morning', 'CS607: Afternoon']);
+  });
+
+  it('defaults to Saturday and marks the Sat chip active, scrolling it into view', async () => {
+    setDate('2026-11-07T10:00:00');
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    render(<TimetableView userRole="student" />);
+    expect(await screen.findByText('No classes scheduled.')).toBeInTheDocument();
+    expect(apiRequest).toHaveBeenCalledWith('/timetable?view=daily&day=6');
+    expect(screen.getByRole('button', { name: 'Sat' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Mon' })).toHaveAttribute('aria-pressed', 'false');
+    expect(spy).toHaveBeenCalledWith({ inline: 'center', block: 'nearest' });
+    delete Element.prototype.scrollIntoView;
+  });
+
+  it('ignores out-of-order responses: only the last day shows', async () => {
+    setDate('2026-11-04T10:00:00');
+    const pending = {};
+    apiRequest.mockImplementation((url) => new Promise((resolve) => { pending[url] = resolve; }));
+    render(<TimetableView userRole="student" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Thu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fri' }));
+    pending['/timetable?view=daily&day=5']({ schedule: [slot(5, 5, 'CS605', 'Friday Class')] });
+    expect(await screen.findByText('CS605: Friday Class')).toBeInTheDocument();
+    pending['/timetable?view=daily&day=4']({ schedule: [slot(4, 4, 'CS604', 'Security')] });
+    pending['/timetable?view=daily&day=3']({ schedule: [slot(3, 3, 'CS603', 'Cloud')] });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(screen.queryByText('CS604: Security')).toBeNull();
+    expect(screen.queryByText('CS603: Cloud')).toBeNull();
+    expect(screen.getByText('CS605: Friday Class')).toBeInTheDocument();
+  });
+
+  it('sorts 24-hour times without AM/PM correctly', async () => {
+    setDate('2026-11-04T10:00:00');
+    apiRequest.mockResolvedValueOnce({
+      schedule: [
+        { ...slot(7, 3, 'CS607', 'Late'), start_time: '14:00', end_time: '15:00' },
+        { ...slot(8, 3, 'CS608', 'Early'), start_time: '09:00', end_time: '10:00' },
+        { ...slot(9, 3, 'CS609', 'Noon'), start_time: '12:30', end_time: '13:30' },
+      ],
+    });
+    render(<TimetableView userRole="student" />);
+    await screen.findByText('CS608: Early');
+    expect(screen.getAllByText(/^CS60[789]:/).map((n) => n.textContent)).toEqual(['CS608: Early', 'CS609: Noon', 'CS607: Late']);
+  });
+
+  it('Escape closes the dialog and focus starts in the first field', async () => {
+    setDate('2026-11-04T10:00:00');
+    render(<TimetableView userRole="admin" />);
+    await screen.findByText('CS603: Cloud');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add Entry' }));
+    expect(screen.getByLabelText('Day of Week')).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

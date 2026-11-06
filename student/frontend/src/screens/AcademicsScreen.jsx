@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
@@ -27,6 +27,7 @@ export default function AcademicPerformanceView({ userRole }) {
   const [editError, setEditError] = useState('');
   const [editSuccess, setEditSuccess] = useState('');
 
+  const dialogRef = useRef(null);
   const canEdit = userRole === 'faculty' || userRole === 'admin';
 
   const loadPerformance = useCallback((sem) => {
@@ -44,6 +45,16 @@ export default function AcademicPerformanceView({ userRole }) {
   useEffect(() => {
     loadPerformance(selectedSemester);
   }, [selectedSemester, loadPerformance]);
+
+  useEffect(() => {
+    if (!editingMark) return undefined;
+    dialogRef.current?.querySelector('input,select')?.focus();
+    const onKey = (e) => {
+      if (e.key === 'Escape') setEditingMark(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [editingMark]);
 
   const openEditModal = (mark) => {
     setEditingMark(mark);
@@ -168,7 +179,7 @@ export default function AcademicPerformanceView({ userRole }) {
 
       {editingMark && (
         <div className="academics__scrim" role="dialog" aria-modal="true" aria-label={`Update marks ${editingMark.course_code}`}>
-          <form className="card academics__sheet" onSubmit={handleUpdateMarks}>
+          <form ref={dialogRef} className="card academics__sheet" onSubmit={handleUpdateMarks}>
             <h2 className="section-title">Update Marks: {editingMark.course_code}</h2>
             <p className="academics__note">
               {editingMark.course_title} (Credits: {editingMark.credits})
