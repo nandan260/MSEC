@@ -4,7 +4,7 @@ import json
 import io
 import base64
 from datetime import datetime, date, timedelta
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, g
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -14,12 +14,17 @@ from database import (
     PROFILES_UPLOAD_DIR, RESUMES_UPLOAD_DIR, PROJECTS_UPLOAD_DIR, CERTIFICATES_UPLOAD_DIR,
     DOUBTS_UPLOAD_DIR
 )
+from auth import guard as auth_guard
+from auth.routes import bp as auth_bp, cors_origins
+from auth.users import current_user_id, is_staff, scoped_student_id, scoped_usn, scoped_name, staff_can_access_student, fee_student_id
 
 FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist'))
 app = Flask(__name__, static_folder=FRONTEND_DIST, static_url_path='')
-CORS(app, resources={r"/api/*": {"origins": "*"}, r"/uploads/*": {"origins": "*"}})
+CORS(app, resources={r"/api/*": {"origins": cors_origins()}, r"/uploads/*": {"origins": "*"}})
 
 init_db()
+app.register_blueprint(auth_bp)
+auth_guard.install(app)
 
 @app.route('/uploads/<path:filename>')
 def serve_upload(filename):
@@ -48,118 +53,16 @@ def calculate_grade_and_status(total, external):
 GRADE_POINTS = {'O': 10, 'A+': 9, 'A': 8, 'B+': 7, 'B': 6, 'C': 5, 'P': 4, 'F': 0}
 
 # ==========================================================
-# AUTHENTICATION (LOGIN, REGISTER, SESSION)
+# AUTHENTICATION: see auth/ (blueprint + central guard)
 # ==========================================================
 
-@app.route('/api/auth/login', methods=['POST'])
-def auth_login():
-    data = request.get_json() or {}
-    email = (data.get('email') or '').strip().lower()
-    password = (data.get('password') or '').strip()
-    role = (data.get('role') or '').strip().lower()
+def uid():
+    return current_user_id()
 
-    if not email or not password:
-        return jsonify({'error': 'Email and password are required.'}), 400
 
-    conn = get_db()
-    cursor = conn.cursor()
-    if role:
-        cursor.execute("SELECT * FROM users WHERE LOWER(email) = ? AND role = ?", (email, role))
-    else:
-        cursor.execute("SELECT * FROM users WHERE LOWER(email) = ?", (email,))
-    user = cursor.fetchone()
-    conn.close()
-
-    if not user or not check_password_hash(user['password_hash'], password):
-        return jsonify({'error': 'Invalid email, role, or password.'}), 401
-
-    token = f"auth_token_{user['id']}_{int(datetime.now().timestamp())}"
-    user_payload = {
-        'id': user['id'],
-        'email': user['email'],
-        'role': user['role'],
-        'name': user['name'],
-        'identifier': user['identifier'],
-        'department': user['department'],
-        'semester': user['semester']
-    }
-    return jsonify({
-        'message': 'Login successful.',
-        'token': token,
-        'user': user_payload
-    })
-
-@app.route('/api/auth/register', methods=['POST'])
-def auth_register():
-    data = request.get_json() or {}
-    email = (data.get('email') or '').strip().lower()
-    password = (data.get('password') or '').strip()
-    role = (data.get('role') or 'student').strip().lower()
-    name = (data.get('name') or '').strip()
-    identifier = (data.get('identifier') or '').strip()
-    department = (data.get('department') or 'Computer Science & Engineering').strip()
-    try:
-        semester = int(data.get('semester', 1))
-    except (ValueError, TypeError):
-        semester = 1
-
-    if not email or not password or not name or not identifier:
-        return jsonify({'error': 'All fields are required for registration.'}), 400
-
-    if role not in ['student', 'faculty', 'admin']:
-        return jsonify({'error': 'Invalid role specified.'}), 400
-
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM users WHERE LOWER(email) = ?", (email,))
-    if cursor.fetchone():
-        conn.close()
-        return jsonify({'error': 'An account with this email address already exists.'}), 409
-
-    pwd_hash = generate_password_hash(password)
-    cursor.execute("""
-        INSERT INTO users (email, password_hash, role, name, identifier, department, semester)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (email, pwd_hash, role, name, identifier, department, semester))
-    new_user_id = cursor.lastrowid
-
-    if role == 'student':
-        cursor.execute("SELECT id FROM student_profiles WHERE user_id = ?", (new_user_id,))
-        if not cursor.fetchone():
-            cursor.execute("""
-                INSERT INTO student_profiles (user_id, name, usn, department, semester, email, phone)
-                VALUES (?, ?, ?, ?, ?, ?, '+91 98765 43210')
-            """, (new_user_id, name, identifier, department, semester, email))
-
-    conn.commit()
-    conn.close()
-
-    token = f"auth_token_{new_user_id}_{int(datetime.now().timestamp())}"
-    user_payload = {
-        'id': new_user_id,
-        'email': email,
-        'role': role,
-        'name': name,
-        'identifier': identifier,
-        'department': department,
-        'semester': semester
-    }
-    return jsonify({
-        'message': 'Registration successful. Welcome to College Portal!',
-        'token': token,
-        'user': user_payload
-    }), 201
-
-@app.route('/api/auth/me', methods=['GET'])
-def auth_me():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, email, role, name, identifier, department, semester FROM users WHERE id = 1")
-    row = cursor.fetchone()
-    conn.close()
-    if row:
-        return jsonify({'user': dict(row)})
-    return jsonify({'error': 'Not logged in.'}), 401
+def profile_row(cursor, user_id=None):
+    cursor.execute("SELECT * FROM student_profiles WHERE user_id = ?", (user_id or uid(),))
+    return cursor.fetchone()
 
 # ==========================================================
 # DASHBOARD SUMMARY
@@ -170,41 +73,40 @@ def dashboard_summary():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM student_profiles LIMIT 1")
-    profile_row = cursor.fetchone()
-    profile = dict(profile_row) if profile_row else {
-        'name': 'Alex Kumar',
-        'usn': '1MS21CS084',
-        'department': 'Computer Science & Engineering',
-        'semester': 6
+    prof = profile_row(cursor)
+    user = g.user
+    profile = dict(prof) if prof else {
+        'name': user['name'], 'usn': user['identifier'],
+        'department': user['department'], 'semester': user['semester'],
     }
+    semester = profile.get('semester') or user['semester'] or 0
 
     # Live attendance calculation
-    cursor.execute("SELECT SUM(attended_hours) as attended, SUM(total_hours) as total, SUM(od_hours) as od FROM attendance")
+    cursor.execute("SELECT SUM(attended_hours) as attended, SUM(total_hours) as total, SUM(od_hours) as od FROM attendance WHERE user_id = ?", (uid(),))
     att_agg = cursor.fetchone()
     if att_agg and att_agg['total'] and att_agg['total'] > 0:
         overall_attendance = round(((att_agg['attended'] + (att_agg['od'] or 0)) / att_agg['total']) * 100, 1)
     else:
-        overall_attendance = 88.4
+        overall_attendance = 0.0
 
-    # Live SGPA for Sem 6
-    cursor.execute("SELECT credits, grade FROM academic_marks WHERE semester = 6")
-    sem6_marks = cursor.fetchall()
-    sem6_pts = sum(m['credits'] * GRADE_POINTS.get(m['grade'], 8) for m in sem6_marks)
-    sem6_creds = sum(m['credits'] for m in sem6_marks)
-    current_sgpa = round(sem6_pts / sem6_creds, 2) if sem6_creds > 0 else 9.68
+    # Live SGPA for the current semester
+    cursor.execute("SELECT credits, grade FROM academic_marks WHERE user_id = ? AND semester = ?", (uid(), semester))
+    sem_marks = cursor.fetchall()
+    sem_pts = sum(m['credits'] * GRADE_POINTS.get(m['grade'], 0) for m in sem_marks)
+    sem_creds = sum(m['credits'] for m in sem_marks)
+    current_sgpa = round(sem_pts / sem_creds, 2) if sem_creds > 0 else 0.0
 
     # Live CGPA across all recorded semesters
-    cursor.execute("SELECT SUM(total_credits) as cum_credits, SUM(total_credit_points) as cum_points FROM semester_gpa_history WHERE student_id = 1")
+    cursor.execute("SELECT SUM(total_credits) as cum_credits, SUM(total_credit_points) as cum_points FROM semester_gpa_history WHERE student_id = ?", (uid(),))
     gpa_agg = cursor.fetchone()
     if gpa_agg and gpa_agg['cum_credits'] and gpa_agg['cum_credits'] > 0:
         cgpa = round(gpa_agg['cum_points'] / gpa_agg['cum_credits'], 2)
     else:
-        cursor.execute("SELECT credits, grade FROM academic_marks")
+        cursor.execute("SELECT credits, grade FROM academic_marks WHERE user_id = ?", (uid(),))
         all_marks = cursor.fetchall()
-        all_pts = sum(m['credits'] * GRADE_POINTS.get(m['grade'], 8) for m in all_marks)
+        all_pts = sum(m['credits'] * GRADE_POINTS.get(m['grade'], 0) for m in all_marks)
         all_creds = sum(m['credits'] for m in all_marks)
-        cgpa = round(all_pts / all_creds, 2) if all_creds > 0 else 9.36
+        cgpa = round(all_pts / all_creds, 2) if all_creds > 0 else 0.0
 
     # Upcoming examinations
     cursor.execute("SELECT * FROM examinations ORDER BY exam_date ASC LIMIT 5")
@@ -214,10 +116,10 @@ def dashboard_summary():
     cursor.execute("""
         SELECT a.*, COALESCE(s.status, 'Pending') as submission_status
         FROM assignments a
-        LEFT JOIN assignment_submissions s ON s.assignment_id = a.id
+        LEFT JOIN assignment_submissions s ON s.assignment_id = a.id AND s.student_id = ?
         WHERE COALESCE(s.status, 'Pending') = 'Pending'
         ORDER BY a.deadline_date ASC LIMIT 5
-    """)
+    """, (uid(),))
     pending_assignments = [dict(r) for r in cursor.fetchall()]
 
     # Announcements
@@ -250,8 +152,12 @@ def get_performance():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT DISTINCT semester FROM academic_marks ORDER BY semester DESC")
-    available_semesters = [r['semester'] for r in cursor.fetchall()] or [6, 5]
+    sid = scoped_student_id(request.args.get('student_id'))
+    if sid != uid() and not staff_can_access_student(conn, sid):
+        conn.close()
+        return jsonify({'error': "You don't have access."}), 403
+    cursor.execute("SELECT DISTINCT semester FROM academic_marks WHERE user_id = ? ORDER BY semester DESC", (sid,))
+    available_semesters = [r['semester'] for r in cursor.fetchall()] or [g.user['semester'] or 1]
 
     selected_sem = request.args.get('semester')
     selected_sem = int(selected_sem) if selected_sem else available_semesters[0]
@@ -259,16 +165,16 @@ def get_performance():
     cursor.execute("""
         SELECT id, course_code, course_title, credits, internal_marks, lab_marks, external_marks, total_marks, grade, status
         FROM academic_marks
-        WHERE semester = ?
+        WHERE user_id = ? AND semester = ?
         ORDER BY course_code ASC
-    """, (selected_sem,))
+    """, (sid, selected_sem))
     marks_rows = [dict(r) for r in cursor.fetchall()]
 
     sem_pts = sum(m['credits'] * GRADE_POINTS.get(m['grade'], 0) for m in marks_rows)
     sem_creds = sum(m['credits'] for m in marks_rows)
     sgpa = round(sem_pts / sem_creds, 2) if sem_creds > 0 else 0.0
 
-    cursor.execute("SELECT credits, grade FROM academic_marks")
+    cursor.execute("SELECT credits, grade FROM academic_marks WHERE user_id = ?", (sid,))
     all_marks = cursor.fetchall()
     cum_pts = sum(m['credits'] * GRADE_POINTS.get(m['grade'], 0) for m in all_marks)
     cum_creds = sum(m['credits'] for m in all_marks)
@@ -308,6 +214,13 @@ def update_marks(mark_id):
 
     conn = get_db()
     cursor = conn.cursor()
+    owner = cursor.execute("SELECT user_id FROM academic_marks WHERE id = ?", (mark_id,)).fetchone()
+    if not owner:
+        conn.close()
+        return jsonify({'error': 'Mark record not found.'}), 404
+    if not staff_can_access_student(conn, owner['user_id']):
+        conn.close()
+        return jsonify({'error': "You don't have access."}), 403
     cursor.execute("""
         UPDATE academic_marks
         SET internal_marks = ?, lab_marks = ?, external_marks = ?, total_marks = ?, grade = ?, status = ?
@@ -332,12 +245,17 @@ def update_marks(mark_id):
 def get_attendance():
     conn = get_db()
     cursor = conn.cursor()
+    sid = scoped_student_id(request.args.get('student_id'))
+    if sid != uid() and not staff_can_access_student(conn, sid):
+        conn.close()
+        return jsonify({'error': "You don't have access."}), 403
 
     cursor.execute("""
         SELECT id, course_code, course_title, faculty_name, attended_hours, total_hours, od_hours
         FROM attendance
+        WHERE user_id = ?
         ORDER BY course_code ASC
-    """)
+    """, (sid,))
     raw_rows = cursor.fetchall()
 
     attendance_list = []
@@ -399,7 +317,11 @@ def mark_attendance():
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM attendance WHERE course_code = ?", (course_code,))
+    target = scoped_student_id(data.get('student_id'))
+    if not staff_can_access_student(conn, target):
+        conn.close()
+        return jsonify({'error': "You don't have access."}), 403
+    cursor.execute("SELECT * FROM attendance WHERE course_code = ? AND user_id = ?", (course_code, target))
     row = cursor.fetchone()
     if not row:
         conn.close()
@@ -417,8 +339,8 @@ def mark_attendance():
     cursor.execute("""
         UPDATE attendance
         SET attended_hours = ?, total_hours = ?, od_hours = ?
-        WHERE course_code = ?
-    """, (attended, total, od, course_code))
+        WHERE id = ?
+    """, (attended, total, od, row['id']))
 
     cursor.execute("""
         INSERT INTO attendance_logs (course_code, date, status, marked_by)
@@ -609,9 +531,9 @@ def get_assignments():
                COALESCE(s.status, 'Pending') as submission_status,
                s.file_name, s.submitted_at, s.scored_marks, s.feedback, s.evaluated_by
         FROM assignments a
-        LEFT JOIN assignment_submissions s ON s.assignment_id = a.id
+        LEFT JOIN assignment_submissions s ON s.assignment_id = a.id AND s.student_id = ?
     """
-    params = []
+    params = [scoped_student_id(request.args.get('student_id'))]
     if subject:
         query += " WHERE a.course_code = ?"
         params.append(subject)
@@ -659,8 +581,8 @@ def create_assignment():
 
 @app.route('/api/assignments/<int:assignment_id>/upload', methods=['POST'])
 def upload_assignment_submission(assignment_id):
-    student_name = request.form.get('student_name', 'Alex Kumar')
-    student_id = int(request.form.get('student_id', 1))
+    student_name = g.user['name']
+    student_id = uid()
 
     file = request.files.get('file')
     filename = None
@@ -668,7 +590,7 @@ def upload_assignment_submission(assignment_id):
 
     if file and file.filename:
         filename = secure_filename(file.filename)
-        filepath = os.path.join(ASSIGNMENTS_UPLOAD_DIR, filename)
+        filepath = os.path.join(ASSIGNMENTS_UPLOAD_DIR, f"{student_id}_{int(datetime.now().timestamp())}_{filename}")
         file.save(filepath)
     else:
         filename = 'assignment_solution.pdf'
@@ -685,6 +607,7 @@ def upload_assignment_submission(assignment_id):
 
     status = 'Late' if now_str > assig['deadline_date'] else 'Submitted'
 
+    cursor.execute("DELETE FROM assignment_submissions WHERE assignment_id = ? AND student_id = ?", (assignment_id, student_id))
     cursor.execute("""
         INSERT INTO assignment_submissions (assignment_id, student_id, student_name, file_name, file_path, submitted_at, status)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -699,15 +622,22 @@ def evaluate_assignment(assignment_id):
     data = request.get_json() or {}
     scored_marks = int(data.get('scored_marks', 0))
     feedback = data.get('feedback', '').strip()
-    evaluated_by = data.get('evaluated_by', 'Course Faculty')
+    evaluated_by = g.user['name']
+    try:
+        target = int(data.get('student_id'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'student_id is required.'}), 400
 
     conn = get_db()
     cursor = conn.cursor()
+    if not staff_can_access_student(conn, target):
+        conn.close()
+        return jsonify({'error': "You don't have access."}), 403
     cursor.execute("""
         UPDATE assignment_submissions
         SET scored_marks = ?, feedback = ?, evaluated_by = ?
-        WHERE assignment_id = ?
-    """, (scored_marks, feedback, evaluated_by, assignment_id))
+        WHERE assignment_id = ? AND student_id = ?
+    """, (scored_marks, feedback, evaluated_by, assignment_id, target))
     conn.commit()
     conn.close()
 
@@ -826,8 +756,11 @@ def get_examinations():
     }
 
     # Student exam registration details
-    cursor.execute("SELECT * FROM student_profiles LIMIT 1")
-    profile = dict(cursor.fetchone())
+    prof = profile_row(cursor)
+    profile = dict(prof) if prof else {
+        'name': g.user['name'], 'usn': g.user['identifier'],
+        'department': g.user['department'], 'semester': g.user['semester'],
+    }
 
     registration_details = {
         'candidate_name': profile['name'],
@@ -870,8 +803,8 @@ def handle_revaluation():
 
     if request.method == 'POST':
         data = request.get_json() or {}
-        student_name = data.get('student_name', 'Alex Kumar')
-        usn = data.get('usn', '1MS21CS084')
+        student_name = g.user['name']
+        usn = g.user['identifier']
         course_code = data.get('course_code', '').strip().upper()
         app_type = data.get('application_type', 'Re-evaluation')
         applied_date = datetime.now().strftime("%Y-%m-%d")
@@ -884,7 +817,10 @@ def handle_revaluation():
         conn.close()
         return jsonify({'message': f'Revaluation request submitted for {course_code}. Tracking status: Under Review.'}), 201
 
-    cursor.execute("SELECT * FROM revaluations ORDER BY id DESC")
+    if is_staff():
+        cursor.execute("SELECT * FROM revaluations ORDER BY id DESC")
+    else:
+        cursor.execute("SELECT * FROM revaluations WHERE usn = ? ORDER BY id DESC", (g.user['identifier'],))
     records = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return jsonify({'revaluations': records})
@@ -1024,9 +960,9 @@ def get_gpa_history():
     cursor.execute("""
         SELECT id, semester, total_credits, total_credit_points, sgpa, subjects_json, created_at
         FROM semester_gpa_history
-        WHERE student_id = 1
+        WHERE student_id = ?
         ORDER BY semester ASC
-    """)
+    """, (uid(),))
     rows = cursor.fetchall()
 
     history = []
@@ -1112,7 +1048,7 @@ def save_gpa_semester():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id FROM semester_gpa_history WHERE student_id = 1 AND semester = ?", (semester,))
+    cursor.execute("SELECT id FROM semester_gpa_history WHERE student_id = ? AND semester = ?", (uid(), semester))
     existing = cursor.fetchone()
 
     if existing:
@@ -1124,16 +1060,16 @@ def save_gpa_semester():
     else:
         cursor.execute("""
             INSERT INTO semester_gpa_history (student_id, semester, total_credits, total_credit_points, sgpa, subjects_json)
-            VALUES (1, ?, ?, ?, ?, ?)
-        """, (semester, total_credits, total_credit_points, sgpa, subjects_json))
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (uid(), semester, total_credits, total_credit_points, sgpa, subjects_json))
 
     # Recalculate student overall CGPA
-    cursor.execute("SELECT SUM(total_credits) as cum_credits, SUM(total_credit_points) as cum_points FROM semester_gpa_history WHERE student_id = 1")
+    cursor.execute("SELECT SUM(total_credits) as cum_credits, SUM(total_credit_points) as cum_points FROM semester_gpa_history WHERE student_id = ?", (uid(),))
     agg = cursor.fetchone()
     cum_cgpa = 0.0
     if agg and agg['cum_credits'] and agg['cum_credits'] > 0:
         cum_cgpa = round(agg['cum_points'] / agg['cum_credits'], 2)
-        cursor.execute("UPDATE student_profiles SET cgpa = ?, credits_earned = ? WHERE id = 1", (cum_cgpa, int(agg['cum_credits'])))
+        cursor.execute("UPDATE student_profiles SET cgpa = ?, credits_earned = ? WHERE user_id = ?", (cum_cgpa, int(agg['cum_credits'], uid())))
 
     conn.commit()
     conn.close()
@@ -1149,16 +1085,16 @@ def save_gpa_semester():
 def delete_gpa_record(record_id):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM semester_gpa_history WHERE id = ? AND student_id = 1", (record_id,))
+    cursor.execute("DELETE FROM semester_gpa_history WHERE id = ? AND student_id = ?", (record_id, uid()))
 
-    cursor.execute("SELECT SUM(total_credits) as cum_credits, SUM(total_credit_points) as cum_points FROM semester_gpa_history WHERE student_id = 1")
+    cursor.execute("SELECT SUM(total_credits) as cum_credits, SUM(total_credit_points) as cum_points FROM semester_gpa_history WHERE student_id = ?", (uid(),))
     agg = cursor.fetchone()
     cum_cgpa = 0.0
     if agg and agg['cum_credits'] and agg['cum_credits'] > 0:
         cum_cgpa = round(agg['cum_points'] / agg['cum_credits'], 2)
-        cursor.execute("UPDATE student_profiles SET cgpa = ?, credits_earned = ? WHERE id = 1", (cum_cgpa, int(agg['cum_credits'])))
+        cursor.execute("UPDATE student_profiles SET cgpa = ?, credits_earned = ? WHERE user_id = ?", (cum_cgpa, int(agg['cum_credits'], uid())))
     else:
-        cursor.execute("UPDATE student_profiles SET cgpa = 0.0 WHERE id = 1")
+        cursor.execute("UPDATE student_profiles SET cgpa = 0.0 WHERE user_id = ?", (uid(),))
 
     conn.commit()
     conn.close()
@@ -1185,10 +1121,11 @@ def handle_profile():
         if email and '@' not in email:
             return jsonify({'error': 'Please provide a valid email address.'}), 400
 
-        admin_department = data.get('department')
-        admin_semester = data.get('semester')
-        admin_section = data.get('section')
-        admin_college = data.get('college_name')
+        is_admin = g.user['role'] == 'admin'
+        admin_department = data.get('department') if is_admin else None
+        admin_semester = data.get('semester') if is_admin else None
+        admin_section = data.get('section') if is_admin else None
+        admin_college = data.get('college_name') if is_admin else None
 
         query = """
             UPDATE student_profiles
@@ -1214,15 +1151,13 @@ def handle_profile():
             query += ", college_name = ?"
             params.append(admin_college)
 
-        query += " WHERE id = 1"
+        query += " WHERE user_id = ?"
+        params.append(uid())
         cursor.execute(query, params)
         conn.commit()
 
-    cursor.execute("SELECT * FROM student_profiles WHERE id = 1")
+    cursor.execute("SELECT * FROM student_profiles WHERE user_id = ?", (uid(),))
     row = cursor.fetchone()
-    if not row:
-        cursor.execute("SELECT * FROM student_profiles LIMIT 1")
-        row = cursor.fetchone()
 
     profile = dict(row) if row else {}
     conn.close()
@@ -1239,7 +1174,7 @@ def upload_profile_photo():
     if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.svg']:
         return jsonify({'error': 'Invalid image format. Allowed formats: PNG, JPG, JPEG, WEBP, SVG.'}), 400
 
-    saved_filename = f"student_1_{int(datetime.now().timestamp())}{ext}"
+    saved_filename = f"student_{uid()}_{int(datetime.now().timestamp())}{ext}"
     filepath = os.path.join(PROFILES_UPLOAD_DIR, saved_filename)
     file.save(filepath)
 
@@ -1247,7 +1182,7 @@ def upload_profile_photo():
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("UPDATE student_profiles SET photo_url = ? WHERE id = 1", (photo_url,))
+    cursor.execute("UPDATE student_profiles SET photo_url = ? WHERE user_id = ?", (photo_url, uid()))
     conn.commit()
     conn.close()
 
@@ -1257,18 +1192,15 @@ def upload_profile_photo():
 def get_digital_id():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM student_profiles WHERE id = 1")
+    cursor.execute("SELECT * FROM student_profiles WHERE user_id = ?", (uid(),))
     row = cursor.fetchone()
-    if not row:
-        cursor.execute("SELECT * FROM student_profiles LIMIT 1")
-        row = cursor.fetchone()
 
     profile = dict(row) if row else {}
     conn.close()
 
     college = profile.get('college_name', 'Apex Institute of Engineering & Technology')
-    usn = profile.get('usn', '1MS21CS084')
-    name = profile.get('name', 'Alex Kumar')
+    usn = profile.get('usn', g.user['identifier'])
+    name = profile.get('name', g.user['name'])
     dept = profile.get('department', 'Computer Science & Engineering')
     sem = profile.get('semester', 6)
     sec = profile.get('section', 'A')
@@ -1422,7 +1354,7 @@ def handle_placement_drives():
     cursor.execute(query, params)
     rows = [dict(r) for r in cursor.fetchall()]
 
-    cursor.execute("SELECT drive_id, status, applied_date FROM placement_applications WHERE student_id = 1")
+    cursor.execute("SELECT drive_id, status, applied_date FROM placement_applications WHERE student_id = ?", (uid(),))
     app_map = {r['drive_id']: dict(r) for r in cursor.fetchall()}
 
     for row in rows:
@@ -1453,13 +1385,13 @@ def apply_placement_drive():
         conn.close()
         return jsonify({'error': 'Placement drive not found.'}), 404
 
-    cursor.execute("SELECT * FROM student_profiles WHERE id = 1")
+    cursor.execute("SELECT * FROM student_profiles WHERE user_id = ?", (uid(),))
     prof = cursor.fetchone()
     student_cgpa = prof['cgpa'] if prof else 9.36
-    student_name = prof['name'] if prof else 'Alex Kumar'
-    student_usn = prof['usn'] if prof else '1MS21CS084'
+    student_name = prof['name'] if prof else g.user['name']
+    student_usn = prof['usn'] if prof else g.user['identifier']
 
-    cursor.execute("SELECT id FROM placement_applications WHERE drive_id = ? AND student_id = 1", (drive_id,))
+    cursor.execute("SELECT id FROM placement_applications WHERE drive_id = ? AND student_id = ?", (drive_id, uid()))
     if cursor.fetchone():
         conn.close()
         return jsonify({'error': 'You have already submitted an application for this drive.'}), 400
@@ -1467,8 +1399,8 @@ def apply_placement_drive():
     applied_date = datetime.now().strftime("%Y-%m-%d %H:%M")
     cursor.execute("""
         INSERT INTO placement_applications (drive_id, student_id, student_name, usn, cgpa, resume_name, resume_path, status, applied_date, remarks)
-        VALUES (?, 1, ?, ?, ?, ?, ?, 'Applied', ?, 'Application received and logged in placement portal.')
-    """, (drive_id, student_name, student_usn, student_cgpa, resume_name, resume_path, applied_date))
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'Applied', ?, 'Application received and logged in placement portal.')
+    """, (drive_id, uid(), student_name, student_usn, student_cgpa, resume_name, resume_path, applied_date))
     conn.commit()
     conn.close()
 
@@ -1483,8 +1415,9 @@ def get_placement_applications():
                d.company_name, d.job_title, d.job_type, d.ctc_or_stipend, d.location, d.drive_date
         FROM placement_applications a
         JOIN placement_drives d ON d.id = a.drive_id
+        WHERE (? = 1 OR a.student_id = ?)
         ORDER BY a.id DESC
-    """)
+    """, (1 if is_staff() else 0, uid()))
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return jsonify({'applications': rows})
@@ -1510,7 +1443,7 @@ def update_application_status(app_id):
 def get_student_resumes():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM student_resumes WHERE student_id = 1 ORDER BY id DESC")
+    cursor.execute("SELECT * FROM student_resumes WHERE student_id = ? ORDER BY id DESC", (uid(),))
     resumes = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return jsonify({'resumes': resumes})
@@ -1538,8 +1471,8 @@ def upload_student_resume():
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO student_resumes (student_id, title, file_name, file_path, uploaded_at)
-        VALUES (1, ?, ?, ?, ?)
-    """, (title, filename, relative_path, now_str))
+        VALUES (?, ?, ?, ?, ?)
+    """, (uid(), title, filename, relative_path, now_str))
     conn.commit()
     new_id = cursor.lastrowid
     conn.close()
@@ -1552,9 +1485,10 @@ def download_resume(resume_id):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM student_resumes WHERE id = ?", (resume_id,))
     res = cursor.fetchone()
+    allowed = bool(res) and (res['student_id'] == uid() or staff_can_access_student(conn, res['student_id']))
     conn.close()
 
-    if not res:
+    if not res or not allowed:
         return jsonify({'error': 'Resume not found.'}), 404
 
     filename = os.path.basename(res['file_path'])
@@ -1567,7 +1501,7 @@ def handle_resume_builder():
 
     if request.method == 'POST':
         data = request.get_json() or {}
-        full_name = data.get('full_name', 'Alex Kumar')
+        full_name = data.get('full_name', g.user['name'])
         email = data.get('email', 'student@college.edu')
         phone = data.get('phone', '+91 98765 43210')
         headline = data.get('headline', '')
@@ -1577,7 +1511,7 @@ def handle_resume_builder():
         projects = json.dumps(data.get('projects', []))
         certifications = json.dumps(data.get('certifications', []))
 
-        cursor.execute("SELECT id FROM resume_builder_data WHERE student_id = 1")
+        cursor.execute("SELECT id FROM resume_builder_data WHERE student_id = ?", (uid(),))
         existing = cursor.fetchone()
         if existing:
             cursor.execute("""
@@ -1589,14 +1523,14 @@ def handle_resume_builder():
         else:
             cursor.execute("""
                 INSERT INTO resume_builder_data (student_id, full_name, email, phone, headline, summary, education_json, skills_json, projects_json, certifications_json)
-                VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (full_name, email, phone, headline, summary, education, skills, projects, certifications))
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (uid(), full_name, email, phone, headline, summary, education, skills, projects, certifications))
 
         conn.commit()
         conn.close()
         return jsonify({'message': 'Resume builder profile updated successfully.'})
 
-    cursor.execute("SELECT * FROM resume_builder_data WHERE student_id = 1")
+    cursor.execute("SELECT * FROM resume_builder_data WHERE student_id = ?", (uid(),))
     row = cursor.fetchone()
     conn.close()
 
@@ -1615,7 +1549,7 @@ def handle_resume_builder():
         }
     else:
         builder_data = {
-            'full_name': 'Alex Kumar',
+            'full_name': g.user['name'],
             'email': 'student@college.edu',
             'phone': '+91 98765 43210',
             'headline': 'Software Engineer | Systems & Distributed Computing',
@@ -1680,15 +1614,15 @@ def handle_projects():
             conn.close()
             return jsonify({'error': 'Project title, description, and technologies are required.'}), 400
 
-        cursor.execute("SELECT name, usn FROM student_profiles WHERE id = 1")
+        cursor.execute("SELECT name, usn FROM student_profiles WHERE user_id = ?", (uid(),))
         prof = cursor.fetchone()
-        student_name = prof['name'] if prof else 'Alex Kumar'
-        usn = prof['usn'] if prof else '1MS21CS084'
+        student_name = prof['name'] if prof else g.user['name']
+        usn = prof['usn'] if prof else g.user['identifier']
 
         cursor.execute("""
             INSERT INTO projects (student_id, student_name, usn, title, category, description, technologies, github_url, demo_url, document_file, image_file, team_status, open_roles, guide_name, guide_status)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, 'Approved')
-        """, (student_name, usn, title, category, desc, tech, github, demo, doc_path, team_status, open_roles, guide))
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, 'Approved')
+        """, (uid(), student_name, usn, title, category, desc, tech, github, demo, doc_path, team_status, open_roles, guide))
         conn.commit()
         new_id = cursor.lastrowid
         conn.close()
@@ -1764,8 +1698,8 @@ def apply_project_teammate(project_id):
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO project_teammate_requests (project_id, requester_id, requester_name, requester_usn, role_applied, message, status)
-        VALUES (?, 1, ?, ?, ?, ?, 'Pending')
-    """, (project_id, req_name, req_usn, role, msg))
+        VALUES (?, ?, ?, ?, ?, ?, 'Pending')
+    """, (project_id, uid(), req_name, req_usn, role, msg))
     conn.commit()
     conn.close()
 
@@ -1873,7 +1807,7 @@ def handle_events():
     cursor.execute(query, params)
     rows = [dict(r) for r in cursor.fetchall()]
 
-    cursor.execute("SELECT id as reg_id, event_id, attendance_status, certificate_issued, certificate_file, certificate_title FROM event_registrations WHERE student_id = 1")
+    cursor.execute("SELECT id as reg_id, event_id, attendance_status, certificate_issued, certificate_file, certificate_title FROM event_registrations WHERE student_id = ?", (uid(),))
     reg_map = {r['event_id']: dict(r) for r in cursor.fetchall()}
 
     for row in rows:
@@ -1929,7 +1863,7 @@ def register_for_event(event_id):
         conn.close()
         return jsonify({'error': 'Event not found.'}), 404
 
-    cursor.execute("SELECT id FROM event_registrations WHERE event_id = ? AND student_id = 1", (event_id,))
+    cursor.execute("SELECT id FROM event_registrations WHERE event_id = ? AND student_id = ?", (event_id, uid()))
     if cursor.fetchone():
         conn.close()
         return jsonify({'error': 'You are already registered for this event.'}), 400
@@ -1938,16 +1872,16 @@ def register_for_event(event_id):
         conn.close()
         return jsonify({'error': 'Registration full. Maximum capacity reached.'}), 400
 
-    cursor.execute("SELECT name, usn FROM student_profiles WHERE id = 1")
+    cursor.execute("SELECT name, usn FROM student_profiles WHERE user_id = ?", (uid(),))
     prof = cursor.fetchone()
-    student_name = prof['name'] if prof else 'Alex Kumar'
-    usn = prof['usn'] if prof else '1MS21CS084'
+    student_name = prof['name'] if prof else g.user['name']
+    usn = prof['usn'] if prof else g.user['identifier']
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     cursor.execute("""
         INSERT INTO event_registrations (event_id, student_id, student_name, usn, registered_at, attendance_status, certificate_issued)
-        VALUES (?, 1, ?, ?, ?, 'Registered', 0)
-    """, (event_id, student_name, usn, now_str))
+        VALUES (?, ?, ?, ?, ?, 'Registered', 0)
+    """, (event_id, uid(), student_name, usn, now_str))
 
     cursor.execute("UPDATE events SET seats_booked = seats_booked + 1 WHERE id = ?", (event_id,))
     conn.commit()
@@ -1964,16 +1898,16 @@ def get_my_event_registrations():
                e.id as event_id, e.title, e.category, e.club_name, e.event_date, e.event_time, e.venue, e.status as event_status
         FROM event_registrations r
         JOIN events e ON e.id = r.event_id
-        WHERE r.student_id = 1
+        WHERE r.student_id = ?
         ORDER BY r.id DESC
-    """)
+    """, (uid(),))
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return jsonify({'registrations': rows})
 
 @app.route('/api/events/<int:event_id>/certificate/upload', methods=['POST'])
 def upload_event_certificate(event_id):
-    student_usn = request.form.get('usn', '1MS21CS084').strip()
+    student_usn = scoped_usn(request.form.get('usn'))
     cert_title = request.form.get('certificate_title', 'Certificate of Participation').strip()
     file = request.files.get('certificate')
 
@@ -2003,8 +1937,10 @@ def upload_event_certificate(event_id):
 def download_event_certificate(reg_id):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT certificate_file, certificate_title FROM event_registrations WHERE id = ?", (reg_id,))
+    cursor.execute("SELECT student_id, certificate_file, certificate_title FROM event_registrations WHERE id = ?", (reg_id,))
     row = cursor.fetchone()
+    if row and row['student_id'] != uid() and not staff_can_access_student(conn, row['student_id']):
+        row = None
     conn.close()
 
     if not row or not row['certificate_file']:
@@ -2149,7 +2085,7 @@ def delete_library_book(book_id):
 
 @app.route('/api/library/my-books', methods=['GET'])
 def get_my_library_books():
-    student_usn = request.args.get('usn', '1MS21CS084').strip()
+    student_usn = scoped_usn(request.args.get('usn'))
     today_str = datetime.now().strftime('%Y-%m-%d')
     today_date = datetime.strptime(today_str, '%Y-%m-%d').date()
 
@@ -2214,7 +2150,7 @@ def get_my_library_books():
 
 @app.route('/api/library/history', methods=['GET'])
 def get_library_history():
-    student_usn = request.args.get('usn', '1MS21CS084').strip()
+    student_usn = scoped_usn(request.args.get('usn'))
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
@@ -2234,8 +2170,8 @@ def get_library_history():
 def issue_library_book():
     data = request.get_json() or {}
     book_id = data.get('book_id')
-    usn = (data.get('usn') or '1MS21CS084').strip()
-    student_name = (data.get('student_name') or 'Alex Kumar').strip()
+    usn = scoped_usn(data.get('usn'))
+    student_name = scoped_name(data.get('student_name'))
     try:
         due_days = int(data.get('days', 14))
     except (ValueError, TypeError):
@@ -2267,8 +2203,8 @@ def issue_library_book():
 
     cursor.execute("""
         INSERT INTO library_borrow_records (book_id, student_id, student_name, usn, issue_date, due_date, status, fine_amount, librarian_remarks)
-        VALUES (?, 1, ?, ?, ?, ?, 'Issued', 0.0, 'Issued via Circulation Desk')
-    """, (book_id, student_name, usn, issue_date, due_date))
+        VALUES (?, COALESCE((SELECT user_id FROM student_profiles WHERE usn = ?), 0), ?, ?, ?, ?, 'Issued', 0.0, 'Issued via Circulation Desk')
+    """, (book_id, usn, student_name, usn, issue_date, due_date))
     record_id = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -2453,8 +2389,8 @@ def create_lost_found():
     location_reported = (data.get('location_reported') or '').strip()
     date_reported = data.get('date_reported') or datetime.now().strftime('%Y-%m-%d')
     description = (data.get('description') or '').strip()
-    reporter_name = (data.get('reporter_name') or 'Alex Kumar').strip()
-    reporter_usn = (data.get('reporter_usn') or '1MS21CS084').strip()
+    reporter_name = g.user['name']
+    reporter_usn = g.user['identifier']
     contact_email = (data.get('contact_email') or 'student@college.edu').strip()
     contact_phone = (data.get('contact_phone') or '+91 98765 43210').strip()
     claim_instructions = (data.get('claim_instructions') or 'Contact reporter or visit department office.').strip()
@@ -2503,8 +2439,8 @@ def get_lost_found_messages(item_id):
 @app.route('/api/services/lost-found/<int:item_id>/message', methods=['POST'])
 def send_lost_found_message(item_id):
     data = request.get_json() or {}
-    sender_name = (data.get('sender_name') or 'Alex Kumar').strip()
-    sender_usn = (data.get('sender_usn') or '1MS21CS084').strip()
+    sender_name = g.user['name']
+    sender_usn = g.user['identifier']
     sender_contact = (data.get('sender_contact') or '+91 98765 43210').strip()
     message = (data.get('message') or '').strip()
 
@@ -2567,7 +2503,7 @@ def get_services():
 def get_notifications():
     category = request.args.get('category', '').strip()
     status = request.args.get('status', '').strip().lower()
-    role = request.args.get('role', 'all').strip().lower()
+    role = request.args.get('role', 'all').strip().lower() if is_staff() else 'student'
 
     conn = get_db()
     cursor = conn.cursor()
@@ -2693,8 +2629,8 @@ def get_faculty_directory():
 
 @app.route('/api/communications/appointments', methods=['GET'])
 def get_faculty_appointments():
-    student_usn = request.args.get('usn', '1MS21CS084').strip()
-    role = request.args.get('role', 'student').strip().lower()
+    student_usn = scoped_usn(request.args.get('usn'))
+    role = g.user['role']
 
     conn = get_db()
     cursor = conn.cursor()
@@ -2714,8 +2650,8 @@ def create_faculty_appointment():
     purpose = (data.get('purpose') or '').strip()
     requested_date = (data.get('requested_date') or '').strip()
     requested_slot = (data.get('requested_slot') or '10:30 AM - 11:00 AM').strip()
-    usn = (data.get('usn') or '1MS21CS084').strip()
-    student_name = (data.get('student_name') or 'Alex Kumar').strip()
+    usn = scoped_usn(data.get('usn'))
+    student_name = scoped_name(data.get('student_name'))
 
     if not faculty_name or not purpose or not requested_date:
         return jsonify({'error': 'Faculty name, consultation purpose, and requested date are required.'}), 400
@@ -2724,8 +2660,8 @@ def create_faculty_appointment():
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO faculty_appointments (student_id, student_name, usn, faculty_name, department, purpose, requested_date, requested_slot, status, faculty_remarks)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, 'Pending', '')
-    """, (student_name, usn, faculty_name, department, purpose, requested_date, requested_slot))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', '')
+    """, (uid(), student_name, usn, faculty_name, department, purpose, requested_date, requested_slot))
     new_id = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -2758,17 +2694,22 @@ def update_appointment_status(appt_id):
 
 @app.route('/api/analytics', methods=['GET'])
 def get_analytics():
-    student_usn = request.args.get('usn', '1MS21CS084').strip()
     conn = get_db()
     cursor = conn.cursor()
+    sid = scoped_student_id(request.args.get('student_id'))
+    if sid != uid() and not staff_can_access_student(conn, sid):
+        conn.close()
+        return jsonify({'error': "You don't have access."}), 403
+    target = cursor.execute("SELECT semester FROM users WHERE id = ?", (sid,)).fetchone()
+    current_sem = (target['semester'] if target else None) or 0
 
     # 1. Fetch Semester SGPA History & calculate CGPA progression
     cursor.execute("""
         SELECT semester, total_credits, total_credit_points, sgpa
         FROM semester_gpa_history
-        WHERE student_id = 1
+        WHERE student_id = ?
         ORDER BY semester ASC
-    """)
+    """, (sid,))
     gpa_rows = cursor.fetchall()
 
     sgpa_history = []
@@ -2816,9 +2757,9 @@ def get_analytics():
     cursor.execute("""
         SELECT id, course_code, course_title, attended_hours, total_hours, od_hours, faculty_name
         FROM attendance
-        WHERE user_id = 1
+        WHERE user_id = ?
         ORDER BY course_title ASC
-    """)
+    """, (sid,))
     att_rows = cursor.fetchall()
 
     subject_attendance = []
@@ -2882,9 +2823,9 @@ def get_analytics():
     cursor.execute("""
         SELECT id, course_code, course_title, credits, internal_marks, lab_marks, external_marks, total_marks, grade, status
         FROM academic_marks
-        WHERE user_id = 1 AND semester = 6
+        WHERE user_id = ? AND semester = ?
         ORDER BY course_title ASC
-    """)
+    """, (sid, current_sem))
     marks_rows = cursor.fetchall()
 
     subject_marks = []
@@ -2924,17 +2865,18 @@ def get_analytics():
 
     overall_marks_avg = round(total_marks_sum / subject_count, 1) if subject_count > 0 else 0.0
 
-    current_sgpa = sgpa_history[-1]['sgpa'] if sgpa_history else 9.18
-    cumulative_cgpa = sgpa_history[-1]['cgpa'] if sgpa_history else 9.36
+    current_sgpa = sgpa_history[-1]['sgpa'] if sgpa_history else 0.0
+    cumulative_cgpa = sgpa_history[-1]['cgpa'] if sgpa_history else 0.0
+    who = cursor.execute("SELECT name, identifier, department, semester FROM users WHERE id = ?", (sid,)).fetchone()
 
     conn.close()
     return jsonify({
         'student': {
-            'name': 'Alex Kumar',
-            'usn': '1MS21CS084',
-            'department': 'Computer Science & Engineering',
-            'semester': 6,
-            'batch': '2021 - 2025'
+            'name': who['name'] if who else '',
+            'usn': who['identifier'] if who else '',
+            'department': who['department'] if who else '',
+            'semester': who['semester'] if who else 0,
+            'batch': ''
         },
         'sgpa_history': sgpa_history,
         'current_sgpa': current_sgpa,
@@ -2964,6 +2906,9 @@ def get_doubts():
     cursor = conn.cursor()
     query = "SELECT * FROM faculty_doubts WHERE 1=1"
     params = []
+    if not is_staff():
+        query += " AND student_id = ?"
+        params.append(uid())
 
     if subject and subject.lower() != 'all':
         query += " AND (subject_code = ? OR subject_name = ?)"
@@ -2996,8 +2941,8 @@ def submit_doubt():
     faculty_name = request.form.get('faculty_name') or 'Dr. Ramesh Rao (Head of Systems)'
     title = request.form.get('title') or ''
     question = request.form.get('question') or ''
-    usn = request.form.get('usn', '1MS21CS084')
-    student_name = request.form.get('student_name', 'Alex Kumar')
+    usn = scoped_usn(request.form.get('usn'))
+    student_name = scoped_name(request.form.get('student_name'))
 
     if not subject_code or not title or not question:
         data = request.get_json(silent=True) or {}
@@ -3025,8 +2970,8 @@ def submit_doubt():
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO faculty_doubts (student_id, student_name, usn, subject_code, subject_name, faculty_name, title, question, attachment_file, status)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted')
-    """, (student_name, usn, subject_code, subject_name, faculty_name, title, question, attachment_rel))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted')
+    """, (uid(), student_name, usn, subject_code, subject_name, faculty_name, title, question, attachment_rel))
     doubt_id = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -3035,20 +2980,20 @@ def submit_doubt():
 @app.route('/api/doubts/<int:doubt_id>/respond', methods=['POST'])
 def respond_to_doubt(doubt_id):
     responder_name = request.form.get('responder_name') or ''
-    responder_role = request.form.get('responder_role') or 'faculty'
+    responder_role = 'faculty' if is_staff() else 'student'
     response_text = request.form.get('response_text') or ''
 
     if not response_text:
         data = request.get_json(silent=True) or {}
         responder_name = data.get('responder_name') or responder_name
-        responder_role = data.get('responder_role') or responder_role
+        responder_role = responder_role
         response_text = data.get('response_text') or response_text
 
     if not response_text:
         return jsonify({'error': 'Response text cannot be empty.'}), 400
 
     if not responder_name:
-        responder_name = 'Dr. Ramesh Rao (Head of Systems)' if responder_role == 'faculty' else 'Alex Kumar'
+        responder_name = g.user['name']
 
     attachment_rel = ''
     file = request.files.get('attachment')
@@ -3093,8 +3038,8 @@ def update_doubt_status(doubt_id):
 
 @app.route('/api/mentor/my-mentor', methods=['GET'])
 def get_my_mentor():
-    student_id = request.args.get('student_id', 1, type=int)
-    role = request.args.get('role', 'student').strip().lower()
+    student_id = scoped_student_id(request.args.get('student_id'))
+    role = g.user['role']
 
     conn = get_db()
     cursor = conn.cursor()
@@ -3136,20 +3081,6 @@ def get_my_mentor():
         WHERE a.student_id = ?
     """, (student_id,))
     row = cursor.fetchone()
-
-    if not row:
-        cursor.execute("""
-            SELECT a.id as assignment_id, a.student_id, a.usn, a.student_name, a.department as student_dept,
-                   a.semester as student_sem, a.section, a.group_name, a.assigned_date, a.academic_year, a.status as assignment_status,
-                   m.id as mentor_id, m.faculty_id, m.name as mentor_name, m.department as mentor_dept,
-                   m.designation as mentor_designation, m.qualification as mentor_qualification,
-                   m.specialization as mentor_specialization, m.subjects_handled, m.email as mentor_email,
-                   m.phone as mentor_phone, m.office_room, m.consultation_hours, m.photo_url, m.bio
-            FROM mentor_assignments a
-            JOIN faculty_mentors m ON a.mentor_id = m.id
-            ORDER BY a.id ASC LIMIT 1
-        """)
-        row = cursor.fetchone()
 
     if not row:
         conn.close()
@@ -3202,9 +3133,9 @@ def handle_mentor_messages():
     if request.method == 'POST':
         data = request.get_json() or {}
         mentor_id = data.get('mentor_id', 1)
-        student_id = data.get('student_id', 1)
-        sender_role = (data.get('sender_role') or 'student').strip().lower()
-        sender_name = (data.get('sender_name') or 'Alex Kumar').strip()
+        student_id = scoped_student_id(data.get('student_id'))
+        sender_role = ('faculty' if is_staff() else 'student')
+        sender_name = g.user['name']
         message = (data.get('message') or '').strip()
         subject = (data.get('subject') or 'Mentoring Inquiry').strip()
 
@@ -3229,7 +3160,7 @@ def handle_mentor_messages():
         conn.close()
         return jsonify({'message': 'Message sent successfully.', 'id': new_id}), 201
 
-    student_id = request.args.get('student_id', 1, type=int)
+    student_id = scoped_student_id(request.args.get('student_id'))
     mentor_id = request.args.get('mentor_id', type=int)
 
     if mentor_id:
@@ -3258,9 +3189,9 @@ def handle_mentor_discussions():
         data = request.get_json() or {}
         mentor_id = data.get('mentor_id', 1)
         group_name = data.get('group_name', 'CSE Batch 2021-2025 Mentor Group A')
-        creator_id = data.get('creator_id', 1)
-        creator_name = (data.get('creator_name') or 'Alex Kumar').strip()
-        creator_role = (data.get('creator_role') or 'student').strip().lower()
+        creator_id = uid()
+        creator_name = g.user['name']
+        creator_role = ('faculty' if is_staff() else 'student')
         category = (data.get('category') or 'Academic').strip()
         title = (data.get('title') or '').strip()
         content = (data.get('content') or '').strip()
@@ -3315,9 +3246,9 @@ def handle_mentor_discussions():
 def add_discussion_reply(topic_id):
     data = request.get_json() or {}
     reply_text = (data.get('reply_text') or '').strip()
-    author_name = (data.get('author_name') or 'Alex Kumar').strip()
-    author_role = (data.get('author_role') or 'student').strip().lower()
-    author_id = data.get('author_id', 1)
+    author_name = g.user['name']
+    author_role = ('faculty' if is_staff() else 'student')
+    author_id = uid()
 
     if not reply_text:
         return jsonify({'error': 'Reply text cannot be empty.'}), 400
@@ -3364,7 +3295,7 @@ def delete_discussion(topic_id):
 def get_mentor_meetings():
     student_id = request.args.get('student_id', type=int)
     mentor_id = request.args.get('mentor_id', type=int)
-    role = request.args.get('role', 'student').strip().lower()
+    role = g.user['role']
 
     conn = get_db()
     cursor = conn.cursor()
@@ -3374,7 +3305,7 @@ def get_mentor_meetings():
     elif role == 'admin':
         cursor.execute("SELECT * FROM mentor_meetings ORDER BY requested_date DESC, id DESC")
     else:
-        sid = student_id or 1
+        sid = scoped_student_id(student_id)
         cursor.execute("SELECT * FROM mentor_meetings WHERE student_id = ? ORDER BY requested_date DESC, id DESC", (sid,))
 
     meetings = [dict(m) for m in cursor.fetchall()]
@@ -3385,9 +3316,9 @@ def get_mentor_meetings():
 def request_meeting():
     data = request.get_json() or {}
     mentor_id = data.get('mentor_id', 1)
-    student_id = data.get('student_id', 1)
-    student_name = (data.get('student_name') or 'Alex Kumar').strip()
-    usn = (data.get('usn') or '1MS21CS084').strip()
+    student_id = scoped_student_id(data.get('student_id'))
+    student_name = scoped_name(data.get('student_name'))
+    usn = scoped_usn(data.get('usn'))
     requested_date = (data.get('requested_date') or '').strip()
     requested_slot = (data.get('requested_slot') or '').strip()
     meeting_type = (data.get('meeting_type') or 'Academic Guidance').strip()
@@ -3453,7 +3384,7 @@ def update_meeting_status(meeting_id):
 
 @app.route('/api/mentor/mentor-book', methods=['GET'])
 def get_digital_mentor_book():
-    student_id = request.args.get('student_id', 1, type=int)
+    student_id = scoped_student_id(request.args.get('student_id'))
 
     conn = get_db()
     cursor = conn.cursor()
@@ -3553,9 +3484,9 @@ def get_digital_mentor_book():
 @app.route('/api/mentor/mentor-book/session', methods=['POST'])
 def add_mentor_book_session():
     data = request.get_json() or {}
-    student_id = data.get('student_id', 1)
-    usn = (data.get('usn') or '1MS21CS084').strip()
-    student_name = (data.get('student_name') or 'Alex Kumar').strip()
+    student_id = scoped_student_id(data.get('student_id'))
+    usn = scoped_usn(data.get('usn'))
+    student_name = scoped_name(data.get('student_name'))
     mentor_id = data.get('mentor_id', 1)
     session_date = (data.get('session_date') or '').strip()
     session_type = (data.get('session_type') or 'Progress Review').strip()
@@ -3589,8 +3520,8 @@ def add_mentor_book_session():
 @app.route('/api/mentor/mentor-book/remarks', methods=['PUT'])
 def update_mentor_remarks():
     data = request.get_json() or {}
-    student_id = data.get('student_id', 1)
-    usn = (data.get('usn') or '1MS21CS084').strip()
+    student_id = scoped_student_id(data.get('student_id'))
+    usn = scoped_usn(data.get('usn'))
     semester = data.get('semester', 6)
     mentor_id = data.get('mentor_id', 1)
     obs = (data.get('academic_observations') or '').strip()
@@ -3633,15 +3564,15 @@ def update_mentor_remarks():
 @app.route('/api/mentor/mentor-book/development', methods=['PUT'])
 def update_student_development():
     data = request.get_json() or {}
-    student_id = data.get('student_id', 1)
-    usn = (data.get('usn') or '1MS21CS084').strip()
+    student_id = scoped_student_id(data.get('student_id'))
+    usn = scoped_usn(data.get('usn'))
     skills = (data.get('technical_skills') or '').strip()
     projects = (data.get('projects') or '').strip()
     certifications = (data.get('certifications') or '').strip()
     internships = (data.get('internship_details') or '').strip()
     achievements = (data.get('achievements') or '').strip()
     extracurricular = (data.get('extracurricular_activities') or '').strip()
-    updated_by = (data.get('updated_by') or 'Alex Kumar').strip()
+    updated_by = g.user['name']
 
     conn = get_db()
     cursor = conn.cursor()
@@ -3672,9 +3603,9 @@ def update_student_development():
 @app.route('/api/mentor/mentor-book/feedback', methods=['POST'])
 def submit_student_feedback():
     data = request.get_json() or {}
-    student_id = data.get('student_id', 1)
-    usn = (data.get('usn') or '1MS21CS084').strip()
-    student_name = (data.get('student_name') or 'Alex Kumar').strip()
+    student_id = scoped_student_id(data.get('student_id'))
+    usn = scoped_usn(data.get('usn'))
+    student_name = scoped_name(data.get('student_name'))
     mentor_id = data.get('mentor_id', 1)
     meeting_id = data.get('meeting_id')
     title = (data.get('session_title') or 'Mentoring Guidance Session').strip()
@@ -3854,7 +3785,7 @@ def _generate_receipt_number():
 @app.route('/api/fees/student-details', methods=['GET'])
 def get_student_fee_details():
     """Return student profile + fee summary for a given semester."""
-    student_id = request.args.get('student_id', 1, type=int)
+    student_id = fee_student_id(request.args.get('student_id'))
     semester = request.args.get('semester', type=int)
     academic_year = request.args.get('academic_year', '2025-2026')
 
@@ -3927,8 +3858,8 @@ def get_student_fee_details():
 
     return jsonify({
         'student': {
-            'name': profile_dict.get('name', 'Alex Kumar'),
-            'usn': profile_dict.get('usn') or profile_dict.get('usn_u', '1MS21CS084'),
+            'name': profile_dict.get('name', g.user['name']),
+            'usn': profile_dict.get('usn') or profile_dict.get('usn_u', g.user['identifier']),
             'department': profile_dict.get('department') or profile_dict.get('dept_u'),
             'semester': target_sem,
             'academic_year': academic_year,
@@ -3956,7 +3887,7 @@ def initiate_fee_payment():
     We do NOT mark the transaction as Successful at this stage.
     """
     data = request.get_json() or {}
-    student_id = data.get('student_id', 1)
+    student_id = fee_student_id(data.get('student_id'))
     semester = data.get('semester', 6)
     academic_year = data.get('academic_year', '2025-2026')
     selected_record_ids = data.get('selected_record_ids', [])  # list of student_fee_record ids
@@ -3998,13 +3929,13 @@ def initiate_fee_payment():
         SELECT student_name FROM student_fee_records WHERE student_id = ? LIMIT 1
     """, (student_id,))
     srow = cursor.fetchone()
-    student_name = srow['student_name'] if srow else 'Alex Kumar'
+    student_name = srow['student_name'] if srow else g.user['name']
 
     cursor.execute("""
         SELECT usn FROM student_fee_records WHERE student_id = ? LIMIT 1
     """, (student_id,))
     urow = cursor.fetchone()
-    usn = urow['usn'] if urow else '1MS21CS084'
+    usn = urow['usn'] if urow else g.user['identifier']
 
     cursor.execute("""
         INSERT INTO fee_transactions
@@ -4055,7 +3986,7 @@ def confirm_fee_payment():
 
     cursor.execute("SELECT * FROM fee_transactions WHERE transaction_id = ?", (transaction_id,))
     txn = cursor.fetchone()
-    if not txn:
+    if not txn or (txn['student_id'] != uid() and g.user['role'] != 'admin'):
         conn.close()
         return jsonify({'error': 'Transaction record not found.'}), 404
     if txn['payment_status'] != 'Pending':
@@ -4135,8 +4066,8 @@ def confirm_fee_payment():
 @app.route('/api/fees/transactions', methods=['GET'])
 def get_fee_transactions():
     """Return payment transaction history for a student or all (admin)."""
-    student_id = request.args.get('student_id', 1, type=int)
-    role = request.args.get('role', 'student')
+    student_id = fee_student_id(request.args.get('student_id'))
+    role = g.user['role']
     semester = request.args.get('semester', type=int)
     academic_year = request.args.get('academic_year', '')
 
@@ -4181,7 +4112,7 @@ def get_fee_receipt(transaction_id):
     txn = cursor.fetchone()
     conn.close()
 
-    if not txn:
+    if not txn or (txn['student_id'] != uid() and g.user['role'] != 'admin'):
         return jsonify({'error': 'Transaction not found.'}), 404
     if txn['payment_status'] != 'Successful':
         return jsonify({'error': f"Receipt not available for transactions with status '{txn['payment_status']}'."}), 400
@@ -4365,7 +4296,7 @@ def get_admin_fees_overview():
 @app.route('/api/fees/report', methods=['GET'])
 def get_fee_report():
     """Return a complete fee report for a student."""
-    student_id = request.args.get('student_id', 1, type=int)
+    student_id = fee_student_id(request.args.get('student_id'))
     academic_year = request.args.get('academic_year', '2025-2026')
 
     conn = get_db()
@@ -4427,11 +4358,7 @@ def get_fee_report():
     cursor.execute("SELECT id, name, identifier as usn, department, semester, email FROM users WHERE id = ?", (student_id,))
     st_row = cursor.fetchone()
     student = dict(st_row) if st_row else {
-        'id': student_id,
-        'name': 'Alex Kumar',
-        'usn': '1MS21CS084',
-        'department': 'Computer Science & Engineering',
-        'semester': 6
+        'id': student_id, 'name': '', 'usn': '', 'department': '', 'semester': 0
     }
 
     conn.close()
@@ -4500,8 +4427,8 @@ def add_scholarship():
 @app.route('/api/fees/scholarship-applications', methods=['GET'])
 def get_scholarship_applications():
     """Return scholarship applications (student: own; admin: all)."""
-    student_id = request.args.get('student_id', 1, type=int)
-    role = request.args.get('role', 'student')
+    student_id = fee_student_id(request.args.get('student_id'))
+    role = g.user['role']
 
     conn = get_db()
     cursor = conn.cursor()
@@ -4533,7 +4460,7 @@ def submit_scholarship_application():
     """Student: submit a scholarship application."""
     data = request.get_json() or {}
     scholarship_id = data.get('scholarship_id')
-    student_id = data.get('student_id', 1)
+    student_id = fee_student_id(data.get('student_id'))
     application_text = (data.get('application_text') or '').strip()
 
     if not scholarship_id or not application_text:
