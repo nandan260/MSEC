@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api';
-import DataCards from '../components/DataCards';
+import { Icon } from '../components/Shell/icons';
+import SavedRecordNotice from '../components/SavedRecordNotice';
 import ErrorCard from '../components/ErrorCard';
 import './shared.css';
 import './timetable.css';
@@ -9,7 +10,7 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 // Today as 1 (Mon) to 6 (Sat); Sunday falls back to Monday.
 const defaultDay = () => {
-  const d = new Date().getDay();
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).getDay();
   return d === 0 ? 1 : d;
 };
 
@@ -23,9 +24,10 @@ const minutesOf = (t) => {
 };
 const bySchedule = (a, b) => a.day_of_week - b.day_of_week || minutesOf(a.start_time) - minutesOf(b.start_time);
 
-export default function TimetableView({ userRole }) {
-  const [viewType, setViewType] = useState('daily');
-  const [day, setDay] = useState(defaultDay);
+export default function TimetableView({ userRole, initialDay, initialView }) {
+  const [now, setNow] = useState(() => new Date());
+  const [viewType, setViewType] = useState(initialView === 'weekly' ? 'weekly' : 'daily');
+  const [day, setDay] = useState(() => initialDay || defaultDay());
   const [slots, setSlots] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -147,10 +149,44 @@ export default function TimetableView({ userRole }) {
     setShowAddModal(true);
   };
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const collegeNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const collegeDay = collegeNow.getDay() || 7;
+  const monday = new Date(collegeNow);
+  monday.setDate(collegeNow.getDate() - collegeDay + 1);
+  const currentMinute = collegeNow.getHours() * 60 + collegeNow.getMinutes();
+  const isCurrent = (s) => s.day_of_week === collegeDay && currentMinute >= minutesOf(s.start_time) && currentMinute < minutesOf(s.end_time);
+  const shortTime = (t) => {
+    const minutes = minutesOf(t);
+    return `${Math.floor(minutes / 60) % 12 || 12}:${String(minutes % 60).padStart(2, '0')}`;
+  };
+
   const weekly = viewType === 'weekly';
 
   return (
     <div className="page timetable" data-qa="timetable-screen">
+      <SavedRecordNotice endpoint={weekly ? '/timetable?view=weekly' : `/timetable?view=daily&day=${day}`} />
+      {!weekly && (
+        <div className="timetable__chips" role="group" aria-label="Day of week">
+          {DAYS.map((name, i) => (
+            <button
+              key={name}
+              type="button"
+              aria-label={name.slice(0, 3)}
+              aria-pressed={day === i + 1}
+              ref={day === i + 1 ? activeChip : null}
+              className={`timetable__chip${day === i + 1 ? ' timetable__chip--on' : ''}`}
+              onClick={() => setDay(i + 1)}
+            >
+              <span>{name.slice(0, 3)}</span><strong>{new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i).getDate()}</strong>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="timetable__bar">
         <button
           type="button"
@@ -166,23 +202,6 @@ export default function TimetableView({ userRole }) {
           </button>
         )}
       </div>
-
-      {!weekly && (
-        <div className="timetable__chips" role="group" aria-label="Day of week">
-          {DAYS.map((name, i) => (
-            <button
-              key={name}
-              type="button"
-              aria-pressed={day === i + 1}
-              ref={day === i + 1 ? activeChip : null}
-              className={`timetable__chip${day === i + 1 ? ' timetable__chip--on' : ''}`}
-              onClick={() => setDay(i + 1)}
-            >
-              {name.slice(0, 3)}
-            </button>
-          ))}
-        </div>
-      )}
 
       {error && <ErrorCard error={error} onRetry={loadTimetable} />}
 
@@ -233,27 +252,18 @@ export default function TimetableView({ userRole }) {
       {!error && loading && <div className="empty-state">Loading timetable...</div>}
 
       {!error && !loading && !weekly && (
-        <DataCards
-          rows={slots}
-          keyOf={(s) => s.id}
-          empty="No classes scheduled."
-          title={(s) => `${s.course_code}: ${s.course_title}`}
-          value={(s) => <span className="pill pill--info">{s.start_time} - {s.end_time}</span>}
-          meta={[
-            { label: 'Room', render: (s) => s.room },
-            { label: 'Faculty', render: (s) => s.faculty_name },
-            {
-              label: isAdmin ? 'Admin' : '',
-              render: (s) =>
-                isAdmin ? (
-                  <div className="timetable__row-actions">
-                    <button type="button" className="btn" onClick={() => openEdit(s)}>Edit</button>
-                    <button type="button" className="btn timetable__delete" onClick={() => handleDelete(s.id)}>Delete</button>
-                  </div>
-                ) : null,
-            },
-          ]}
-        />
+        <div className="timetable__timeline">
+          {slots.map((s) => <div className="timetable__slot" key={s.id}>
+            <div className="timetable__time" aria-label={`${s.start_time} to ${s.end_time}`}><strong>{shortTime(s.start_time)}</strong><span>{shortTime(s.end_time)}</span></div>
+            <article className={`timetable__class${isCurrent(s) ? ' timetable__class--now' : ''}`}>
+              <div className="timetable__class-top"><span>{s.course_code}</span>{isCurrent(s) && <span className="timetable__now"><i />Now</span>}</div>
+              <h2>{s.course_title}</h2>
+              <div className="timetable__class-meta"><span><Icon name="pin" size={13} />{s.room}</span><span>{s.faculty_name}</span></div>
+              {isAdmin && <div className="timetable__row-actions"><button type="button" className="btn" onClick={() => openEdit(s)}>Edit</button><button type="button" className="btn timetable__delete" onClick={() => handleDelete(s.id)}>Delete</button></div>}
+            </article>
+          </div>)}
+          {!slots.length && <p className="empty-state">No classes scheduled.</p>}
+        </div>
       )}
 
       {showAddModal && (

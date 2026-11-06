@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api';
-import DataCards from '../components/DataCards';
+import { Icon } from '../components/Shell/icons';
+import SavedRecordNotice from '../components/SavedRecordNotice';
 import ErrorCard from '../components/ErrorCard';
 import './shared.css';
 import './academics.css';
@@ -16,9 +17,10 @@ const gradeFor = (total) => {
   return 'F';
 };
 
-export default function AcademicPerformanceView({ userRole }) {
+export default function AcademicPerformanceView({ userRole, initialSemester }) {
   const [data, setData] = useState(null);
-  const [selectedSemester, setSelectedSemester] = useState(6);
+  const [history, setHistory] = useState([]);
+  const [selectedSemester, setSelectedSemester] = useState(initialSemester || 6);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingMark, setEditingMark] = useState(null);
@@ -41,6 +43,14 @@ export default function AcademicPerformanceView({ userRole }) {
       })
       .catch((err) => setError(err))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    apiRequest('/gpa/history').then((res) => {
+      if (live) setHistory([...(res?.history || [])].sort((a, b) => a.semester - b.semester));
+    }).catch(() => {});
+    return () => { live = false; };
   }, []);
 
   useEffect(() => {
@@ -101,82 +111,56 @@ export default function AcademicPerformanceView({ userRole }) {
     );
   }
 
-  const passed = data?.result_status === 'PASS' || !data?.result_status;
+  const last = history.at(-1);
+  const previous = history.at(-2);
+  const delta = last && previous && Number.isFinite(last.cumulative_cgpa) && Number.isFinite(previous.cumulative_cgpa)
+    ? last.cumulative_cgpa - previous.cumulative_cgpa : null;
 
   return (
     <div className="page academics" data-qa="academics-screen">
-      <div className="field">
-        <label htmlFor="acad-sem">Semester</label>
-        <select
-          id="acad-sem"
-          value={selectedSemester}
-          onChange={(e) => setSelectedSemester(parseInt(e.target.value, 10))}
-        >
-          {(data?.available_semesters || [selectedSemester]).map((s) => (
-            <option key={s} value={s}>Semester {s}</option>
-          ))}
-        </select>
-      </div>
-
+      <SavedRecordNotice endpoint={`/academics/performance?semester=${selectedSemester}`} />
       {error && <ErrorCard error={error} onRetry={() => loadPerformance(selectedSemester)} />}
-
-      <div className="stat-grid academics__stats">
-        <div className="stat-tile academics__stat--lead">
-          <strong>{data?.sgpa ?? '--'}</strong>
-          <span>SGPA (Semester {selectedSemester})</span>
+      <section className="academics__overview" aria-label="Academic overview">
+        <div className="academics__overview-top">
+          <div><span>CGPA</span><strong>{data?.cgpa ?? '—'}</strong></div>
+          {delta !== null && <span className={`academics__delta ink-${delta < 0 ? 'bad' : 'good'}`}><Icon name="trend" size={14} />{delta >= 0 ? '+' : ''}{delta.toFixed(2)}</span>}
         </div>
-        <div className="stat-tile academics__stat--lead">
-          <strong>{data?.cgpa ?? '--'}</strong>
-          <span>CGPA (all semesters)</span>
+        {!!history.length && <div className="academics__chart" aria-label="SGPA by semester">
+          {history.map((s) => <div key={s.semester} className="academics__bar-column">
+            <span>{s.sgpa}</span><div className={`academics__bar${s.semester === selectedSemester ? ' is-selected' : ''}`} style={{ height: `${Math.max(4, Math.min(10, Number(s.sgpa) || 0) * 10)}px` }} /><span>S{s.semester}</span>
+          </div>)}
+        </div>}
+        {!history.length && <p className="academics__note">Semester history will appear here when available.</p>}
+      </section>
+      <section className="academics__subjects">
+        <div className="academics__semester-head">
+          <label className="visually-hidden" htmlFor="acad-sem">Semester</label>
+          <select id="acad-sem" aria-label="Semester" value={selectedSemester} onChange={(e) => setSelectedSemester(Number(e.target.value))}>
+            {(data?.available_semesters || [selectedSemester]).map((s) => <option value={s} key={s}>Semester {s}</option>)}
+          </select>
+          <span>SGPA <strong>{data?.sgpa ?? '—'}</strong></span>
         </div>
-        <div className="stat-tile">
-          <strong>{data?.total_credits ?? 0}</strong>
-          <span>Credits earned</span>
-        </div>
-        <div className="stat-tile">
-          <strong>
-            <span className={`pill pill--${passed ? 'good' : 'bad'}`}>{data?.result_status || 'PASS'}</span>
-          </strong>
-          <span>{data?.passed_subjects ?? 0} passed, {data?.failed_subjects ?? 0} backlogs</span>
-        </div>
-      </div>
-
-      <h2 className="section-title">Subject marks (Semester {selectedSemester})</h2>
-      {canEdit && <p className="academics__note">Faculty/Admin mode: marks can be edited.</p>}
-
-      {loading && !data ? (
-        <div className="empty-state">Loading marks...</div>
-      ) : (
-        <DataCards
-          rows={data?.marks || []}
-          keyOf={(m) => m.id}
-          empty="No marks recorded for this semester"
-          title={(m) => `${m.course_code}: ${m.course_title}`}
-          value={(m) => <span className="pill pill--info">{m.grade}</span>}
-          meta={[
-            {
-              label: 'Total',
-              render: (m) => <span className="academics__total">{m.total_marks} / 100</span>,
-            },
-            { label: 'CIE', render: (m) => `${m.internal_marks + m.lab_marks} / 50 (IA ${m.internal_marks}/30, Lab ${m.lab_marks}/20)` },
-            { label: 'SEE', render: (m) => `${m.external_marks} / 50` },
-            { label: 'Credits', render: (m) => m.credits },
-            {
-              label: 'Result',
-              render: (m) => <span className={`pill pill--${m.status === 'Pass' ? 'good' : 'bad'}`}>{m.status}</span>,
-            },
-            {
-              label: canEdit ? 'Action' : '',
-              render: (m) =>
-                canEdit ? (
-                  <button type="button" className="btn" onClick={() => openEditModal(m)}>
-                    Edit Marks
-                  </button>
-                ) : null,
-            },
-          ]}
-        />
-      )}
+        {canEdit && <p className="academics__note">Faculty/Admin mode: marks can be edited.</p>}
+        {loading && !data ? <div className="empty-state">Loading marks...</div> : <div className="reference-list">
+          {(data?.marks || []).map((m) => <div className="grade-entry" key={m.id}>
+            <details>
+              <summary className="grade-entry__row">
+                <span className={`grade-entry__grade${m.status === 'Fail' ? ' grade-entry__grade--fail' : ''}`}>{m.grade}</span>
+                <span className="reference-list__text"><strong>{m.course_title}</strong><span>{m.course_code} · {m.credits} credits</span></span>
+                <strong className="grade-entry__marks">{m.total_marks}</strong>
+              </summary>
+              <div className="grade-entry__details">
+                <span>{m.total_marks} / 100</span>
+                <span>CIE {m.internal_marks + m.lab_marks} / 50 (IA {m.internal_marks}/30, Lab {m.lab_marks}/20)</span>
+                <span>SEE <span>{m.external_marks} / 50</span></span>
+                <span className={`pill pill--${m.status === 'Pass' ? 'good' : 'bad'}`}>{m.status}</span>
+              </div>
+            </details>
+            {canEdit && <button type="button" className="btn" onClick={() => openEditModal(m)}>Edit Marks</button>}
+          </div>)}
+          {!data?.marks?.length && <p className="empty-state">No marks recorded for this semester</p>}
+        </div>}
+      </section>
 
       {editingMark && (
         <div className="sheet-scrim" role="dialog" aria-modal="true" aria-label={`Update marks ${editingMark.course_code}`}>

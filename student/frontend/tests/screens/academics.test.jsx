@@ -7,12 +7,13 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+const apiRequest = vi.hoisted(() => vi.fn());
 vi.mock('../../src/api', async () => {
   class NetworkError extends Error {}
-  return { apiRequest: vi.fn(), NetworkError };
+  return { apiRequest: (url, ...args) => url === '/gpa/history' ? Promise.resolve({ history: [] }) : apiRequest(url, ...args), NetworkError };
 });
 
-import { apiRequest, NetworkError } from '../../src/api';
+import { NetworkError } from '../../src/api';
 import AcademicPerformanceView from '../../src/screens/AcademicsScreen.jsx';
 
 const perf = {
@@ -36,13 +37,15 @@ describe('AcademicsScreen', () => {
   it('renders SGPA/CGPA tiles and one card per subject', async () => {
     apiRequest.mockResolvedValueOnce(perf);
     render(<AcademicPerformanceView userRole="student" />);
-    expect(await screen.findByText('CS601: Compilers')).toBeInTheDocument();
+    expect(await screen.findByText('Compilers')).toBeInTheDocument();
     expect(screen.getByText('8.9')).toBeInTheDocument();
     expect(screen.getByText('8.4')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Compilers'));
+    fireEvent.click(screen.getByText('Networks'));
     expect(screen.getByText('84 / 100')).toBeInTheDocument();
     expect(screen.getByText(/44 \/ 50/)).toBeInTheDocument();
     expect(screen.getByText('40 / 50')).toBeInTheDocument();
-    expect(screen.getByText('A+')).toHaveClass('pill--info');
+    expect(screen.getByText('A+')).toBeVisible();
     expect(screen.getByText('Fail')).toHaveClass('pill--bad');
     expect(apiRequest).toHaveBeenCalledWith('/academics/performance?semester=6');
     expect(screen.queryByText('Edit Marks')).toBeNull();
@@ -51,7 +54,7 @@ describe('AcademicsScreen', () => {
   it('reloads for the chosen semester', async () => {
     apiRequest.mockResolvedValueOnce(perf).mockResolvedValueOnce({ ...perf, selected_semester: 5, sgpa: 7.5 });
     render(<AcademicPerformanceView userRole="student" />);
-    await screen.findByText('CS601: Compilers');
+    await screen.findByText('Compilers');
     fireEvent.change(screen.getByLabelText('Semester'), { target: { value: '5' } });
     await waitFor(() => expect(apiRequest).toHaveBeenCalledWith('/academics/performance?semester=5'));
     expect(await screen.findByText('7.5')).toBeInTheDocument();
@@ -62,13 +65,13 @@ describe('AcademicsScreen', () => {
     render(<AcademicPerformanceView userRole="student" />);
     expect(await screen.findByText("Can't reach the server")).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('CS601: Compilers')).toBeInTheDocument();
+    expect(await screen.findByText('Compilers')).toBeInTheDocument();
   });
 
   it('faculty can edit marks: preview grade and PUT payload', async () => {
     apiRequest.mockResolvedValueOnce(perf).mockResolvedValueOnce({ message: 'Marks updated' }).mockResolvedValue(perf);
     render(<AcademicPerformanceView userRole="faculty" />);
-    await screen.findByText('CS601: Compilers');
+    await screen.findByText('Compilers');
     fireEvent.click(screen.getAllByRole('button', { name: 'Edit Marks' })[0]);
     const dialog = screen.getByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText(/Semester End Exam/), { target: { value: '50' } });
@@ -87,7 +90,7 @@ describe('AcademicsScreen', () => {
   it('Escape closes the edit dialog and focus starts in the first field', async () => {
     apiRequest.mockResolvedValue(perf);
     render(<AcademicPerformanceView userRole="admin" />);
-    await screen.findByText('CS601: Compilers');
+    await screen.findByText('Compilers');
     fireEvent.click(screen.getAllByRole('button', { name: 'Edit Marks' })[0]);
     expect(within(screen.getByRole('dialog')).getByLabelText(/Internal/)).toHaveFocus();
     fireEvent.keyDown(document, { key: 'Escape' });

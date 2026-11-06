@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../api';
-import DataCards from '../components/DataCards';
+import AttendanceRing from '../components/AttendanceRing';
+import SavedRecordNotice from '../components/SavedRecordNotice';
+import { Icon } from '../components/Shell/icons';
+import { useOnline } from '../useOnline';
 import ErrorCard from '../components/ErrorCard';
-import { attendanceTone } from './shared';
 import './dashboard.css';
 
 
@@ -20,6 +22,8 @@ function SectionHeader({ title, actionLabel, onAction }) {
 }
 
 export default function DashboardHome({ onNavigate }) {
+  const online = useOnline();
+  const [submitError, setSubmitError] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -44,11 +48,12 @@ export default function DashboardHome({ onNavigate }) {
 
   const handleAssignmentSubmit = async (id) => {
     try {
+      setSubmitError('');
       setSubmittingId(id);
       await apiRequest(`/assignments/${id}/submit`, { method: 'POST' });
       fetchSummary();
     } catch (err) {
-      alert(`Submission error: ${err.message}`);
+      setSubmitError(err.message);
     } finally {
       setSubmittingId(null);
     }
@@ -73,100 +78,65 @@ export default function DashboardHome({ onNavigate }) {
   }
 
   const { student, upcoming_examinations, pending_assignments, recent_announcements } = data;
-  const tone = attendanceTone(student.overall_attendance);
   const eligible = student.overall_attendance >= 75;
 
   return (
     <div className="page dashboard" data-qa="dashboard-screen">
-      <section className="dashboard__hero" aria-label="Student summary">
-        <p className="dashboard__greeting">Welcome back,</p>
-        <h1 className="dashboard__name">{student.name}</h1>
-        <p className="dashboard__meta">
-          {student.usn} · {student.department} · Semester {student.semester}
-        </p>
-        <span className={`pill ${eligible ? 'pill--good' : 'pill--bad'}`}>
-          {eligible ? 'Eligible for Exams' : 'Shortage Warning'}
-        </span>
-      </section>
-
-      <div className="stat-grid dashboard__stats">
-        <div className="stat-tile">
-          <span>Attendance</span>
-          <strong>{student.overall_attendance}%</strong>
-          <span className={`pill pill--${tone} dashboard__tile-pill`}>
-            {eligible ? 'Eligible' : 'Shortage'}
-          </span>
+      <SavedRecordNotice endpoint="/dashboard/summary" />
+      <section className="dashboard__hero" aria-label={`Student summary for ${student.name}`}>
+        <div className="dashboard__hero-top">
+          <AttendanceRing value={student.overall_attendance} />
+          <div className="dashboard__attendance-label"><span>Attendance</span>
+            <span className={`pill pill--${eligible ? 'good' : 'bad'}`}><i />{eligible ? 'Eligible for exams' : 'Attendance shortage'}</span>
+          </div>
         </div>
-        <div className="stat-tile">
-          <span>SGPA</span>
-          <strong>{student.current_sgpa}</strong>
-          <span>Current sem</span>
+        <div className="dashboard__gpa">
+          <div><span>SGPA</span><strong>{student.current_sgpa}</strong></div>
+          <div><span>CGPA</span><strong>{student.cgpa}</strong></div>
         </div>
-        <div className="stat-tile">
-          <span>CGPA</span>
-          <strong>{student.cgpa}</strong>
-          <span>Cumulative</span>
-        </div>
-      </div>
-
-      <section>
-        <SectionHeader title="Upcoming Examinations" actionLabel="View all" onAction={go('examinations')} />
-        <DataCards
-          rows={upcoming_examinations}
-          keyOf={(r) => r.id}
-          title={(r) => `${r.course_code} · ${r.course_title}`}
-          value={(r) => r.exam_date}
-          meta={[
-            { label: 'Time', render: (r) => [r.start_time, r.end_time].filter(Boolean).join(' - ') },
-            { label: 'Hall & Seat', render: (r) => (r.exam_hall ? `${r.exam_hall} (${r.seat_number})` : '') },
-          ]}
-          empty="No upcoming examinations scheduled."
-        />
       </section>
 
       <section>
-        <SectionHeader title="Pending Assignments" actionLabel="View all" onAction={go('assignments')} />
-        <DataCards
-          rows={pending_assignments}
-          keyOf={(r) => r.id}
-          title={(r) => `${r.course_code}: ${r.title}`}
-          value={(r) => `${r.max_marks} pts`}
-          meta={[
-            { label: 'Due', render: (r) => r.deadline_date },
-            {
-              label: 'Action',
-              render: (r) => (
-                <button
-                  type="button"
-                  className="btn btn-primary dashboard__submit"
-                  disabled={submittingId === r.id}
-                  onClick={() => handleAssignmentSubmit(r.id)}
-                >
-                  Submit
-                </button>
-              ),
-            },
-          ]}
-          empty="All assignments have been submitted."
-        />
+        <SectionHeader title="Exams" actionLabel="See all" onAction={go('examinations')} />
+        <div className="dashboard__exams scroll-x">
+          {(upcoming_examinations || []).map((exam) => {
+            const date = new Date(`${exam.exam_date}T12:00:00`);
+            const valid = !Number.isNaN(date.getTime());
+            return <button type="button" key={exam.id} className="exam-preview" onClick={go('examinations')}>
+              <div className="exam-preview__top">
+                <div className="exam-preview__date"><span>{valid ? date.toLocaleDateString('en', { month: 'short' }) : 'TBA'}</span><strong>{valid ? date.getDate() : '—'}</strong></div>
+                <div className="exam-preview__course"><span>{exam.course_code}</span><strong>{exam.course_title}</strong></div>
+              </div>
+              <div className="exam-preview__meta"><span><Icon name="clock" size={14} />{exam.start_time || 'Time TBA'}</span><span><Icon name="pin" size={14} />{exam.exam_hall || 'Hall TBA'}</span></div>
+            </button>;
+          })}
+          {!upcoming_examinations?.length && <p className="empty-state">No upcoming examinations scheduled.</p>}
+        </div>
       </section>
 
       <section>
-        <SectionHeader title="Announcements" actionLabel="Archive" onAction={go('notifications')} />
-        <DataCards
-          rows={recent_announcements}
-          keyOf={(r) => r.id}
-          title={(r) => r.title}
-          value={(r) => (
-            <span className={`pill ${r.priority === 'High' ? 'pill--bad' : ''}`}>{r.priority}</span>
-          )}
-          meta={[
-            { label: 'Notice', render: (r) => r.content },
-            { label: 'From', render: (r) => r.department },
-            { label: 'Date', render: (r) => r.published_date },
-          ]}
-          empty="No current notices available."
-        />
+        <SectionHeader title="Due soon" actionLabel="See all" onAction={go('assignments')} />
+        {submitError && <p className="notice notice--bad" role="alert">{submitError}</p>}
+        <div className="reference-list">
+          {(pending_assignments || []).map((a) => <div className="assignment-preview" key={a.id}>
+            <span className="assignment-preview__dot" />
+            <div className="reference-list__text"><strong>{a.title}</strong><span>{a.course_code} · {a.deadline_date}</span></div>
+            <button type="button" className="dashboard__submit" disabled={!online || submittingId === a.id} onClick={() => handleAssignmentSubmit(a.id)}>{submittingId === a.id ? 'Sending…' : 'Submit'}</button>
+          </div>)}
+          {!pending_assignments?.length && <p className="empty-state">All assignments have been submitted.</p>}
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader title="Notices" />
+        <div className="reference-list">
+          {(recent_announcements || []).map((n) => <button key={n.id} type="button" className="notice-preview" onClick={go('notifications')}>
+            <span className={`reference-icon${n.priority === 'High' ? ' reference-icon--accent' : ''}`}><Icon name="megaphone" size={20} /></span>
+            <span className="reference-list__text"><strong>{n.title}</strong><span>{n.department} · {n.published_date}</span></span>
+            <Icon name="chevron" size={16} />
+          </button>)}
+          {!recent_announcements?.length && <p className="empty-state">No current notices available.</p>}
+        </div>
       </section>
     </div>
   );
