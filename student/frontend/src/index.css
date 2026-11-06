@@ -9,7 +9,6 @@
   --text-secondary: #4b5563;
   --text-muted: #6b7280;
 
-  --primary: #1e3a8a;
   --primary-hover: #172554;
   --primary-light: #eff6ff;
 
@@ -38,47 +37,11 @@ body {
 }
 
 /* AUTHENTICATION SCREEN */
-.auth-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #e5e7eb;
-  padding: 20px;
-}
 
-.auth-card {
-  width: 100%;
-  max-width: 440px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
 
-.auth-header {
-  background-color: var(--primary);
-  color: #ffffff;
-  padding: 24px 20px;
-  text-align: center;
-}
 
-.auth-header h1 {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
 
-.auth-header p {
-  font-size: 13px;
-  color: #bfdbfe;
-  margin-top: 4px;
-}
 
-.auth-body {
-  padding: 24px;
-}
 
 .auth-tabs {
   display: flex;
@@ -104,29 +67,8 @@ body {
   border-bottom-color: var(--primary);
 }
 
-.role-selector {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
 
-.role-btn {
-  flex: 1;
-  padding: 8px 10px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-subtle);
-  border-radius: var(--radius);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
 
-.role-btn.active {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary);
-}
 
 /* FORMS */
 .form-group {
@@ -187,31 +129,8 @@ body {
   background-color: var(--bg-subtle);
 }
 
-.demo-credentials-box {
-  margin-top: 18px;
-  padding: 12px;
-  background-color: var(--bg-subtle);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  font-size: 11px;
-  color: var(--text-secondary);
-}
 
-.demo-btn-row {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-}
 
-.demo-btn {
-  flex: 1;
-  padding: 4px;
-  font-size: 11px;
-  background: #ffffff;
-  border: 1px solid var(--border-color);
-  cursor: pointer;
-  border-radius: var(--radius);
-}
 
 .alert-box {
   padding: 10px 12px;
