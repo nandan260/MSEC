@@ -22,7 +22,10 @@ import {
 import FacultyMentorView from '../components/Modules/FacultyMentorView';
 import FeesManagementView from '../components/Modules/FeesManagementView';
 
+import AssistantScreen from './AssistantScreen';
+
 const SCREEN_COMPONENTS = {
+  assistant: AssistantScreen,
   dashboard: DashboardHome,
   academics: AcademicPerformanceView,
   attendance: AttendanceView,

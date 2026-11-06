@@ -2,6 +2,8 @@ import http from "node:http";
 import { pathToFileURL } from "node:url";
 import { chat, configuration } from "./assistant.js";
 import { exportFile } from "./exports.js";
+import { studentChat } from "./student-assistant.js";
+import { studentExport } from "./student-exports.js";
 import { ApiError } from "./tools.js";
 export function createServer(env: NodeJS.ProcessEnv = process.env) {
   return http.createServer(async (req, res) => {
@@ -22,6 +24,11 @@ export function createServer(env: NodeJS.ProcessEnv = process.env) {
         json(200, { configured, model, tools });
         return;
       }
+      if (req.method === "GET" && path === "/student-assistant/status") {
+        const { configured, model } = configuration(env);
+        json(200, { configured, model });
+        return;
+      }
       if (req.method === "GET" && path === "/") {
         json(200, {
           service: "teacher-backend",
@@ -38,7 +45,12 @@ export function createServer(env: NodeJS.ProcessEnv = process.env) {
       }
       if (
         req.method !== "POST" ||
-        !["/assistant/chat", "/assistant/export"].includes(path ?? "")
+        ![
+          "/assistant/chat",
+          "/assistant/export",
+          "/student-assistant/chat",
+          "/student-assistant/export",
+        ].includes(path ?? "")
       ) {
         json(404, { error: "Not found." });
         return;
@@ -63,7 +75,14 @@ export function createServer(env: NodeJS.ProcessEnv = process.env) {
         json(200, await chat(body, env));
         return;
       }
-      const file = await exportFile(body);
+      if (path === "/student-assistant/chat") {
+        json(200, await studentChat(body, env, req.headers.authorization));
+        return;
+      }
+      const file =
+        path === "/student-assistant/export"
+          ? await studentExport(body)
+          : await exportFile(body);
       res.writeHead(200, {
         "Content-Type": file.mime,
         "Content-Disposition": `attachment; filename="${file.name}"`,

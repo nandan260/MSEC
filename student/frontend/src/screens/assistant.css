@@ -1,0 +1,132 @@
+.student-assistant {
+  display: flex;
+  flex-direction: column;
+  height: calc(
+    100dvh - 56px - 64px - var(--safe-top, 0px) - var(--safe-bottom, 0px) - 32px
+  );
+  min-height: 280px;
+  color: var(--ink);
+}
+.assistant-transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 12px;
+}
+.assistant-intro {
+  color: var(--muted);
+}
+.assistant-suggestions,
+.assistant-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.student-assistant button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-ctl);
+  padding: 10px 12px;
+  color: var(--primary);
+  background: var(--surface);
+  font: inherit;
+  cursor: pointer;
+}
+.student-assistant button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.student-assistant button:focus-visible,
+.student-assistant textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.assistant-message {
+  margin: 12px 0;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.assistant-message--user {
+  background: var(--primary-tint);
+}
+.assistant-message p,
+.assistant-card p {
+  white-space: pre-wrap;
+}
+.assistant-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.assistant-warning,
+.student-assistant [role="alert"] {
+  color: var(--bad-ink);
+  overflow-wrap: anywhere;
+}
+.assistant-card {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-ctl);
+  min-width: 0;
+}
+.assistant-card h3,
+.assistant-card h4 {
+  color: var(--primary);
+}
+.assistant-card details {
+  margin: 12px 0;
+}
+.assistant-card summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.assistant-table {
+  overflow-x: auto;
+  max-width: 100%;
+  margin-bottom: 12px;
+}
+.assistant-table table {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 13px;
+}
+.assistant-table th,
+.assistant-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  min-width: 85px;
+}
+.assistant-composer {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding-top: 10px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.assistant-composer label,
+.assistant-composer [role="alert"] {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.assistant-composer textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: none;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-ctl);
+  font: inherit;
+  background: var(--surface);
+  color: var(--ink);
+}
+.assistant-composer button {
+  background: var(--primary);
+  color: var(--primary-ink);
+}

@@ -6,7 +6,7 @@ afterEach(cleanup);
 
 vi.mock('../src/screens/index.js', () => {
   const stub = (name) => () => <div>{name} stub</div>;
-  const ids = ['dashboard','academics','attendance','attendance_calc','timetable','assignments','notes','examinations','gpa_calc','profile','placements','projects','events','library','services','notifications','analytics','doubts','faculty_mentor','fees'];
+  const ids = ['dashboard','academics','attendance','attendance_calc','timetable','assignments','notes','examinations','gpa_calc','profile','placements','projects','events','library','services','notifications','analytics','doubts','faculty_mentor','fees','assistant'];
   return { default: Object.fromEntries(ids.map((i) => [i, stub(i)])) };
 });
 
@@ -16,10 +16,10 @@ import TopBar from '../src/components/Shell/TopBar.jsx';
 import App from '../src/App.jsx';
 
 describe('BottomTabs', () => {
-  it('renders 5 labelled tabs with the active one marked', () => {
+  it('renders 6 labelled tabs with the active one marked', () => {
     render(<BottomTabs active="attendance" onSelect={() => {}} />);
     const buttons = screen.getAllByRole('button');
-    expect(buttons.map((b) => b.textContent)).toEqual(['Home', 'Attendance', 'Academics', 'Timetable', 'More']);
+    expect(buttons.map((b) => b.textContent)).toEqual(['Home', 'Attendance', 'Academics', 'Timetable', 'Ask AI', 'More']);
     expect(buttons[1]).toHaveAttribute('aria-current', 'page');
     expect(buttons[0]).not.toHaveAttribute('aria-current');
   });

@@ -72,7 +72,7 @@ export default function App() {
     if (activeId === 'dashboard') {
       return <Screen onNavigate={(id) => navigate(id)} userRole={role} />;
     }
-    return <Screen userRole={role} currentUser={currentUser} />;
+    return <Screen userRole={role} currentUser={currentUser} onNavigate={navigate} />;
   };
 
   return (

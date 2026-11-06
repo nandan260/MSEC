@@ -21,10 +21,11 @@ export const SCREENS = {
   doubts: { label: 'Faculty Doubt Portal', icon: 'help' },
   faculty_mentor: { label: 'Faculty Mentor', icon: 'users' },
   fees: { label: 'Fees Management', icon: 'receipt' },
+  assistant: { label: 'Ask AI', icon: 'sparkle' },
   more: { label: 'More', icon: 'menu' },
 };
 
-export const TABS = ['dashboard', 'attendance', 'academics', 'timetable', 'more'];
+export const TABS = ['dashboard', 'attendance', 'academics', 'timetable', 'assistant', 'more'];
 
 export const MORE_GROUPS = [
   { title: 'Study', ids: ['assignments', 'notes', 'examinations', 'gpa_calc', 'attendance_calc', 'analytics'] },
