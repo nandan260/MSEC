@@ -1,3 +1,4 @@
+import { bindAssistant, scrollAssistant, studentNotifications } from './assistant.js';
 import { icon } from './icons.js';
 import { seedData, saveAttendance, gradeSubmission, toCSV, atRisk, today, uid } from './model.js';
 import { storeFiles, getFile } from './files.js';
@@ -64,8 +65,6 @@ const filters = {
     topic: ''
 };
 let attendanceDraft = null;
-let aiType = 'quiz';
-let aiOutput = '';
 let toastTimer;
 function toast(text) {
     const el = document.querySelector('#toast');
@@ -142,7 +141,7 @@ function render() {
         assignments: () => v.assignments(state, filters),
         assessments: () => v.assessments(state, filters),
         analytics: () => v.analytics(state, filters),
-        ai: () => v.ai(state, filters, aiOutput, aiType),
+        ai: () => v.ai(state),
         materials: () => v.materials(state, filters),
         timetable: () => v.timetable(state, filters),
         announcements: () => v.announcements(state, filters),
@@ -158,6 +157,8 @@ function render() {
         renderFn() +
             `<footer class="footer"><span>${icon('cap')}A little more organized. A lot more possibility.</span><span><i class="dot"></i>Demo workspace · Data saved in this browser</span></footer>`;
     layoutWorkspace(el, route, routes[route]);
+    if (route === 'ai')
+        scrollAssistant();
     document.querySelectorAll('[data-route]').forEach((a) => {
         a.classList.toggle('active', a.dataset.route === route);
         if (a.dataset.route === route && a.closest('details')) {
@@ -566,27 +567,6 @@ function exportReport(type) {
     download(`teacher-desk-${type}-${today()}.csv`, '\uFEFF' + toCSV(rows), 'text/csv;charset=utf-8');
     toast(rows.length > 1 ? 'Report downloaded' : 'Empty report downloaded. No saved records yet.');
 }
-function generateTemplate(d) {
-    const topic = required(d, 'topic', 'Topic'), level = val(d, 'level'), duration = val(d, 'duration'), objectives = val(d, 'objectives');
-    filters.topic = topic;
-    const titles = {
-        quiz: 'QUIZ DRAFT',
-        questions: 'QUESTION BANK DRAFT',
-        lesson: 'LESSON PLAN',
-        notes: 'STUDY NOTES OUTLINE'
-    };
-    const intro = `${titles[aiType] || 'TEACHING OUTLINE'} — ${topic}\n${level} · ${duration}\n\nTemplate draft · Add topic-specific details and verify accuracy.\n\n`;
-    const goals = objectives || `Explain key ideas in ${topic}; apply them to a worked example; identify common misconceptions.`;
-    const bodies = {
-        quiz: `Learning objectives\n${goals}\n\nInstructions\nAnswer all five questions. Suggested total: 20 marks.\n\n1. Define ${topic} in your own words. (2 marks)\n2. Identify two key properties of ${topic}. Explain why each matters. (4 marks)\n3. Construct a worked example involving ${topic}. Show each step. (6 marks)\n4. Describe a common error when applying ${topic}, and explain how to avoid it. (4 marks)\n5. Give a practical application of ${topic} and justify your choice. (4 marks)\n\nTeacher review\nPrepare a model answer and scoring rubric for each question before conducting the quiz.`,
-        questions: `Learning objectives\n${goals}\n\nRemember\n• What does ${topic} mean?\n• What vocabulary is essential to understanding ${topic}?\n\nUnderstand\n• Explain ${topic} using an everyday analogy.\n• How do its main parts relate to one another?\n\nApply\n• Demonstrate ${topic} using an original example.\n• What changes if one constraint is removed?\n\nAnalyze & evaluate\n• Compare two approaches to a problem involving ${topic}.\n• Find a limitation and propose a way to address it.\n\nCreate\n• Design a small activity that teaches ${topic} to a peer.`,
-        lesson: `Learning objectives\n${goals}\n\nOpening · First 10% of lesson\nAsk students what they already know about ${topic}. Use one simple diagnostic question.\n\nExplain · Next 25%\nIntroduce essential vocabulary and the central idea. Connect to prior learning. Add one accurate, topic-specific example.\n\nModel · Next 25%\nWork through a complete example of ${topic}. Think aloud at key decisions. Ask students to predict the next step.\n\nPractice · Next 30%\nStudents solve a related problem in pairs. Circulate and note misconceptions. Provide one extension challenge.\n\nReflect · Final 10%\nCollect an exit ticket: one key idea, one application, one remaining question.\n\nMaterials to prepare\nA worked example, a practice worksheet, a visual explanation and an exit ticket.\n\nFollow-up\nUse exit tickets to decide the next lesson's starting point.`,
-        notes: `Learning objectives\n${goals}\n\n1. Big picture\nWrite a concise definition of ${topic}. Explain where it fits in the wider subject.\n\n2. Key vocabulary\nList and define the essential terms. Include a diagram where useful.\n\n3. Core ideas\nBreak ${topic} into three to five central ideas. For each, add an explanation and an example.\n\n4. Worked example\nState the problem, show each step, explain decisions and check the result.\n\n5. Common mistakes\nDescribe likely misconceptions and how to check for them.\n\n6. Self-check\n• Can I explain ${topic} without notes?\n• Can I solve a new example?\n• Can I identify an incorrect solution?\n\nTeacher review\nComplete this outline with verified subject content and course references before sharing.`
-    };
-    aiOutput = intro + (bodies[aiType] || '');
-    render();
-    toast('Teaching template created');
-}
 const handlers = {
     'toggle-sidebar': () => {
         const app = document.querySelector('#app');
@@ -760,17 +740,6 @@ const handlers = {
             attendanceDraft = null;
         }
     },
-    'ai-type': (el) => {
-        const formEl = document.querySelector('#ai-form');
-        if (formEl) {
-            const topicInput = formEl.elements.namedItem('topic');
-            if (topicInput)
-                filters.topic = topicInput.value;
-        }
-        aiType = el.dataset.id;
-        render();
-    },
-    'download-ai': () => download('teaching-template.txt', aiOutput),
     'week-prev': () => shiftWeek(-7),
     'week-next': () => shiftWeek(7),
     'week-today': () => {
@@ -802,7 +771,7 @@ const handlers = {
             .join('')}${state.submissions
             .filter((x) => x.marks === null)
             .map((x) => `<button data-action="grade" data-id="${x.id}"><strong>Submission ready for feedback</strong><p>${esc(state.students.find((st) => st.id === x.studentId)?.name)} · ${esc(state.assignments.find((a) => a.id === x.assignmentId)?.title)}</p></button>`)
-            .join('')}</div>`);
+            .join('')}${studentNotifications(state).map(entry => `<button data-action="student-detail" data-id="${esc(entry.studentId)}"><strong>${esc(entry.title)}</strong><p>${esc(entry.detail)}</p></button>`).join('')}</div>`);
     }
 };
 function shiftWeek(n) {
@@ -902,15 +871,6 @@ document.addEventListener('submit', (e) => {
                 : empty('No results found', 'Try a student name, subject or assignment title.')}</div>`
             : empty('What are you looking for?', 'Enter a student, subject or assignment in the search box.'));
     }
-    if (f.id === 'ai-form') {
-        e.preventDefault();
-        try {
-            generateTemplate(new FormData(f));
-        }
-        catch (error) {
-            toast(error instanceof Error ? error.message : String(error));
-        }
-    }
     if (f.id === 'profile-form') {
         e.preventDefault();
         const d = new FormData(f);
@@ -951,3 +911,5 @@ dialog.addEventListener('click', (e) => {
     }
 });
 shell();
+bindAssistant(() => state, () => { if (route === 'ai')
+    render(); });

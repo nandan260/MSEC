@@ -23,8 +23,10 @@ COPY backend/src ./src
 RUN npm run build
 
 FROM node:24-alpine AS backend
-ENV NODE_ENV=production PORT=8000
+ENV NODE_ENV=production PORT=8000 HOST=0.0.0.0
 WORKDIR /app
+COPY backend/package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=backend-build --chown=node:node /app/dist ./dist
 USER node
 EXPOSE 8000

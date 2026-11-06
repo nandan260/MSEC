@@ -1,38 +1,91 @@
-import http from 'node:http';
-
-const server = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
-
-  res.setHeader('Content-Type', 'application/json');
-
-  if (req.url === '/health') {
-    res.writeHead(200);
-    res.end(JSON.stringify({ status: 'ok' }));
-    return;
-  }
-
-  res.writeHead(200);
-  res.end(
-    JSON.stringify({
-      service: 'teacher-backend',
-      status: 'running',
-      runtime: 'node-typescript',
-      endpoints: ['/', '/health']
-    })
+import http from "node:http";
+import { pathToFileURL } from "node:url";
+import { chat, configuration } from "./assistant.js";
+import { exportFile } from "./exports.js";
+import { ApiError } from "./tools.js";
+export function createServer(env: NodeJS.ProcessEnv = process.env) {
+  return http.createServer(async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    const json = (status: number, body: unknown) => {
+      res.writeHead(status, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(body));
+    };
+    try {
+      const path = req.url?.split("?")[0];
+      if (req.method === "GET" && path === "/health") {
+        json(200, { status: "ok" });
+        return;
+      }
+      if (req.method === "GET" && path === "/assistant/status") {
+        const { configured, model, tools } = configuration(env);
+        json(200, { configured, model, tools });
+        return;
+      }
+      if (req.method === "GET" && path === "/") {
+        json(200, {
+          service: "teacher-backend",
+          status: "running",
+          runtime: "node-typescript",
+          endpoints: [
+            "/health",
+            "/assistant/status",
+            "/assistant/chat",
+            "/assistant/export",
+          ],
+        });
+        return;
+      }
+      if (
+        req.method !== "POST" ||
+        !["/assistant/chat", "/assistant/export"].includes(path ?? "")
+      ) {
+        json(404, { error: "Not found." });
+        return;
+      }
+      if (!req.headers["content-type"]?.startsWith("application/json"))
+        throw new ApiError(400, "Content-Type must be application/json.");
+      let size = 0;
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        size += chunk.length;
+        if (size > 1_500_000)
+          throw new ApiError(400, "Request exceeds 1.5 MB limit.");
+        chunks.push(chunk);
+      }
+      let body;
+      try {
+        body = JSON.parse(Buffer.concat(chunks).toString());
+      } catch {
+        throw new ApiError(400, "Invalid JSON request.");
+      }
+      if (path === "/assistant/chat") {
+        json(200, await chat(body, env));
+        return;
+      }
+      const file = await exportFile(body);
+      res.writeHead(200, {
+        "Content-Type": file.mime,
+        "Content-Disposition": `attachment; filename="${file.name}"`,
+      });
+      res.end(file.buffer);
+    } catch (e) {
+      json(e instanceof ApiError ? e.status : 500, {
+        error: e instanceof ApiError ? e.message : "Unable to process request.",
+      });
+    }
+  });
+}
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  const server = createServer();
+  server.requestTimeout = 120000;
+  server.headersTimeout = 15000;
+  const port = Number(process.env.PORT) || 8000;
+  const host = process.env.HOST || "127.0.0.1";
+  server.listen(port, host, () =>
+    console.log(`Teacher backend listening on http://${host}:${port}`),
   );
-});
-
-const PORT = Number(process.env.PORT) || 8000;
-server.listen(PORT, () => {
-  console.log(`Teacher backend (TypeScript) running on http://localhost:${PORT}`);
-});
-
-export default server;
+}

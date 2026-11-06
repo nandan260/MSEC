@@ -187,3 +187,5 @@ dialog { background: var(--color-surface); color: var(--color-ink); border-color
 #app .upcoming-label .badge { color: var(--color-accent-dark); background: var(--color-accent-light); }
 #app .attendance-status button.selected[data-status='Late'] { background: #FFF4E2; color: var(--color-ink); border-color: var(--color-warning); }
 #app .attendance-status button.selected[data-status='Excused'] { background: #EAF1F9; color: var(--color-info); border-color: var(--color-info); }
+/* Submenus take priority over the teaching promo, with no collapse delay. */
+#app .sidebar:has(.nav-group[open]) .sidebar-promo { display: none; }
