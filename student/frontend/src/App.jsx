@@ -10,6 +10,7 @@ import { clearAuth, getUser } from './api';
 import { useOnline } from './useOnline';
 import { NotFoundScreen, OfflineScreen, OFFLINE_ENDPOINTS } from './screens/MobileStates';
 import './screens/mobile-reference.css';
+import './theme/responsive.css';
 
 const STUDENT_PROFILE = {
   name: 'Alex Kumar',
