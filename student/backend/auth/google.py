@@ -175,7 +175,7 @@ def redeem_exchange(conn, code):
 
 
 def teacher_origin():
-    return (os.environ.get('TEACHER_ORIGIN') or 'http://localhost:8080').split(',')[0].strip().rstrip('/')
+    return (os.environ.get('TEACHER_ORIGIN') or 'http://localhost:4173').split(',')[0].strip().rstrip('/')
 
 
 def return_url(platform, **params):

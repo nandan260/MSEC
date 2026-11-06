@@ -30,7 +30,7 @@ DEV_ORIGINS = [
 def cors_origins():
     extra = [o.strip().rstrip('/') for key in ('PUBLIC_ORIGIN', 'TEACHER_ORIGIN')
              for o in os.environ.get(key, '').split(',') if o.strip()]
-    return extra + DEV_ORIGINS + ['http://localhost:8080', 'http://127.0.0.1:8080']
+    return extra + DEV_ORIGINS + ['http://localhost:4173', 'http://127.0.0.1:4173']
 
 
 @bp.get('/me')

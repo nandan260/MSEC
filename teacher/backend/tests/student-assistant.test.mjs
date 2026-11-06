@@ -140,10 +140,11 @@ test("fixed GET tools forward authorization, bound records, reject arbitrary pat
     for (const screen of ["more", "__proto__", "javascript:alert(1)"])
       await assert.rejects(runTool("navigate", { screen }, {}, undefined, out));
     const { SCREENS } = await import("../../../student/frontend/src/nav.js");
+    // Role-gated screens (admin) are never offered to students by the assistant.
     assert.deepEqual(
       Object.keys(screens).sort(),
       Object.keys(SCREENS)
-        .filter((k) => k !== "more")
+        .filter((k) => k !== "more" && !SCREENS[k].roles)
         .sort(),
     );
   } finally {

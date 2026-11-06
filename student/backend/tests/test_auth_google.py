@@ -144,7 +144,7 @@ def test_start_disabled_without_config(client, monkeypatch):
 
 
 def test_success_teacher_returns_to_teacher_app(client, monkeypatch):
-    monkeypatch.setenv('TEACHER_ORIGIN', 'http://localhost:8080')
+    monkeypatch.setenv('TEACHER_ORIGIN', 'http://localhost:4173')
     q = start(client, 'teacher')
     loc, params = callback(client, q)
-    assert loc.startswith('http://localhost:8080/#/auth-return?code=') and params['code']
+    assert loc.startswith('http://localhost:4173/#/auth-return?code=') and params['code']

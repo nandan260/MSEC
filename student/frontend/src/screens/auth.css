@@ -164,3 +164,6 @@
 .password-section__hint { margin: 0; color: var(--muted); font-size: 14px; }
 .password-section__form { display: flex; flex-direction: column; gap: 12px; max-width: 420px; }
 .password-section__form p { margin: 0; font-size: 14px; }
+
+/* Sign-in is full-bleed on wide screens (the app shell column is capped at 1180px). */
+#root:has(> .auth) { max-width: none; }
