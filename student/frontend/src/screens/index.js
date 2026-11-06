@@ -1,9 +1,9 @@
 // Screen id -> component. Re-exports the current module files until each screen moves.
 import DashboardHome from './DashboardScreen';
+import AttendanceView from './AttendanceScreen';
+import AttendanceCalculatorView from './AttendanceCalculatorScreen';
 import {
   AcademicPerformanceView,
-  AttendanceView,
-  AttendanceCalculatorView,
   TimetableView,
   AssignmentsView,
   NotesView,

@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
+import { attendanceTone } from './shared';
 import './dashboard.css';
 
-const attendanceTone = (pct) => (pct >= 85 ? 'good' : pct >= 75 ? 'warn' : 'bad');
 
 function SectionHeader({ title, actionLabel, onAction }) {
   return (
