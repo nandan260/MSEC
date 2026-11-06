@@ -1,0 +1,18 @@
+/* The legacy index.css `*` rule forces a system font on every element, so one
+   root-level rule restores the theme body font; headings override below. */
+.library, .library * { font-family: var(--font-body); }
+.library .data-card-title, .library .section-title, .library .stat-tile strong { font-family: var(--font-head); }
+
+.library .section-title { margin: 8px 0 0; }
+.library .card .section-title { margin: 0; }
+.library .data-card-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.library .data-card-meta .btn { min-height: 44px; }
+.library .pill { white-space: normal; }
+.library__form { display: flex; flex-direction: column; gap: 12px; }
+.library__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.library__danger { color: var(--bad-ink); }
+.library__count { margin: 0; font-size: 14px; color: var(--muted); }
+.library__hint { margin: 0; font-size: 14px; color: var(--muted); }
+.library .library__good { color: var(--good-ink); font-weight: 600; }
+.library .library__bad { color: var(--bad-ink); font-weight: 600; }
+.library__isbn { font-family: var(--font-body); }

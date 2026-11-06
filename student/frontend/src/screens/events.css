@@ -1,0 +1,14 @@
+/* The legacy index.css `*` rule forces a system font on every element, so one
+   root-level rule restores the theme body font; headings override below. */
+.events, .events * { font-family: var(--font-body); }
+.events .data-card-title, .events .section-title { font-family: var(--font-head); }
+
+.events .section-title { margin: 8px 0 0; }
+.events .data-card-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.events .data-card-meta .btn { min-height: 44px; }
+.events__filters { display: flex; flex-direction: column; gap: 12px; }
+.events__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.events__about { color: var(--muted); }
+.events__delete { color: var(--bad-ink); }
+.events__count { margin: 0; font-size: 14px; color: var(--muted); }
+.events .pill { white-space: normal; }

@@ -1,0 +1,11 @@
+/* The legacy index.css `*` rule forces a system font on every element, so one
+   root-level rule restores the theme body font; headings override below. */
+.notes, .notes * { font-family: var(--font-body); }
+.notes .data-card-title, .notes .section-title { font-family: var(--font-head); }
+
+.notes .section-title { margin: 8px 0 0; }
+.notes .data-card-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.notes .data-card-meta .btn { min-height: 44px; }
+.notes__filters { display: flex; flex-direction: column; gap: 12px; }
+.notes__count { margin: 0; font-size: 14px; color: var(--muted); }
+.notes__format { font-weight: 700; }

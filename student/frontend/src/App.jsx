@@ -3,9 +3,9 @@ import TopBar from './components/Shell/TopBar';
 import BottomTabs from './components/Shell/BottomTabs';
 import MoreScreen from './components/Shell/MoreScreen';
 import './components/Shell/shell.css';
-import AuthScreen from './components/Auth/AuthScreen';
+import AuthScreen from './screens/AuthScreen';
 import SCREEN_COMPONENTS from './screens/index.js';
-import { SCREENS, tabFor, pushScreen, popScreen } from './nav';
+import { SCREENS, TABS, tabFor, pushScreen, popScreen } from './nav';
 import { clearAuth } from './api';
 
 const STUDENT_PROFILE = {
@@ -49,10 +49,15 @@ export default function App() {
     setCurrentUser(null);
   };
 
-  if (!currentUser) {
+  // QA-only hook: ?screen=auth renders the auth screen. Excluded from the APK (mode android).
+  const forceAuth = import.meta.env.MODE !== 'android'
+    && new URLSearchParams(window.location.search).get('screen') === 'auth';
+
+  if (!currentUser || forceAuth) {
     return <AuthScreen onLoginSuccess={(user) => {
       setCurrentUser(user);
       setStack(['dashboard']);
+      if (forceAuth) window.history.replaceState(null, '', window.location.pathname);
     }} />;
   }
 
@@ -67,17 +72,24 @@ export default function App() {
     if (activeId === 'dashboard') {
       return <Screen onNavigate={(id) => navigate(id)} userRole={role} />;
     }
-    return <Screen userRole={role} currentUser={currentUser} />;
+    return <Screen userRole={role} currentUser={currentUser} onNavigate={navigate} />;
   };
+
+  const isTab = TABS.includes(activeId);
+  const MONTH = { month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' };
+  const headerProps = activeId === 'dashboard'
+    ? { variant: 'home', user: currentUser, unread: false,
+        onBell: () => navigate('notifications'), onAvatar: () => navigate('profile') }
+    : {
+        variant: activeId === 'assistant' ? 'ai' : 'page',
+        title: SCREENS[activeId] ? SCREENS[activeId].label : 'Dashboard',
+        kicker: activeId === 'timetable' ? new Date().toLocaleDateString('en-GB', MONTH) : undefined,
+        onBack: isTab ? undefined : goBack,
+      };
 
   return (
     <>
-      <TopBar
-        title={SCREENS[activeId] ? SCREENS[activeId].label : 'Dashboard'}
-        user={currentUser}
-        onBell={() => navigate('notifications')}
-        onAvatar={() => navigate('profile')}
-      />
+      <TopBar {...headerProps} />
       <main className="page app-main">{renderActiveView()}</main>
       <BottomTabs active={tabFor(activeId)} onSelect={navigate} />
     </>

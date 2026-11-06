@@ -1,28 +1,31 @@
 // Screen id -> component. Re-exports the current module files until each screen moves.
-import DashboardHome from '../components/Dashboard/DashboardHome';
+import DashboardHome from './DashboardScreen';
+import AttendanceView from './AttendanceScreen';
+import AttendanceCalculatorView from './AttendanceCalculatorScreen';
+import AcademicPerformanceView from './AcademicsScreen';
+import TimetableView from './TimetableScreen';
+import AssignmentsView from './AssignmentsScreen';
+import NotesView from './NotesScreen';
+import ExaminationsView from './ExaminationsScreen';
+import GpaCalculatorView from './GpaCalculatorScreen';
+import PerformanceAnalyticsView from './PerformanceAnalyticsScreen';
+import EventsView from './EventsScreen';
+import LibraryView from './LibraryScreen';
+import CampusServicesView from './ServicesScreen';
+import PlacementsView from './PlacementsScreen';
+import ProjectsView from './ProjectsScreen';
 import {
-  AcademicPerformanceView,
-  AttendanceView,
-  AttendanceCalculatorView,
-  TimetableView,
-  AssignmentsView,
-  NotesView,
-  ExaminationsView,
-  GpaCalculatorView,
   StudentProfileView,
-  PlacementsView,
-  ProjectsView,
-  EventsView,
-  LibraryView,
-  CampusServicesView,
   NotificationsView,
-  PerformanceAnalyticsView,
   FacultyDoubtPortalView,
 } from '../components/Modules/ModuleViews';
 import FacultyMentorView from '../components/Modules/FacultyMentorView';
 import FeesManagementView from '../components/Modules/FeesManagementView';
 
+import AssistantScreen from './AssistantScreen';
+
 const SCREEN_COMPONENTS = {
+  assistant: AssistantScreen,
   dashboard: DashboardHome,
   academics: AcademicPerformanceView,
   attendance: AttendanceView,

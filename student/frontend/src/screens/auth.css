@@ -1,0 +1,18 @@
+.auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: var(--pad); padding-top: calc(var(--pad) + var(--safe-top)); padding-bottom: calc(var(--pad) + var(--safe-bottom)); }
+.auth-screen__card { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 16px; padding: 24px var(--pad); }
+.auth-screen__brand { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.auth-screen__emblem { width: 56px; height: 56px; margin-bottom: 8px; }
+.auth-screen__title { font-family: var(--font-head); font-size: 22px; font-weight: 800; line-height: 1.2; color: var(--primary); margin: 0; }
+.auth-screen__sub { font-size: 14px; color: var(--muted); margin: 0; }
+.auth-screen__tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-ctl); }
+.auth-screen__tab { flex: 1; min-height: 44px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-family: var(--font-body); font-size: 14px; font-weight: 500; cursor: pointer; }
+.auth-screen__tab.is-active { background: var(--primary-tint); color: var(--primary); font-weight: 600; }
+.auth-screen__tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.auth-screen__error { padding: 12px; border-radius: var(--radius-ctl); background: var(--bad-tint); color: var(--bad-ink); font-size: 14px; }
+.auth-screen__form { display: flex; flex-direction: column; gap: 16px; }
+.auth-screen__form .field input, .auth-screen__form .field select { width: 100%; box-sizing: border-box; }
+.auth-screen .btn.btn-primary.auth-screen__submit { width: 100%; box-sizing: border-box; padding: 9px 16px; border: 1px solid var(--primary); border-radius: var(--radius-ctl); font-size: 14px; font-weight: 600; color: var(--primary-ink); }
+.auth-screen__demo { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-ctl); font-size: 14px; color: var(--muted); }
+.auth-screen__demo .btn { width: 100%; }
+.auth-screen * { font-family: var(--font-body); }
+.auth-screen .auth-screen__title { font-family: var(--font-head); }

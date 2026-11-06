@@ -1,40 +1,49 @@
-@import '@fontsource/manrope/600.css';
-@import '@fontsource/manrope/700.css';
-@import '@fontsource/manrope/800.css';
-@import '@fontsource/dm-sans/400.css';
-@import '@fontsource/dm-sans/500.css';
-@import '@fontsource/dm-sans/700.css';
+@import '@fontsource/poppins/600.css';
+@import '@fontsource/poppins/700.css';
+@import '@fontsource/poppins/800.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
 
-/* Values read from the live Teacher dashboard at 390px (computed styles). */
+/* Mirrors teacher/frontend/dist/msec-theme.css (MSEC purple and crimson). */
 :root {
-  --bg: #f4f3ed;            /* body background */
-  --surface: #fffef9;       /* panel/card background */
-  --surface-2: #f8f9f2;    /* metric-stack inner surface */
-  --ink: #233e31;           /* body text */
-  --muted: #626e60;
-  --line: #e2e6d9;          /* card border */
-  --primary: #234c3b;       /* btn.primary border/end of gradient */
-  --primary-2: #3a624c;     /* btn.primary gradient start */
-  --primary-deep: #163729;  /* btn.primary bottom edge */
-  --primary-shadow: rgba(35, 76, 59, 0.1);
-  --primary-ink: #ffffff;
-  --primary-tint: #edf2e3;  /* mint */
-  --good: #356546;
-  --good-tint: #e7efdf;
-  --warn: #815515;
-  --warn-tint: #fbefd7;
-  --bad: #98472f;
-  --bad-tint: #f9e9e2;
-  --info: #315e8b;
-  --info-tint: #e5eef8;
+  --bg: #FAF8FC;            /* color-bg */
+  --surface: #FFFFFF;       /* color-surface */
+  --surface-2: #F5F1F9;     /* inset tile surface, between bg and primary-tint */
+  --ink: #1A1523;          /* color-ink */
+  --muted: #5C5468;         /* color-ink-muted */
+  --line: #E3DEE9;          /* color-border */
+  --primary: #4E2478;       /* color-primary */
+  --primary-2: #4E2478;     /* flat buttons: no gradient */
+  --primary-deep: #38195A;  /* color-primary-dark */
+  --primary-shadow: rgba(56, 25, 90, 0.03);
+  --primary-ink: #FFFFFF;
+  --primary-tint: #EDE4F5;  /* color-primary-light */
+  --accent: #F30137;        /* color-accent: alert badge, notification dot */
+  --accent-deep: #C4012C;
+  --accent-tint: #FDE2E7;
+  --accent-press: #9E0122;
+  --good: #1C8A5C;
+  --good-tint: #E8F5EF;
+  --warn: #D98B16;
+  --warn-tint: #FFF4E2;
+  --bad: #D6264C;
+  --bad-tint: #FDE2E7;
+  --info: #2563A6;
+  --info-tint: #EAF1F9;
+  /* Text variants of the status hues: >= 4.5:1 on their tint and on --surface. */
+  --good-ink: #13694A;
+  --warn-ink: #8A5300;
+  --bad-ink: #B01E3E;
+  --info-ink: #1F5490;
 
   --radius-card: 16px;
   --radius-ctl: 12px;
   --pad: 16px;
-  --shadow: 0 2px 6px rgba(35, 62, 49, 0.024);
+  --shadow: 0 2px 10px #38195a08;
 
-  --font-head: 'Manrope', system-ui, sans-serif;
-  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-head: 'Poppins', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
 
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);

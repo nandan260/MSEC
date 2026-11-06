@@ -1,6 +1,15 @@
 import React from 'react';
 
 const P = {
+  sparkle: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 3v4 M17 5h4 M5 17v4 M3 19h4" />,
+  back: <path d="M15 6l-6 6 6 6" />,
+  send: <path d="M12 19V5 M6 11l6-6 6 6" />,
+  alert: <path d="M12 3 2 20h20z M12 10v4 M12 17h.01" />,
+  clock: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2" />,
+  pin: <path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />,
+  wifiOff: <path d="M2 2l20 20 M8.5 16.5a5 5 0 0 1 7 0 M5 12.5a10 10 0 0 1 5-2.5 M19 12.5a10 10 0 0 0-2.5-1.7 M2 8.8a15 15 0 0 1 4.2-2.6 M22 8.8A15 15 0 0 0 11 5 M12 20h.01" />,
+  retry: <path d="M20 11a8 8 0 1 0-2.3 5.7 M20 4v7h-7" />,
+  megaphone: <path d="M3 10v4h4l6 4V6L7 10z M17 9a4 4 0 0 1 0 6" />,
   home: <><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></>,
   chart: <><path d="M4 20V4" /><path d="M4 20h16" /><path d="M8 16v-4" /><path d="M12 16V8" /><path d="M16 16v-6" /></>,
   check: <><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 12l3 3 5-6" /></>,
@@ -27,7 +36,7 @@ const P = {
 
 const FALLBACK = <circle cx="12" cy="12" r="8" />;
 
-export function Icon({ name, size = 24 }) {
+export function Icon({ name, size = 24, stroke = 1.8 }) {
   return (
     <svg
       width={size}
@@ -35,7 +44,7 @@ export function Icon({ name, size = 24 }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={stroke}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

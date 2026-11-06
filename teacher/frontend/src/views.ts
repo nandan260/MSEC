@@ -1,3 +1,4 @@
+import { assistantView } from './assistant.js';
 import { icon } from './icons.js';
 import { atRisk, today } from './model.js';
 import type { AppState, ClassItem, Filters, Student } from './types.js';
@@ -599,40 +600,7 @@ export function analytics(s: AppState, f: Filters): string {
   );
 }
 
-export function ai(_s: AppState, f: Filters, output: string, type: string): string {
-  return (
-    heading('AI teaching assistant', 'A head start for your next great lesson.', badge('Offline templates', 'purple')) +
-    `<div class="info orange">${icon(
-      'spark'
-    )}<span>Template mode · Generates editable teaching outlines locally. Live AI requires a connected server and model. Review content before sharing.</span></div><div class="ai-workspace"><section class="panel"><div class="panel-header"><h2>What are we creating?</h2></div><div class="ai-options">${[
-      ['quiz', 'clipboard', 'Quiz'],
-      ['questions', 'help', 'Questions'],
-      ['lesson', 'book', 'Lesson plan'],
-      ['notes', 'file', 'Study notes']
-    ]
-      .map(
-        ([id, ico, name]) =>
-          `<button class="ai-option ${type === id ? 'active' : ''}" data-action="ai-type" data-id="${id}">${icon(
-            ico
-          )}${name}</button>`
-      )
-      .join(
-        ''
-      )}</div><form id="ai-form"><div class="form-grid"><div class="form-group full"><label for="topic">Topic</label><input required id="topic" name="topic" placeholder="e.g. Binary search trees" value="${esc(
-      f.topic || 'Binary search trees'
-    )}" maxlength="150"></div><div class="form-group full"><label for="level">Learning level</label><select id="level" name="level"><option>Undergraduate · Introductory</option><option>Undergraduate · Intermediate</option><option>Undergraduate · Advanced</option></select></div><div class="form-group full"><label for="objectives">Learning objectives (optional)</label><textarea id="objectives" name="objectives" placeholder="What should students understand by the end?" maxlength="1000"></textarea></div><div class="form-group full"><label for="duration">Lesson duration</label><select id="duration" name="duration"><option>45 minutes</option><option>60 minutes</option><option>90 minutes</option></select></div></div><button type="submit" class="btn primary" style="width:100%;margin-top:20px">${icon(
-      'spark'
-    )}Generate template</button></form></section><section class="panel ai-output"><div class="panel-header"><h2>Your teaching draft</h2>${
-      output ? button(`${icon('download')}Download`, 'download-ai') : badge('Ready when you are', 'gray')
-    }</div>${
-      output
-        ? `<pre>${esc(output)}</pre>`
-        : `<div class="output-placeholder">${icon(
-            'spark'
-          )}<h3>A little inspiration starts here.</h3><p style="font-size:11px">Choose a format and topic to create your first draft.</p></div>`
-    }</section></div>`
-  );
-}
+export function ai(s: AppState): string { return assistantView(s); }
 
 export function materials(s: AppState, f: Filters): string {
   const rows = s.materials.filter(

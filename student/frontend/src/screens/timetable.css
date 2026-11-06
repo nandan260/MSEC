@@ -1,0 +1,22 @@
+/* The legacy index.css `*` rule forces a system font on every element, so one
+   root-level rule restores the theme body font; headings override below. */
+.timetable, .timetable * { font-family: var(--font-body); }
+.timetable .data-card-title, .timetable .section-title { font-family: var(--font-head); }
+
+.timetable__bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.timetable__chips { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.timetable__chip { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 8px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 500; cursor: pointer; }
+.timetable__chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.timetable__chip--on { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
+
+.timetable .data-card-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.timetable .data-card-value .pill { font-size: 12px; font-weight: 600; }
+.timetable .data-card-meta .btn { min-height: 44px; }
+
+.timetable__grid { border-collapse: collapse; min-width: 720px; width: 100%; font-size: 14px; }
+.timetable__grid th { text-align: left; font-size: 12px; font-weight: 500; color: var(--muted); padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.timetable__grid td { padding: 8px; border-bottom: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+.timetable__row-actions { display: flex; gap: 8px; }
+.timetable__row-actions .btn { flex: 1; }
+.timetable__delete { color: var(--bad-ink); }
+

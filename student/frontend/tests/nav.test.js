@@ -5,7 +5,7 @@ const SIDEBAR_IDS = [
   'dashboard', 'academics', 'attendance', 'attendance_calc', 'timetable',
   'assignments', 'notes', 'examinations', 'gpa_calc', 'profile',
   'placements', 'projects', 'events', 'library', 'services',
-  'notifications', 'analytics', 'doubts', 'faculty_mentor', 'fees'
+  'notifications', 'analytics', 'doubts', 'faculty_mentor', 'fees', 'assistant'
 ];
 
 describe('nav model', () => {
@@ -20,7 +20,7 @@ describe('nav model', () => {
   });
 
   it('TABS is the bottom tab list', () => {
-    expect(TABS).toEqual(['dashboard', 'attendance', 'academics', 'timetable', 'more']);
+    expect(TABS).toEqual(['dashboard', 'attendance', 'assistant', 'academics', 'timetable', 'more']);
   });
 
   it('MORE_GROUPS matches the spec groups', () => {
