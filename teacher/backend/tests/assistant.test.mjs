@@ -4,6 +4,7 @@ import http from "node:http";
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import { createServer } from "../dist/index.js";
+import { TEACHER_BEARER } from "./_auth.mjs";
 const context = {
   version: 1,
   profile: { name: "Teacher" },
@@ -47,7 +48,7 @@ async function serve(server) {
 const post = (base, path, body) =>
   fetch(base + path, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", authorization: TEACHER_BEARER },
     body: JSON.stringify(body),
   });
 test("unconfigured model and invalid conversation are explicit", async () => {

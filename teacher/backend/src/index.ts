@@ -5,6 +5,7 @@ import { exportFile } from "./exports.js";
 import { studentChat } from "./student-assistant.js";
 import { studentExport } from "./student-exports.js";
 import { ApiError } from "./tools.js";
+import { bearer, verifyJwt } from "./auth.js";
 export function createServer(env: NodeJS.ProcessEnv = process.env) {
   return http.createServer(async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
@@ -55,6 +56,11 @@ export function createServer(env: NodeJS.ProcessEnv = process.env) {
         json(404, { error: "Not found." });
         return;
       }
+      const session = verifyJwt(bearer(req.headers.authorization), env.AUTH_SECRET || process.env.AUTH_SECRET);
+      if (!session) throw new ApiError(401, "Sign in to continue.");
+      const studentRoute = path!.startsWith("/student-assistant/");
+      if (studentRoute ? session.role !== "student" : !["faculty", "admin"].includes(session.role))
+        throw new ApiError(403, "You don't have access.");
       if (!req.headers["content-type"]?.startsWith("application/json"))
         throw new ApiError(400, "Content-Type must be application/json.");
       let size = 0;

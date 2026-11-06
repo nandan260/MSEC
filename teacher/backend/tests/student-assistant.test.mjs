@@ -4,6 +4,7 @@ import http from "node:http";
 import PDFDocument from "pdfkit";
 import JSZip from "jszip";
 import { createServer } from "../dist/index.js";
+import { STUDENT_BEARER } from "./_auth.mjs";
 import {
   runTool,
   screens,
@@ -46,7 +47,7 @@ const post = (base, path, body, authorization) =>
     method: "POST",
     headers: {
       "content-type": "application/json",
-      ...(authorization ? { authorization } : {}),
+      authorization: authorization ?? STUDENT_BEARER,
     },
     body: JSON.stringify(body),
   });
@@ -153,7 +154,7 @@ test("fixed GET tools forward authorization, bound records, reject arbitrary pat
 test("student model loop grounds results in Flask, returns navigation and export card", async () => {
   let calls = 0;
   const flask = http.createServer((req, res) => {
-    assert.equal(req.headers.authorization, "Bearer token");
+    assert.equal(req.headers.authorization, STUDENT_BEARER);
     res.end(JSON.stringify({ subject: "CS602", percentage: 88 }));
   });
   const fb = await serve(flask);
@@ -206,7 +207,7 @@ test("student model loop grounds results in Flask, returns navigation and export
       base,
       "/student-assistant/chat",
       request,
-      "Bearer token",
+      STUDENT_BEARER,
     );
     assert.equal(response.status, 200);
     const out = await response.json();
@@ -327,14 +328,14 @@ for (const [name, text] of [
         "read_note",
         { id: 7 },
         { STUDENT_API_BASE: base + "/api" },
-        "Bearer token",
+        STUDENT_BEARER,
         out,
       );
       assert.equal(result.id, 7);
       assert.equal(typeof result.title, "string");
       assert.ok(result.title.length);
       assert.ok(seen.some((r) => r[1] === "/api/notes/7/download"));
-      assert.ok(seen.every((r) => r[0] === "GET" && r[2] === "Bearer token"));
+      assert.ok(seen.every((r) => r[0] === "GET" && r[2] === STUDENT_BEARER));
       if (text === null) {
         assert.equal(result.text, "");
         assert.equal(result.note, "No extractable text in this file.");
@@ -645,7 +646,7 @@ test("calculator tools map Flask fields including on-duty hours and return valid
       "attendance_plan",
       { course: "compiler design" },
       env,
-      "Bearer token",
+      STUDENT_BEARER,
       out,
     );
     assert.equal(attendance.attended, 33);
@@ -663,14 +664,14 @@ test("calculator tools map Flask fields including on-duty hours and return valid
       "sgpa_target",
       { target: 9.5 },
       env,
-      "Bearer token",
+      STUDENT_BEARER,
       out,
     );
     assert.equal(gpa.requiredAverageGradePoint, 9.5);
     assert.equal(validateCard(gpa.card).unit, "");
     assert.deepEqual(seen, [
-      ["GET", "/api/attendance", "Bearer token"],
-      ["GET", "/api/academics/performance", "Bearer token"],
+      ["GET", "/api/attendance", STUDENT_BEARER],
+      ["GET", "/api/academics/performance", STUDENT_BEARER],
     ]);
   } finally {
     flask.close();
