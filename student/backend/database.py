@@ -3,8 +3,8 @@ import os
 from werkzeug.security import generate_password_hash
 from seed_fees import seed_fees_data
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'student_portal.db')
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
+DB_PATH = os.environ.get('STUDENT_DB_PATH') or os.path.join(os.path.dirname(__file__), 'student_portal.db')
+UPLOAD_DIR = os.environ.get('STUDENT_UPLOAD_DIR') or os.path.join(os.path.dirname(__file__), 'uploads')
 ASSIGNMENTS_UPLOAD_DIR = os.path.join(UPLOAD_DIR, 'assignments')
 NOTES_UPLOAD_DIR = os.path.join(UPLOAD_DIR, 'notes')
 PROFILES_UPLOAD_DIR = os.path.join(UPLOAD_DIR, 'profiles')
@@ -37,13 +37,16 @@ def init_db():
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
+        password_hash TEXT,
         role TEXT NOT NULL CHECK(role IN ('student', 'faculty', 'admin')),
         name TEXT NOT NULL,
-        identifier TEXT NOT NULL,
-        department TEXT NOT NULL,
+        identifier TEXT NOT NULL DEFAULT '',
+        department TEXT NOT NULL DEFAULT '',
         semester INTEGER DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        google_sub TEXT UNIQUE,
+        active INTEGER NOT NULL DEFAULT 1,
+        token_version INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS student_profiles (
@@ -786,6 +789,7 @@ def init_db():
     """)
 
     conn.commit()
+    migrate_auth(conn)
 
     # Column migration for student_profiles if table already existed
     cursor.execute("PRAGMA table_info(student_profiles)")
@@ -871,6 +875,90 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+USERS_SCHEMA = """
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT,
+    role TEXT NOT NULL CHECK(role IN ('student', 'faculty', 'admin')),
+    name TEXT NOT NULL,
+    identifier TEXT NOT NULL DEFAULT '',
+    department TEXT NOT NULL DEFAULT '',
+    semester INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    google_sub TEXT UNIQUE,
+    active INTEGER NOT NULL DEFAULT 1,
+    token_version INTEGER NOT NULL DEFAULT 0
+)
+"""
+
+AUTH_TABLES = """
+CREATE TABLE IF NOT EXISTS teacher_classes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    department TEXT NOT NULL,
+    semester INTEGER NOT NULL,
+    UNIQUE(user_id, department, semester)
+);
+CREATE TABLE IF NOT EXISTS email_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    purpose TEXT NOT NULL CHECK(purpose IN ('login', 'reset')),
+    code_hash TEXT NOT NULL,
+    expires_at REAL NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    used_at REAL,
+    created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_email_codes_email ON email_codes(email, purpose);
+CREATE TABLE IF NOT EXISTS google_flows (
+    id TEXT PRIMARY KEY,
+    browser_hash TEXT NOT NULL,
+    code_verifier TEXT NOT NULL,
+    nonce TEXT NOT NULL,
+    platform TEXT NOT NULL CHECK(platform IN ('web', 'android')),
+    expires_at REAL NOT NULL,
+    exchange_hash TEXT UNIQUE,
+    exchange_user_id INTEGER,
+    exchange_expires_at REAL,
+    remember INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS login_attempts (
+    key TEXT PRIMARY KEY,
+    window_start REAL NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0
+);
+"""
+
+
+def migrate_auth(conn):
+    """Bring the users table to the roster schema and create auth tables. Idempotent."""
+    cols = {r[1]: r for r in conn.execute("PRAGMA table_info(users)")}
+    needs_rebuild = cols and ('google_sub' not in cols or cols['password_hash'][3] == 1)
+    if needs_rebuild:
+        conn.commit()
+        conn.execute("PRAGMA foreign_keys = OFF")
+        try:
+            conn.execute("BEGIN")
+            conn.execute(USERS_SCHEMA.replace('CREATE TABLE users', 'CREATE TABLE users_new'))
+            conn.execute("""
+                INSERT INTO users_new (id, email, password_hash, role, name, identifier, department, semester, created_at)
+                SELECT id, LOWER(TRIM(email)), password_hash, role, name, identifier, department, semester, created_at FROM users
+            """)
+            conn.execute("DROP TABLE users")
+            conn.execute("ALTER TABLE users_new RENAME TO users")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.execute("PRAGMA foreign_keys = ON")
+    elif not cols:
+        conn.execute(USERS_SCHEMA)
+    conn.executescript(AUTH_TABLES)
+    conn.commit()
+
 
 def seed_data(conn):
     cursor = conn.cursor()

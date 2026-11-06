@@ -2,4 +2,7 @@ flask>=3.0.0
 flask-cors>=4.0.0
 werkzeug>=3.0.0
 qrcode[pil]>=8.0
-
+PyJWT>=2.8
+google-auth>=2.30
+requests>=2.31
+python-dotenv>=1.0
