@@ -81,7 +81,13 @@ ROLE_RULES = {
 }
 
 
+PREFIX_RULES = {'teacher.': STAFF, 'admin.': ADMIN}
+
+
 def roles_for(endpoint, method):
+    for prefix, roles in PREFIX_RULES.items():
+        if endpoint.startswith(prefix):
+            return roles
     rule = ROLE_RULES.get(endpoint)
     if isinstance(rule, dict):
         return rule.get(method)

@@ -21,6 +21,8 @@ from database import (
 )
 from auth import guard as auth_guard
 from auth.routes import bp as auth_bp, cors_origins
+from auth.teacher import bp as teacher_bp
+from auth.admin import bp as admin_bp
 from auth.users import current_user_id, is_staff, scoped_student_id, scoped_usn, scoped_name, staff_can_access_student, fee_student_id
 
 FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist'))
@@ -33,6 +35,8 @@ CORS(app, resources={r"/api/*": {"origins": cors_origins()}, r"/uploads/*": {"or
 
 init_db()
 app.register_blueprint(auth_bp)
+app.register_blueprint(teacher_bp)
+app.register_blueprint(admin_bp)
 auth_guard.install(app)
 
 @app.route('/uploads/<path:filename>')
