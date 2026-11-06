@@ -89,4 +89,11 @@ describe('App auth', () => {
     fireEvent.click(within(tabs).getByRole('button', { name: 'More' }));
     expect(screen.getByRole('button', { name: /Admin: Roster/ })).toBeInTheDocument();
   });
+
+  it('students cannot open the admin screen', () => {
+    signIn();
+    render(<App />);
+    act(() => { window.__msecNav.navigate('admin'); });
+    expect(screen.getByText('Page not found')).toBeInTheDocument();
+  });
 });

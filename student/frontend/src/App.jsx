@@ -104,7 +104,8 @@ export default function App() {
 
   const activeId = stack[stack.length - 1];
   const role = currentUser.role;
-  const unknown = !Object.hasOwn(SCREENS, activeId);
+  const unknown = !Object.hasOwn(SCREENS, activeId)
+    || (SCREENS[activeId].roles && !SCREENS[activeId].roles.includes(role));
 
   if (unknown) return <NotFoundScreen onNavigate={navigate} onBack={goBack} />;
 

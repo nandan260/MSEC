@@ -23,7 +23,11 @@ export const SCREENS = {
   fees: { label: 'Fees Management', icon: 'receipt' },
   assistant: { label: 'Ask AI', icon: 'sparkle' },
   more: { label: 'More', icon: 'grid' },
+  admin: { label: 'Admin: Roster', icon: 'users', roles: ['admin'] },
 };
+
+// Screens reachable only by certain roles (linked from More, not listed in MORE_GROUPS).
+export const ROLE_SCREENS = ['admin'];
 
 export const TABS = ['dashboard', 'attendance', 'assistant', 'academics', 'timetable', 'more'];
 

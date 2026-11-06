@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SCREENS, TABS, MORE_GROUPS, tabFor, pushScreen, popScreen } from '../src/nav.js';
+import { SCREENS, TABS, MORE_GROUPS, ROLE_SCREENS, tabFor, pushScreen, popScreen } from '../src/nav.js';
 
 const SIDEBAR_IDS = [
   'dashboard', 'academics', 'attendance', 'attendance_calc', 'timetable',
@@ -16,7 +16,12 @@ describe('nav model', () => {
       expect(typeof SCREENS[id].icon).toBe('string');
     }
     expect(SCREENS.more.label).toBe('More');
-    expect(Object.keys(SCREENS).sort()).toEqual([...SIDEBAR_IDS, 'more'].sort());
+    expect(Object.keys(SCREENS).sort()).toEqual([...SIDEBAR_IDS, 'more', ...ROLE_SCREENS].sort());
+  });
+
+  it('admin is a role-gated screen outside the More groups', () => {
+    expect(ROLE_SCREENS).toEqual(['admin']);
+    expect(SCREENS.admin).toEqual({ label: 'Admin: Roster', icon: 'users', roles: ['admin'] });
   });
 
   it('TABS is the bottom tab list', () => {

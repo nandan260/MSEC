@@ -23,9 +23,11 @@ import FacultyMentorView from '../components/Modules/FacultyMentorView';
 import FeesManagementView from '../components/Modules/FeesManagementView';
 
 import AssistantScreen from './AssistantScreen';
+import AdminScreen from './AdminScreen';
 
 const SCREEN_COMPONENTS = {
   assistant: AssistantScreen,
+  admin: AdminScreen,
   dashboard: DashboardHome,
   academics: AcademicPerformanceView,
   attendance: AttendanceView,
