@@ -28,8 +28,9 @@ DEV_ORIGINS = [
 
 
 def cors_origins():
-    extra = [o.strip().rstrip('/') for o in os.environ.get('PUBLIC_ORIGIN', '').split(',') if o.strip()]
-    return extra + DEV_ORIGINS
+    extra = [o.strip().rstrip('/') for key in ('PUBLIC_ORIGIN', 'TEACHER_ORIGIN')
+             for o in os.environ.get(key, '').split(',') if o.strip()]
+    return extra + DEV_ORIGINS + ['http://localhost:8080', 'http://127.0.0.1:8080']
 
 
 @bp.get('/me')
@@ -81,7 +82,12 @@ def google_enabled():
 
 @bp.get('/config')
 def config():
-    return jsonify({'google': google_enabled(), 'email': mail.email_enabled()})
+    return jsonify({
+        'google': google_enabled(),
+        'email': mail.email_enabled(),
+        # Apps on other origins (teacher desk) must start Google sign-in here so the binding cookie matches the callback.
+        'google_start': f'{google.public_origin()}/api/auth/google/start',
+    })
 
 
 @bp.post('/login')
@@ -224,7 +230,8 @@ def _cookie_kwargs():
 def google_start():
     if not google.google_enabled():
         return jsonify({'error': 'Google sign-in is not available right now.'}), 503
-    platform = 'android' if request.args.get('platform') == 'android' else 'web'
+    requested = request.args.get('platform')
+    platform = requested if requested in ('android', 'teacher') else 'web'
     remember = request.args.get('remember') in ('1', 'true')
     conn = get_db()
     try:

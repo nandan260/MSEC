@@ -32,7 +32,8 @@ def last_code(email):
 def test_config_public(client):
     r = client.get('/api/auth/config')
     assert r.status_code == 200
-    assert set(r.get_json()) == {'google', 'email'}
+    assert set(r.get_json()) == {'google', 'email', 'google_start'}
+    assert r.get_json()['google_start'].endswith('/api/auth/google/start')
 
 
 # ---------- password login ----------

@@ -4,6 +4,7 @@ import { seedData, saveAttendance, gradeSubmission, toCSV, atRisk, today, uid } 
 import { storeFiles, getFile } from './files.js';
 import * as v from './views.js';
 import { layoutWorkspace } from './workspace.js';
+import { authApi, rosterView, setToken } from './session.js';
 const { esc, button, badge, person, table, selectClasses, fmt, className, cls, empty } = v;
 const KEY = 'msec-teacher-desk-v1';
 let storageIssue = '';
@@ -25,6 +26,7 @@ const nav = [
             ['overview', 'grid', 'Overview'],
             ['classes', 'book', 'My classes'],
             ['students', 'users', 'Students'],
+            ['roster', 'users', 'College roster'],
             ['attendance', 'clipboard', 'Attendance'],
             ['assignments', 'file', 'Assignments'],
             ['assessments', 'cap', 'Assessments'],
@@ -128,6 +130,54 @@ function shell() {
     app.innerHTML = `<div class="menu-overlay" data-action="close-menu"></div><aside class="sidebar"><a class="brand" href="#overview"><span class="brand-mark"><img src="favicon.svg" alt="" width="30" height="30"></span><span><strong>Teacher Desk<span style="color:#70a68b">.</span></strong><small>MORE SPACE TO TEACH</small></span></a><div class="workspace"><span>${icon('cap')}</span><span><strong>MSEC Bengaluru</strong><small>Academic year 2026–27</small></span></div><nav aria-label="Main navigation">${buildNavigation()}</nav><section class="sidebar-promo">${icon('spark')}<h2>A little teaching magic.</h2><p>Lesson plans, quizzes and more.<br>Demo workspace · Local data</p><a href="#ai" class="btn primary">Explore assistant</a></section><button type="button" class="collapse-sidebar" data-action="toggle-sidebar" aria-label="Collapse sidebar" aria-expanded="true">${icon('chevron')}<span>Collapse sidebar</span></button><div class="sidebar-foot">${v.avatar(state.profile.name, 'orange')}<span><strong id="side-name">${esc(state.profile.name)}</strong><small>Teacher · CSE Department</small></span><a href="#profile" class="icon-button" aria-label="Account settings">${icon('settings')}</a></div></aside><div class="main-shell"><header class="topbar"><button class="icon-button mobile-menu" data-action="open-menu" aria-label="Open navigation">${icon('menu')}</button><div class="breadcrumbs">${icon('grid')}<span>Workspace</span>${icon('chevron')}<b id="breadcrumb">${routes[route]}</b></div><div class="top-actions"><form id="global-search-form" class="global-search">${icon('search')}<input id="global-search" type="search" placeholder="Search anything…" aria-label="Search dashboard"><span class="key">⌘ K</span></form><button class="icon-button" data-action="notifications" aria-label="Notifications">${icon('bell')}<i class="notification-dot" ${state.notificationsRead ? 'hidden' : ''}></i></button><a href="#profile" class="icon-button header-settings" aria-label="Workspace settings">${icon('settings')}</a><span class="top-divider"></span><a class="top-profile" href="#profile">${v.avatar(state.profile.name, 'orange')}<span id="top-name">${esc(state.profile.name)}<small>${esc(state.profile.email)}</small></span>${icon('down')}</a><button type="button" class="btn header-create" data-action="new-assignment">${icon('plus')}Create assignment</button></div></header><div id="storage-warning" class="storage-alert" role="alert" ${storageIssue ? '' : 'hidden'}>${esc(storageIssue)}</div><main class="content" id="main-content"></main></div>`;
     render();
 }
+const roster = { classes: [], selected: '', students: [], loading: false, error: '', loaded: false };
+async function loadRosterStudents(key) {
+    const [department, sem] = key.split('|');
+    roster.selected = key;
+    roster.loading = true;
+    roster.error = '';
+    if (route === 'roster')
+        render();
+    try {
+        roster.students = (await authApi.students(department, Number(sem))).students;
+    }
+    catch (err) {
+        roster.students = [];
+        roster.error = err.message;
+    }
+    roster.loading = false;
+    if (route === 'roster')
+        render();
+}
+async function loadRoster() {
+    if (roster.loaded)
+        return;
+    roster.loaded = true;
+    try {
+        roster.classes = (await authApi.classes()).classes;
+        if (roster.classes[0])
+            await loadRosterStudents(`${roster.classes[0].department}|${roster.classes[0].semester}`);
+        else if (route === 'roster')
+            render();
+    }
+    catch (err) {
+        roster.error = err.message;
+        if (route === 'roster')
+            render();
+    }
+}
+document.addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-roster-class]');
+    if (sel)
+        loadRosterStudents(sel.value);
+});
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-auth=logout]'))
+        return;
+    setToken(null);
+    location.hash = '';
+    location.reload();
+});
 function render() {
     const el = document.querySelector('#main-content');
     if (!el)
@@ -137,6 +187,7 @@ function render() {
         overview: () => v.overview(state),
         classes: () => v.classes(state, filters),
         students: () => v.students(state, filters),
+        roster: () => rosterView({ ...roster, user: window.__msecTeacher }),
         attendance: () => v.attendance(state, filters, attendanceDraft),
         assignments: () => v.assignments(state, filters),
         assessments: () => v.assessments(state, filters),
@@ -159,6 +210,8 @@ function render() {
     layoutWorkspace(el, route, routes[route]);
     if (route === 'ai')
         scrollAssistant();
+    if (route === 'roster')
+        loadRoster();
     document.querySelectorAll('[data-route]').forEach((a) => {
         a.classList.toggle('active', a.dataset.route === route);
         if (a.dataset.route === route && a.closest('details')) {

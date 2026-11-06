@@ -917,7 +917,7 @@ CREATE TABLE IF NOT EXISTS google_flows (
     browser_hash TEXT NOT NULL,
     code_verifier TEXT NOT NULL,
     nonce TEXT NOT NULL,
-    platform TEXT NOT NULL CHECK(platform IN ('web', 'android')),
+    platform TEXT NOT NULL CHECK(platform IN ('web', 'android', 'teacher')),
     expires_at REAL NOT NULL,
     exchange_hash TEXT UNIQUE,
     exchange_user_id INTEGER,
@@ -956,6 +956,9 @@ def migrate_auth(conn):
             conn.execute("PRAGMA foreign_keys = ON")
     elif not cols:
         conn.execute(USERS_SCHEMA)
+    flows = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'google_flows'").fetchone()
+    if flows and "'teacher'" not in flows[0]:
+        conn.execute("DROP TABLE google_flows")  # short-lived rows only; safe to recreate
     conn.executescript(AUTH_TABLES)
     conn.commit()
 

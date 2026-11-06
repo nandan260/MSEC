@@ -1,0 +1,38 @@
+/* Teacher sign-in (same layout as the student app). */
+body.signed-out { margin: 0; background: radial-gradient(120% 60% at 50% 110%, rgba(78,36,120,.10), transparent 60%), #FAF8FC; }
+.t-auth { min-height: 100dvh; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; font-family: Inter, system-ui, sans-serif; color: #1A1523; }
+.t-auth__brand { display: flex; align-items: center; gap: 10px; }
+.t-auth__brand span { display: flex; flex-direction: column; font: 800 18px/1 Poppins, system-ui, sans-serif; letter-spacing: .06em; color: #4E2478; }
+.t-auth__brand small { font: 500 12px Inter, system-ui, sans-serif; color: #5C5468; margin-top: 3px; letter-spacing: .02em; }
+.t-auth__panel { flex: 1; width: 100%; max-width: 380px; margin: 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+.t-auth__panel h1 { margin: 0; text-align: center; font: 700 34px/1.15 Poppins, system-ui, sans-serif; }
+.t-auth__sub { margin: -4px 0 10px; text-align: center; color: #5C5468; font-size: 15px; }
+.t-auth__google, .t-auth__submit, .t-auth__form input:not([type=checkbox]) { width: 100%; height: 54px; box-sizing: border-box; border-radius: 12px; font-size: 16px; }
+.t-auth__google { display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #E3DEE9; background: #fff; color: #1A1523; font-weight: 600; cursor: pointer; }
+.t-auth__google:hover { border-color: #4E2478; }
+.t-auth__or { display: flex; align-items: center; gap: 12px; color: #5C5468; font-size: 12px; letter-spacing: .18em; }
+.t-auth__or::before, .t-auth__or::after { content: ''; flex: 1; height: 1px; background: #E3DEE9; }
+.t-auth__form { display: flex; flex-direction: column; gap: 14px; }
+.t-auth__form input:not([type=checkbox]) { padding: 0 16px; border: 1px solid #E3DEE9; background: #fff; color: #1A1523; }
+.t-auth__form input:focus { outline: none; border-color: #4E2478; box-shadow: 0 0 0 3px #EDE4F5; }
+.t-auth__pw { position: relative; }
+.t-auth__pw input { padding-right: 52px !important; }
+.t-auth__eye { position: absolute; right: 6px; top: 6px; width: 42px; height: 42px; border: 0; background: none; cursor: pointer; opacity: .7; }
+.t-auth__code { letter-spacing: .5em; text-align: center; font-size: 20px !important; }
+.t-auth__row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.t-auth__row label { display: inline-flex; gap: 8px; align-items: center; }
+.t-auth__row input { accent-color: #4E2478; width: 18px; height: 18px; }
+.t-auth__link { align-self: center; border: 0; background: none; color: #4E2478; font-weight: 600; font-size: 14px; cursor: pointer; padding: 4px 0; }
+.t-auth__submit { border: 0; background: #4E2478; color: #fff; font-weight: 700; cursor: pointer; box-shadow: 0 8px 20px rgba(78,36,120,.25); }
+.t-auth__submit:hover { background: #38195A; }
+.t-auth__google:disabled, .t-auth__submit:disabled { opacity: .55; cursor: default; }
+.t-auth__error { padding: 12px 14px; border-radius: 12px; background: #FDE2E7; color: #B01E3E; font-size: 14px; }
+.t-auth__info { margin: 0; padding: 12px 14px; border-radius: 12px; background: #E8F5EF; color: #13694A; font-size: 14px; }
+.t-auth__footer { margin: 12px 0 0; text-align: center; font-size: 14px; color: #5C5468; }
+.t-auth__footer strong { color: #4E2478; }
+.roster-page { display: flex; flex-direction: column; gap: 14px; }
+.roster-page__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.roster-page__head h1 { margin: 0; }
+.roster-page__head p { margin: 4px 0 0; color: #5C5468; }
+.roster-page__pick { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; }
+.roster-page__pick select { min-height: 40px; border-radius: 10px; border: 1px solid #E3DEE9; padding: 0 10px; }

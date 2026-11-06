@@ -174,6 +174,15 @@ def redeem_exchange(conn, code):
     return row['exchange_user_id'], bool(row['remember'])
 
 
+def teacher_origin():
+    return (os.environ.get('TEACHER_ORIGIN') or 'http://localhost:8080').split(',')[0].strip().rstrip('/')
+
+
 def return_url(platform, **params):
-    base = ANDROID_RETURN if platform == 'android' else f'{public_origin()}/#/auth-return'
+    if platform == 'android':
+        base = ANDROID_RETURN
+    elif platform == 'teacher':
+        base = f'{teacher_origin()}/#/auth-return'
+    else:
+        base = f'{public_origin()}/#/auth-return'
     return f'{base}?{urlencode(params)}'

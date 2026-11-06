@@ -11,15 +11,17 @@ from urllib.request import Request, urlopen
 
 class DashboardHandler(SimpleHTTPRequestHandler):
     backend = os.environ.get('TEACHER_BACKEND_URL', 'http://127.0.0.1:8000').rstrip('/')
+    # MSEC sign-in and roster live on the Flask auth server.
+    auth_backend = os.environ.get('AUTH_BACKEND_URL', 'http://127.0.0.1:5000').rstrip('/')
 
     def do_GET(self):
-        if self.path.startswith('/api/'):
+        if self.path.startswith('/api/') or self.path.startswith('/auth-api/'):
             self.proxy()
         else:
             super().do_GET()
 
     def do_POST(self):
-        if self.path.startswith('/api/'):
+        if self.path.startswith('/api/') or self.path.startswith('/auth-api/'):
             self.proxy()
         else:
             self.send_error(405)
@@ -34,7 +36,14 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.send_error(413)
             return
         headers = {'Content-Type': self.headers.get('Content-Type', 'application/json')}
-        request = Request(self.backend + '/' + self.path[5:],
+        for name in ('Authorization', 'Cookie'):
+            if self.headers.get(name):
+                headers[name] = self.headers[name]
+        if self.path.startswith('/auth-api/'):
+            target = self.auth_backend + self.path[len('/auth-api'):]
+        else:
+            target = self.backend + '/' + self.path[5:]
+        request = Request(target,
                           data=self.rfile.read(length) if self.command == 'POST' else None,
                           headers=headers, method=self.command)
         try:

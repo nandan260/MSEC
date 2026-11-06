@@ -4,6 +4,7 @@ import { seedData, saveAttendance, gradeSubmission, toCSV, atRisk, today, uid } 
 import { storeFiles, getFile } from './files.js';
 import * as v from './views.js';
 import { layoutWorkspace } from './workspace.js';
+import { authApi, rosterView, setToken, type RosterStudent, type Staff } from './session.js';
 import type { AppState, AttendanceStatus, Filters } from './types.js';
 
 const { esc, button, badge, person, table, selectClasses, fmt, className, cls, empty } = v;
@@ -31,6 +32,7 @@ const nav: NavGroup[] = [
       ['overview', 'grid', 'Overview'],
       ['classes', 'book', 'My classes'],
       ['students', 'users', 'Students'],
+      ['roster', 'users', 'College roster'],
       ['attendance', 'clipboard', 'Attendance'],
       ['assignments', 'file', 'Assignments'],
       ['assessments', 'cap', 'Assessments'],
@@ -188,6 +190,50 @@ function shell(): void {
   render();
 }
 
+const roster: { classes: { department: string; semester: number }[]; selected: string; students: RosterStudent[]; loading: boolean; error: string; loaded: boolean } =
+  { classes: [], selected: '', students: [], loading: false, error: '', loaded: false };
+
+async function loadRosterStudents(key: string): Promise<void> {
+  const [department, sem] = key.split('|');
+  roster.selected = key;
+  roster.loading = true;
+  roster.error = '';
+  if (route === 'roster') render();
+  try {
+    roster.students = (await authApi.students(department, Number(sem))).students;
+  } catch (err) {
+    roster.students = [];
+    roster.error = (err as Error).message;
+  }
+  roster.loading = false;
+  if (route === 'roster') render();
+}
+
+async function loadRoster(): Promise<void> {
+  if (roster.loaded) return;
+  roster.loaded = true;
+  try {
+    roster.classes = (await authApi.classes()).classes;
+    if (roster.classes[0]) await loadRosterStudents(`${roster.classes[0].department}|${roster.classes[0].semester}`);
+    else if (route === 'roster') render();
+  } catch (err) {
+    roster.error = (err as Error).message;
+    if (route === 'roster') render();
+  }
+}
+
+document.addEventListener('change', (e) => {
+  const sel = (e.target as HTMLElement).closest<HTMLSelectElement>('[data-roster-class]');
+  if (sel) loadRosterStudents(sel.value);
+});
+
+document.addEventListener('click', (e) => {
+  if (!(e.target as HTMLElement).closest('[data-auth=logout]')) return;
+  setToken(null);
+  location.hash = '';
+  location.reload();
+});
+
 function render(): void {
   const el = document.querySelector<HTMLElement>('#main-content');
   if (!el) return;
@@ -196,6 +242,7 @@ function render(): void {
     overview: () => v.overview(state),
     classes: () => v.classes(state, filters),
     students: () => v.students(state, filters),
+    roster: () => rosterView({ ...roster, user: (window as any).__msecTeacher as Staff | null }),
     attendance: () => v.attendance(state, filters, attendanceDraft),
     assignments: () => v.assignments(state, filters),
     assessments: () => v.assessments(state, filters),
@@ -219,6 +266,7 @@ function render(): void {
     )}A little more organized. A lot more possibility.</span><span><i class="dot"></i>Demo workspace · Data saved in this browser</span></footer>`;
   layoutWorkspace(el, route, routes[route]);
   if (route === 'ai') scrollAssistant();
+  if (route === 'roster') loadRoster();
   document.querySelectorAll<HTMLElement>('[data-route]').forEach((a) => {
     a.classList.toggle('active', a.dataset.route === route);
     if (a.dataset.route === route && a.closest('details')) {

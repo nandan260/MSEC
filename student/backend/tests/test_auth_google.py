@@ -141,3 +141,10 @@ def test_exchange_expires_after_60s(client):
 def test_start_disabled_without_config(client, monkeypatch):
     monkeypatch.delenv('GOOGLE_CLIENT_ID')
     assert client.get('/api/auth/google/start').status_code == 503
+
+
+def test_success_teacher_returns_to_teacher_app(client, monkeypatch):
+    monkeypatch.setenv('TEACHER_ORIGIN', 'http://localhost:8080')
+    q = start(client, 'teacher')
+    loc, params = callback(client, q)
+    assert loc.startswith('http://localhost:8080/#/auth-return?code=') and params['code']
