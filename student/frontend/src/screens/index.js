@@ -9,11 +9,11 @@ import NotesView from './NotesScreen';
 import ExaminationsView from './ExaminationsScreen';
 import GpaCalculatorView from './GpaCalculatorScreen';
 import PerformanceAnalyticsView from './PerformanceAnalyticsScreen';
+import EventsView from './EventsScreen';
 import {
   StudentProfileView,
   PlacementsView,
   ProjectsView,
-  EventsView,
   LibraryView,
   CampusServicesView,
   NotificationsView,

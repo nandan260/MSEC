@@ -7,3 +7,14 @@
 .sheet-actions .btn { flex: 1; }
 .sheet .sticky-actions { bottom: 0; padding: 12px 0 0; background: var(--surface); border-top: 1px solid var(--line); }
 .sheet .sticky-actions .btn { flex: 1; }
+
+/* Tab switcher and status notices shared by the Campus screens. */
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tab { flex: 1 1 auto; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-family: var(--font-body); font-size: 14px; font-weight: 500; cursor: pointer; }
+.tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.tab--on { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
+.notice { margin: 0; padding: 12px; border-radius: var(--radius-ctl); background: var(--surface-2); color: var(--ink); font-size: 14px; overflow-wrap: anywhere; }
+.notice--good { background: var(--good-tint); color: var(--good-ink); }
+.notice--warn { background: var(--warn-tint); color: var(--warn-ink); }
+.notice--bad { background: var(--bad-tint); color: var(--bad-ink); }
+.notice--info { background: var(--info-tint); color: var(--info-ink); }
