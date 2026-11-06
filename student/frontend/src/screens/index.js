@@ -1,5 +1,5 @@
 // Screen id -> component. Re-exports the current module files until each screen moves.
-import DashboardHome from '../components/Dashboard/DashboardHome';
+import DashboardHome from './DashboardScreen';
 import {
   AcademicPerformanceView,
   AttendanceView,
