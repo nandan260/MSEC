@@ -12,9 +12,9 @@ import PerformanceAnalyticsView from './PerformanceAnalyticsScreen';
 import EventsView from './EventsScreen';
 import LibraryView from './LibraryScreen';
 import CampusServicesView from './ServicesScreen';
+import PlacementsView from './PlacementsScreen';
 import {
   StudentProfileView,
-  PlacementsView,
   ProjectsView,
   NotificationsView,
   FacultyDoubtPortalView,

@@ -1,0 +1,39 @@
+/* The legacy index.css `*` rule forces a system font on every element, so one
+   root-level rule restores the theme body font; headings override below. */
+.placements, .placements * { font-family: var(--font-body); }
+.placements .data-card-title, .placements .section-title, .placements__name { font-family: var(--font-head); }
+
+.placements .section-title { margin: 8px 0 0; }
+.placements .card .section-title { margin: 0; }
+.placements .data-card-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.placements .data-card-meta .btn { min-height: 44px; }
+.placements .pill { white-space: normal; }
+.placements__form { display: flex; flex-direction: column; gap: 12px; }
+.placements__hint { margin: 0; font-size: 14px; color: var(--muted); }
+.placements__skills { display: flex; flex-wrap: wrap; gap: 4px; }
+.placements__deadline { color: var(--bad-ink); font-weight: 600; }
+.placements__radios { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.placements__radios legend { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.placements__radio { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-ctl); font-size: 14px; color: var(--ink); cursor: pointer; }
+.placements__radio input { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; accent-color: var(--primary); }
+.placements__radio--on { border-color: var(--primary); background: var(--primary-tint); }
+
+/* Live resume preview sheet */
+.placements__sheet { display: flex; flex-direction: column; gap: 12px; }
+.placements__head { text-align: center; padding-bottom: 12px; border-bottom: 2px solid var(--primary); }
+.placements__name { margin: 0; font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.placements__headline { font-size: 14px; font-weight: 600; color: var(--primary); overflow-wrap: anywhere; }
+.placements__contact { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.placements__sect { margin: 0 0 4px; padding-bottom: 4px; border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--ink); }
+.placements__text { margin: 0; font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
+
+/* Interview prep accordion */
+.placements__qs { display: flex; flex-direction: column; gap: 8px; }
+.placements__q { padding: 0; overflow: hidden; }
+.placements__qbtn { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; padding: 12px; border: 0; background: var(--surface-2); color: var(--ink); text-align: left; cursor: pointer; }
+.placements__qbtn:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.placements__qtext { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.placements__qtext strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.placements__qtext span { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.placements__ans { padding: 12px; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.placements__ans strong { display: block; margin-bottom: 4px; color: var(--good-ink); }
