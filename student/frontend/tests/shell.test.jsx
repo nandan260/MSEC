@@ -32,6 +32,18 @@ describe('BottomTabs', () => {
   });
 });
 
+describe('BottomTabs motion', () => {
+  it('renders one sliding indicator that follows the active tab', () => {
+    const { container, rerender } = render(<BottomTabs active="dashboard" onSelect={() => {}} />);
+    const ind = container.querySelectorAll('.tabbar__indicator');
+    expect(ind).toHaveLength(1);
+    expect(ind[0]).toHaveAttribute('aria-hidden', 'true');
+    rerender(<BottomTabs active="assistant" onSelect={() => {}} />);
+    expect(container.querySelectorAll('.tabbar__indicator')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Ask AI' })).toHaveAttribute('aria-current', 'page');
+  });
+});
+
 describe('MoreScreen', () => {
   it('shows group headings, opens screens and logs out', () => {
     const onOpen = vi.fn();
