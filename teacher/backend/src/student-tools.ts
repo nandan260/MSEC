@@ -1,4 +1,6 @@
 import { ApiError, object, str, lesson, type Obj } from "./tools.js";
+import { extractText } from "unpdf";
+import { attendancePlan, sgpaTarget } from "./student-calc.js";
 import { boundedText } from "./agent.js";
 
 // Keep in sync with student/frontend/src/nav.js (excluding More).
@@ -105,14 +107,60 @@ export const endpoints = {
   doubts: "/doubts",
   profile: "/auth/me",
 } as const;
-export const cardContract = `make_export requires {card: study|report}. Study: {kind:'study',title,summary,sections:[{title,body}],slides:[{title,bullets:string[],notes?:string}],quiz?:[{question,answer}]}. Report: {kind:'report',title,report:'attendance'|'exams'|'timetable'|'marks'|'assignments',rows:Record<string,string|number>[],columns:string[]}. Report rows must come from fetched records. Include at least one study slide.`;
+export const cardContract = `show_card requires {card: stat|list|study|report}. Stat: {kind:'stat',title,label,value:number,unit:'%'|'',threshold?:number,note?:string}. List: {kind:'list',title,items:[{primary,secondary?,meta?}]} (at most 50 items). Study: {kind:'study',title,summary,sections:[{title,body}],slides:[{title,bullets:string[],notes?:string}],quiz?:[{question,answer}],source:'notes'|'general'}. Report: {kind:'report',title,report:'attendance'|'exams'|'timetable'|'marks'|'assignments',rows:Record<string,string|number>[],columns:string[]}. Report rows must come from fetched records. Include at least one study slide. Study cards export as PPTX or PDF; reports export as PDF only.`;
 export function validateCard(value: unknown): Obj {
   if (!object(value)) throw new ApiError(400, "Invalid card.");
   if (JSON.stringify(value).length > 250000)
     throw new ApiError(400, "Card too large.");
+  if (value.kind === "stat") {
+    if (
+      typeof value.value !== "number" ||
+      !Number.isFinite(value.value) ||
+      !["%", ""].includes(value.unit)
+    )
+      throw new ApiError(400, "Invalid stat value or unit.");
+    const card: Obj = {
+      kind: "stat",
+      title: str(value.title, 200),
+      label: str(value.label, 200),
+      value:
+        value.unit === "%"
+          ? Math.min(100, Math.max(0, value.value))
+          : value.value,
+      unit: value.unit,
+    };
+    if (value.threshold !== undefined) {
+      if (
+        typeof value.threshold !== "number" ||
+        !Number.isFinite(value.threshold) ||
+        (value.unit === "%" && (value.threshold < 0 || value.threshold > 100))
+      )
+        throw new ApiError(400, "Invalid stat threshold.");
+      card.threshold = value.threshold;
+    }
+    if (value.note !== undefined) card.note = str(value.note, 2000);
+    return card;
+  }
+  if (value.kind === "list") {
+    if (!Array.isArray(value.items) || value.items.length > 50)
+      throw new ApiError(400, "Lists support at most 50 items.");
+    return {
+      kind: "list",
+      title: str(value.title, 200),
+      items: value.items.map((item: unknown) => {
+        if (!object(item)) throw new ApiError(400, "Invalid list item.");
+        const row: Obj = { primary: str(item.primary, 2000) };
+        for (const key of ["secondary", "meta"])
+          if (item[key] !== undefined) row[key] = str(item[key], 2000);
+        return row;
+      }),
+    };
+  }
   if (value.kind === "study") {
+    if (!["notes", "general"].includes(value.source))
+      throw new ApiError(400, "Study source must be notes or general.");
     const { diagram: _diagram, ...validated } = lesson(value);
-    return { ...validated, kind: "study" };
+    return { ...validated, kind: "study", source: value.source };
   }
   if (
     value.kind !== "report" ||
@@ -168,6 +216,36 @@ const schema = (properties: Obj, required: string[] = []) => ({
   additionalProperties: false,
 });
 export const toolDefinitions = [
+  {
+    type: "function",
+    function: {
+      name: "read_note",
+      description:
+        "Read PDF note text, capped at 30000 characters. No extractable text means no summary is possible.",
+      parameters: schema({ id: { type: "integer", minimum: 1 } }, ["id"]),
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "attendance_plan",
+      description:
+        "Calculate attendance using course code or title, including on-duty credit.",
+      parameters: schema(
+        { course: { type: "string" }, threshold: { type: "number" } },
+        ["course"],
+      ),
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sgpa_target",
+      description:
+        "Calculate the required average grade point from current course credits.",
+      parameters: schema({ target: { type: "number" } }, ["target"]),
+    },
+  },
   ...Object.entries(endpoints).map(([name, path]) => ({
     type: "function",
     function: {
@@ -190,15 +268,37 @@ export const toolDefinitions = [
   {
     type: "function",
     function: {
-      name: "make_export",
+      name: "show_card",
       description: cardContract,
       parameters: schema(
         {
           card: {
             type: "object",
             properties: {
-              kind: { type: "string", enum: ["study", "report"] },
+              kind: {
+                type: "string",
+                enum: ["stat", "list", "study", "report"],
+              },
               title: { type: "string" },
+              label: { type: "string" },
+              value: { type: "number" },
+              unit: { type: "string", enum: ["%", ""] },
+              threshold: { type: "number" },
+              note: { type: "string" },
+              items: {
+                type: "array",
+                maxItems: 50,
+                items: {
+                  type: "object",
+                  properties: {
+                    primary: { type: "string" },
+                    secondary: { type: "string" },
+                    meta: { type: "string" },
+                  },
+                  required: ["primary"],
+                },
+              },
+              source: { type: "string", enum: ["notes", "general"] },
               summary: { type: "string" },
               sections: { type: "array", items: { type: "object" } },
               slides: { type: "array", items: { type: "object" } },
@@ -255,10 +355,140 @@ export async function runTool(
     output.actions.push(action);
     return action;
   }
-  if (name === "make_export") {
-    const card = validateCard(args.card);
-    output.cards.push(card);
-    return card;
+  if (name === "show_card") {
+    try {
+      const card = validateCard(args.card);
+      output.cards.push(card);
+      return card;
+    } catch {
+      const error = "Dropped an invalid card.";
+      (output.warnings ??= []).push(error);
+      return { error };
+    }
+  }
+  if (name === "read_note") {
+    if (
+      !Number.isSafeInteger(args.id) ||
+      args.id <= 0 ||
+      Object.keys(args).some((k) => k !== "id")
+    )
+      throw new ApiError(400, "Note id must be a positive integer.");
+    const title = `Note ${args.id}`;
+    try {
+      const response = await studentGet(
+        `/notes/${args.id}/download`,
+        env,
+        authorization,
+        signal,
+      );
+      // Bound the binary response before passing it to the PDF parser.
+      const reader = response.body?.getReader();
+      const parts: Uint8Array[] = [];
+      let size = 0;
+      if (Number(response.headers.get("content-length")) > 10_000_000)
+        throw new Error("PDF too large");
+      if (reader)
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.length;
+          if (size > 10_000_000) {
+            await reader.cancel();
+            throw new Error("PDF too large");
+          }
+          parts.push(value);
+        }
+      let text = "";
+      try {
+        const extracted = await extractText(
+          new Uint8Array(Buffer.concat(parts)),
+          { mergePages: true },
+        );
+        text = extracted.text;
+      } catch {
+        /* Seeded notes may contain stub PDF bytes without a text layer. */
+      }
+      if (!text.trim())
+        return {
+          id: args.id,
+          title,
+          text: "",
+          note: "No extractable text in this file.",
+        };
+      return {
+        id: args.id,
+        title,
+        text: text.slice(0, 30000),
+        truncated: text.length > 30000,
+      };
+    } catch {
+      return toolFailure("note", output);
+    }
+  }
+  if (name === "attendance_plan" || name === "sgpa_target") {
+    const attendance = name === "attendance_plan";
+    const fetched = (await runTool(
+      attendance ? "get_attendance" : "get_academic_performance",
+      {},
+      env,
+      authorization,
+      output,
+      signal,
+    )) as Obj;
+    if (fetched.error) return fetched;
+    const data = fetched.data;
+    try {
+      if (attendance) {
+        if (!Array.isArray(data?.attendance))
+          throw new ApiError(502, "Invalid attendance records.");
+        const result = attendancePlan(
+          data.attendance.map((r: Obj) => ({
+            course_code: r.course_code,
+            course_title: r.course_title,
+            attended: r.attended_hours + (r.od_hours ?? 0),
+            total: r.total_hours,
+          })),
+          args.course,
+          args.threshold,
+        );
+        return {
+          ...result,
+          card: {
+            kind: "stat",
+            title: result.course_title,
+            label: result.course_code,
+            value: result.percent,
+            unit: "%",
+            threshold: args.threshold ?? 75,
+          },
+        };
+      }
+      if (!Array.isArray(data?.marks))
+        throw new ApiError(502, "Invalid course credits.");
+      const result = sgpaTarget(
+        data.marks.map((r: Obj) => ({
+          course_code: r.course_code,
+          credits: r.credits,
+        })),
+        args.target,
+      );
+      return {
+        ...result,
+        card: {
+          kind: "stat",
+          title: "SGPA target",
+          label: "Required average grade point",
+          value: result.requiredAverageGradePoint,
+          unit: "",
+        },
+      };
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 400) throw err;
+      return toolFailure(
+        attendance ? "attendance" : "academic performance",
+        output,
+      );
+    }
   }
   const key = name.startsWith("get_") ? name.slice(4) : "";
   if (!Object.hasOwn(endpoints, key))
@@ -267,29 +497,39 @@ export async function runTool(
     throw new ApiError(400, "Record tools take no arguments.");
   const path = endpoints[key as keyof typeof endpoints];
   try {
-    const response = await fetch(
-      `${(env.STUDENT_API_BASE || "http://127.0.0.1:5000/api").replace(/\/$/, "")}${path}`,
-      {
-        method: "GET",
-        redirect: "error",
-        headers: authorization ? { Authorization: authorization } : {},
-        signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
-          : AbortSignal.timeout(10000),
-      },
-    );
-    if (!response.ok)
-      throw new ApiError(502, `Student API returned HTTP ${response.status}.`);
+    const response = await studentGet(path, env, authorization, signal);
     return {
       data: trim(JSON.parse(await boundedText(response, 2_000_000))),
       limits:
         "Arrays limited to first 100 items; text limited to 6000 characters. Do not assume these are complete records.",
     };
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw new ApiError(
-      502,
-      "Student API unavailable, timed out, or returned invalid JSON.",
-    );
+  } catch {
+    return toolFailure(key.replace(/_/g, " "), output);
   }
+}
+function toolFailure(label: string, output: Obj) {
+  const error = `Could not load ${label}.`;
+  (output.warnings ??= []).push(error);
+  return { error };
+}
+async function studentGet(
+  path: string,
+  env: NodeJS.ProcessEnv,
+  authorization?: string,
+  signal?: AbortSignal,
+) {
+  const response = await fetch(
+    `${(env.STUDENT_API_BASE || "http://127.0.0.1:5000/api").replace(/\/$/, "")}${path}`,
+    {
+      method: "GET",
+      redirect: "error",
+      headers: authorization ? { Authorization: authorization } : {},
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
+        : AbortSignal.timeout(10000),
+    },
+  );
+  if (!response.ok)
+    throw new ApiError(502, `Student API returned HTTP ${response.status}.`);
+  return response;
 }

@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import PDFDocument from "pdfkit";
-import { ApiError, object, type Obj } from "./tools.js";
+import { ApiError, object } from "./tools.js";
 import { validateCard } from "./student-tools.js";
 const PptxGenJS = createRequire(import.meta.url)("pptxgenjs");
 
@@ -8,6 +8,10 @@ export async function studentExport(body: unknown) {
   if (!object(body) || !["pptx", "pdf"].includes(body.format))
     throw new ApiError(400, "Export format must be pptx or pdf.");
   const card = validateCard(body.card);
+  if (!["study", "report"].includes(card.kind))
+    throw new ApiError(400, "Only study and report cards can be exported.");
+  if (card.kind === "report" && body.format === "pptx")
+    throw new ApiError(400, "Reports export as PDF.");
   const name =
     (card.title.replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 80) ||
       "student-export") + `.${body.format}`;
@@ -100,20 +104,8 @@ export async function studentExport(body: unknown) {
     for (const slide of card.slides)
       addSlide(slide.title, slide.bullets, slide.notes);
     for (const quiz of card.quiz || []) addSlide(quiz.question, [quiz.answer]);
-  } else {
-    if (!card.rows.length) addSlide(card.title, ["No records supplied."]);
-    for (let i = 0; i < card.rows.length; i += 4)
-      addSlide(
-        card.title,
-        card.rows
-          .slice(i, i + 4)
-          .map((row: Obj) =>
-            card.columns
-              .map((column: string) => `${column}: ${row[column]}`)
-              .join(" · "),
-          ),
-      );
   }
+
   return {
     buffer: (await deck.write({ outputType: "nodebuffer" })) as Buffer,
     mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
