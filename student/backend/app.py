@@ -1,4 +1,9 @@
 import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
+except ImportError:
+    pass
 import math
 import json
 import io
@@ -20,6 +25,10 @@ from auth.users import current_user_id, is_staff, scoped_student_id, scoped_usn,
 
 FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist'))
 app = Flask(__name__, static_folder=FRONTEND_DIST, static_url_path='')
+if os.environ.get('TRUST_PROXY') == '1':
+    # Render and similar hosts sit behind one proxy hop; trust it for the client IP used in rate limits.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 CORS(app, resources={r"/api/*": {"origins": cors_origins()}, r"/uploads/*": {"origins": "*"}})
 
 init_db()
