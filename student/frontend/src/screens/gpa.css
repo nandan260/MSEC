@@ -1,0 +1,37 @@
+/* The legacy index.css `*` rule forces a system font on every element, so one
+   root-level rule restores the theme body font; headings override below. */
+.gpa, .gpa * { font-family: var(--font-body); }
+.gpa .data-card-title, .gpa .section-title, .gpa .stat-tile strong, .gpa__big, .gpa__points { font-family: var(--font-head); }
+
+.gpa__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.gpa__stat--lead { background: var(--primary-tint); }
+.gpa__stat--lead strong { font-size: 28px; color: var(--primary); }
+.gpa .section-title { margin: 8px 0 0; }
+.gpa .card .section-title { margin: 0; }
+.gpa .data-card-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.gpa .data-card-meta .btn { min-height: 44px; }
+
+.gpa__tabs { display: flex; gap: 8px; }
+.gpa__tab { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 8px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 500; cursor: pointer; }
+.gpa__tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.gpa__tab--on { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
+
+.gpa__result { display: flex; flex-direction: column; gap: 8px; background: var(--primary-tint); }
+.gpa__label { margin: 0; font-size: 14px; color: var(--muted); }
+.gpa__big { margin: 0; font-size: 32px; font-weight: 700; line-height: 1.2; color: var(--primary); }
+.gpa__big small { font-size: 14px; font-weight: 500; color: var(--muted); }
+.gpa__note { margin: 0; font-size: 14px; color: var(--muted); }
+.gpa__formula { margin: 0; padding: 12px; border-radius: var(--radius-ctl); background: var(--surface); border: 1px solid var(--line); font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
+
+.gpa__row { display: flex; flex-direction: column; gap: 12px; }
+.gpa__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.gpa__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.gpa__points { font-size: 16px; font-weight: 700; color: var(--ink); }
+.gpa__points small { font-size: 12px; font-weight: 500; color: var(--muted); }
+.gpa__plain { font-size: 14px; color: var(--ink); }
+.gpa__msg { white-space: normal; align-self: flex-start; }
+.gpa__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.gpa__delete { color: var(--bad-ink); }
+.gpa__scale { display: flex; flex-direction: column; gap: 12px; }
+.gpa__scale summary { min-height: 44px; display: flex; align-items: center; font-size: 14px; font-weight: 600; cursor: pointer; }
+.gpa__need { font-size: 14px; color: var(--ink); }

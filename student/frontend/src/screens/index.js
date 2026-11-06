@@ -4,11 +4,12 @@ import AttendanceView from './AttendanceScreen';
 import AttendanceCalculatorView from './AttendanceCalculatorScreen';
 import AcademicPerformanceView from './AcademicsScreen';
 import TimetableView from './TimetableScreen';
+import AssignmentsView from './AssignmentsScreen';
+import NotesView from './NotesScreen';
+import ExaminationsView from './ExaminationsScreen';
+import GpaCalculatorView from './GpaCalculatorScreen';
+import PerformanceAnalyticsView from './PerformanceAnalyticsScreen';
 import {
-  AssignmentsView,
-  NotesView,
-  ExaminationsView,
-  GpaCalculatorView,
   StudentProfileView,
   PlacementsView,
   ProjectsView,
@@ -16,7 +17,6 @@ import {
   LibraryView,
   CampusServicesView,
   NotificationsView,
-  PerformanceAnalyticsView,
   FacultyDoubtPortalView,
 } from '../components/Modules/ModuleViews';
 import FacultyMentorView from '../components/Modules/FacultyMentorView';

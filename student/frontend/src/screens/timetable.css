@@ -20,7 +20,3 @@
 .timetable__row-actions .btn { flex: 1; }
 .timetable__delete { color: var(--bad-ink); }
 
-.timetable__scrim { position: fixed; inset: 0; z-index: 1000; display: flex; justify-content: center; padding: var(--pad); background: color-mix(in srgb, var(--ink) 50%, transparent); overflow-y: auto; }
-.timetable__sheet { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 480px; margin: auto; }
-.timetable__sheet .section-title { margin: 0; }
-.timetable__sheet .pill { white-space: normal; align-self: flex-start; }

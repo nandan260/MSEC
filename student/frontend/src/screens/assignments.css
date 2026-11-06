@@ -1,0 +1,14 @@
+/* The legacy index.css `*` rule forces a system font on every element, so one
+   root-level rule restores the theme body font; headings override below. */
+.assignments, .assignments * { font-family: var(--font-body); }
+.assignments .data-card-title, .assignments .section-title, .assignments__score { font-family: var(--font-head); }
+
+.assignments .section-title { margin: 8px 0 0; }
+.assignments .data-card-title { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.assignments .data-card-meta .btn { min-height: 44px; }
+.assignments__score { font-size: 16px; font-weight: 700; }
+.assignments__feedback { display: block; margin-top: 4px; font-size: 14px; color: var(--good-ink); }
+.assignments__pending { color: var(--muted); }
+.assignments__done { color: var(--good-ink); font-weight: 600; }
+.assignments__note { margin: 0; font-size: 14px; color: var(--muted); }
+.assignments__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

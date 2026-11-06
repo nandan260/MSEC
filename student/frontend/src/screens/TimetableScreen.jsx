@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
+import './shared.css';
 import './timetable.css';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -256,8 +257,8 @@ export default function TimetableView({ userRole }) {
       )}
 
       {showAddModal && (
-        <div className="timetable__scrim" role="dialog" aria-modal="true" aria-label={editingSlot ? 'Edit Timetable Entry' : 'Add New Timetable Entry'}>
-          <form ref={dialogRef} className="card timetable__sheet" onSubmit={handleSaveSlot}>
+        <div className="sheet-scrim" role="dialog" aria-modal="true" aria-label={editingSlot ? 'Edit Timetable Entry' : 'Add New Timetable Entry'}>
+          <form ref={dialogRef} className="card sheet" onSubmit={handleSaveSlot}>
             <h2 className="section-title">{editingSlot ? 'Edit Timetable Entry' : 'Add New Timetable Entry'}</h2>
             {saveError && <div className="pill pill--bad" role="alert">{saveError}</div>}
             <div className="field">

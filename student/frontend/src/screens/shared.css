@@ -1,0 +1,9 @@
+/* Bottom-sheet dialog shared by screens that open a modal form. */
+.sheet-scrim { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; justify-content: center; padding: var(--pad); background: color-mix(in srgb, var(--ink) 50%, transparent); overflow-y: auto; }
+.sheet { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 480px; margin: auto; }
+.sheet .section-title { margin: 0; }
+.sheet .pill { white-space: normal; align-self: flex-start; }
+.sheet-actions { display: flex; gap: 8px; }
+.sheet-actions .btn { flex: 1; }
+.sheet .sticky-actions { bottom: 0; padding: 12px 0 0; background: var(--surface); border-top: 1px solid var(--line); }
+.sheet .sticky-actions .btn { flex: 1; }

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api';
 import DataCards from '../components/DataCards';
 import ErrorCard from '../components/ErrorCard';
+import './shared.css';
 import './academics.css';
 
 const gradeFor = (total) => {
@@ -178,8 +179,8 @@ export default function AcademicPerformanceView({ userRole }) {
       )}
 
       {editingMark && (
-        <div className="academics__scrim" role="dialog" aria-modal="true" aria-label={`Update marks ${editingMark.course_code}`}>
-          <form ref={dialogRef} className="card academics__sheet" onSubmit={handleUpdateMarks}>
+        <div className="sheet-scrim" role="dialog" aria-modal="true" aria-label={`Update marks ${editingMark.course_code}`}>
+          <form ref={dialogRef} className="card sheet" onSubmit={handleUpdateMarks}>
             <h2 className="section-title">Update Marks: {editingMark.course_code}</h2>
             <p className="academics__note">
               {editingMark.course_title} (Credits: {editingMark.credits})
@@ -204,7 +205,7 @@ export default function AcademicPerformanceView({ userRole }) {
                 Projected grade {previewGrade} ({previewTotal >= 40 && formExternal >= 18 ? 'Pass' : 'Fail'})
               </span>
             </div>
-            <div className="academics__actions">
+            <div className="sheet-actions">
               <button type="submit" className="btn btn-primary">Save Updated Marks</button>
               <button type="button" className="btn" onClick={() => setEditingMark(null)}>Cancel</button>
             </div>
