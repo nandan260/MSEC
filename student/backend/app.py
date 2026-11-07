@@ -24,14 +24,31 @@ from auth.routes import bp as auth_bp, cors_origins
 from auth.teacher import bp as teacher_bp
 from auth.admin import bp as admin_bp
 from auth.users import current_user_id, is_staff, scoped_student_id, scoped_usn, scoped_name, staff_can_access_student, fee_student_id
-
 FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist'))
 app = Flask(__name__, static_folder=FRONTEND_DIST, static_url_path='')
-if os.environ.get('TRUST_PROXY') == '1':
-    # Render and similar hosts sit behind one proxy hop; trust it for the client IP used in rate limits.
-    from werkzeug.middleware.proxy_fix import ProxyFix
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-CORS(app, resources={r"/api/*": {"origins": cors_origins()}, r"/uploads/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+# Universal CORS handler: ensures EVERY request (including OPTIONS preflights) gets CORS headers
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        res = app.make_default_options_response()
+        res.headers['Access-Control-Allow-Origin'] = '*'
+        res.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+        res.headers['Access-Control-Allow-Headers'] = '*'
+        return res
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+    response.headers['Access-Control-Allow-Headers'] = '*'
+    return response
+
+# Missing auth config route that the frontend is requesting
+@app.route('/api/auth/config', methods=['GET', 'OPTIONS'])
+def auth_config():
+    return jsonify({'status': 'ok', 'auth_ready': True})
 
 init_db()
 app.register_blueprint(auth_bp)
