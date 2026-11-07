@@ -868,10 +868,32 @@ def init_db():
     if cursor.fetchone()[0] == 0:
         seed_faculty_mentor_data(conn)
 
-    # Seed Fees Management module if empty
+      # Seed Fees Management module if empty
     cursor.execute("SELECT COUNT(*) FROM fee_structures")
     if cursor.fetchone()[0] == 0:
         seed_fees_data(conn)
+
+    # ── Ensure Vinay and Nandan are always created in the database ──
+    allowed_members = [
+        ("vinaygk219@gmail.com", "vinay@123", "Vinay G K", "1MS21CS001"),
+        ("nandannandan2468@gmail.com", "nandan@123", "Nandan", "1MS21CS002")
+    ]
+    for m_email, m_pass, m_name, m_usn in allowed_members:
+        cursor.execute("SELECT id FROM users WHERE LOWER(email) = ?", (m_email.lower(),))
+        existing_user = cursor.fetchone()
+        hashed_pw = generate_password_hash(m_pass)
+        if not existing_user:
+            cursor.execute("""
+                INSERT INTO users (email, password_hash, role, name, identifier, department, semester, active)
+                VALUES (?, ?, 'student', ?, ?, 'Computer Science & Engineering', 6, 1)
+            """, (m_email.lower(), hashed_pw, m_name, m_usn))
+            new_uid = cursor.lastrowid
+            cursor.execute("""
+                INSERT INTO student_profiles (user_id, usn, name, department, semester, email, phone)
+                VALUES (?, ?, ?, 'Computer Science & Engineering', 6, ?, '+91 98765 43210')
+            """, (new_uid, m_usn, m_name, m_email.lower()))
+        else:
+            cursor.execute("UPDATE users SET password_hash = ?, active = 1 WHERE id = ?", (hashed_pw, existing_user['id']))
 
     conn.commit()
     conn.close()
